@@ -9,8 +9,8 @@
 class TutorialApplication : public BaseApplication
 {
 public:
-  TutorialApplication();
-  virtual ~TutorialApplication();
+    TutorialApplication() {};
+    virtual ~TutorialApplication() {};
 protected:
   virtual void createScene();
   virtual bool frameStarted(const Ogre::FrameEvent& fe) override; // From Ogre::SceneManager
@@ -23,14 +23,6 @@ private:
 ///////////////////////////// SOURCE ///////////////////////////////////
 
 
-TutorialApplication::TutorialApplication()
-{
-}
- 
-TutorialApplication::~TutorialApplication()
-{
-}
-
 void TutorialApplication::createFrameListener() 
 {
     BaseApplication::createFrameListener(); // Also creates OIS objects
@@ -42,13 +34,8 @@ void TutorialApplication::createFrameListener()
  
 void TutorialApplication::createScene()
 {
-  mSceneMgr->setAmbientLight(Ogre::ColourValue(.25, .25, .25));
- 
-  Ogre::Light* pointLight = mSceneMgr->createLight("PointLight");
-  pointLight->setType(Ogre::Light::LT_POINT);
-  pointLight->setPosition(250, 150, 250);
-  pointLight->setDiffuseColour(Ogre::ColourValue::White);
-  pointLight->setSpecularColour(Ogre::ColourValue::White);
+  mSceneMgr->setAmbientLight(Ogre::ColourValue(.7f, .7f, .7f));
+  mCamera->getViewport()->setBackgroundColour(Ogre::ColourValue(0.f, 0.2f, 0.1f)); // Dark green
  
   Ogre::Entity* ninjaEntity = mSceneMgr->createEntity("ninja.mesh");
   Ogre::SceneNode* ninjaNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("NinjaNode");
@@ -75,32 +62,8 @@ bool TutorialApplication::frameStarted(const Ogre::FrameEvent& fe)
 bool TutorialApplication::processUnbufferedInput(const Ogre::FrameEvent& fe)
 {
 
-  static bool mouseDownLastFrame = false;
-  static Ogre::Real toggleTimer = 0.0;
   static Ogre::Real rotate = static_cast<Ogre::Real>(.13);
   static Ogre::Real move = 250;
- 
-  // First toggle method
-  bool leftMouseDown = mMouse->getMouseState().buttonDown(OIS::MB_Left);
- 
-  if (leftMouseDown && !mouseDownLastFrame)
-  {
-    Ogre::Light* light = mSceneMgr->getLight("PointLight");
-    light->setVisible(!light->isVisible());
-  }
- 
-  mouseDownLastFrame = leftMouseDown;
- 
-  // Second toggle method
-  toggleTimer -= fe.timeSinceLastFrame;
- 
-  if ((toggleTimer < 0) && mMouse->getMouseState().buttonDown(OIS::MB_Right))
-  {
-    toggleTimer = .5;
- 
-    Ogre::Light* light = mSceneMgr->getLight("PointLight");
-    light->setVisible(!light->isVisible());
-  }
  
   // Moving the Ninja
   Ogre::Vector3 dirVec = Ogre::Vector3::ZERO;
