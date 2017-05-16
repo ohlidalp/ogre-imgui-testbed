@@ -42,8 +42,7 @@ void TutorialApplication::createScene()
   pointLight->setSpecularColour(Ogre::ColourValue::White);
  
   Ogre::Entity* ninjaEntity = mSceneMgr->createEntity("ninja.mesh");
-  Ogre::SceneNode* ninjaNode = mSceneMgr->getRootSceneNode()->createChildSceneNode(
-    "NinjaNode");
+  Ogre::SceneNode* ninjaNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("NinjaNode");
   ninjaNode->attachObject(ninjaEntity);
  
 }
@@ -124,33 +123,19 @@ bool TutorialApplication::processUnbufferedInput(const Ogre::FrameEvent& fe)
  
   return true;
 }
- 
- 
-#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
-#define WIN32_LEAN_AND_MEAN
-#include "windows.h"
-#endif
 
 int main(int argc, char *argv[])
-  {
-    // Create application object
-    TutorialApplication app;
- 
-    try {
-      app.go();
-    } catch(Ogre::Exception& e)  {
-#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
-      MessageBoxA(
-        NULL, 
-        e.getFullDescription().c_str(), 
-        "An exception has occurred!", 
-        MB_OK | MB_ICONERROR | MB_TASKMODAL);
-#else
-      std::cerr << "An exception has occurred: " <<
-	e.getFullDescription().c_str() << std::endl;
-#endif
+{
+    try
+    {
+        TutorialApplication app;
+        app.go();
     }
- 
+    catch(Ogre::Exception& e)
+    {
+        std::cerr << "An exception has occurred: " << e.getFullDescription().c_str() << std::endl;
+    }
+
     return 0;
-  }
+}
 
