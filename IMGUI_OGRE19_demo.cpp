@@ -1,11 +1,10 @@
 // IMGUI_OGRE19_demo.cpp : Defines the entry point for the console application.
 //
 
-#include "stdafx.h"
-
 ///////////////////////////// HEADER ////////////////////////////////
  
 #include "BaseApplication.h"
+#include "ImguiManager.h"
  
 class TutorialApplication : public BaseApplication
 {
@@ -14,7 +13,8 @@ public:
   virtual ~TutorialApplication();
 protected:
   virtual void createScene();
-  virtual bool frameRenderingQueued(const Ogre::FrameEvent& fe);
+  virtual bool frameStarted(const Ogre::FrameEvent& fe) override; // From Ogre::SceneManager
+  virtual void createFrameListener() override; // From BaseApplication
 private:
   bool processUnbufferedInput(const Ogre::FrameEvent& fe);
 };
@@ -30,6 +30,15 @@ TutorialApplication::TutorialApplication()
 TutorialApplication::~TutorialApplication()
 {
 }
+
+void TutorialApplication::createFrameListener() 
+{
+    BaseApplication::createFrameListener(); // Also creates OIS objects
+
+    // === Create IMGUI ====
+    Ogre::ImguiManager::createSingleton();
+    Ogre::ImguiManager::getSingleton().init(mSceneMgr, mKeyboard, mMouse); // OIS mouse + keyboard
+}
  
 void TutorialApplication::createScene()
 {
@@ -44,21 +53,28 @@ void TutorialApplication::createScene()
   Ogre::Entity* ninjaEntity = mSceneMgr->createEntity("ninja.mesh");
   Ogre::SceneNode* ninjaNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("NinjaNode");
   ninjaNode->attachObject(ninjaEntity);
- 
 }
  
-bool TutorialApplication::frameRenderingQueued(const Ogre::FrameEvent& fe)
+bool TutorialApplication::frameStarted(const Ogre::FrameEvent& fe)
 {
-  bool ret = BaseApplication::frameRenderingQueued(fe);
+    bool ret = BaseApplication::frameRenderingQueued(fe); // Captures OIS input
+
+    // ===== Start IMGUI frame =====
+    Ogre::Rect screen_size(0,0,mWindow->getWidth(),mWindow->getHeight());
+    Ogre::ImguiManager::getSingleton().newFrame(fe.timeSinceLastFrame, screen_size);
+
+    // ===== Draw IMGUI demo window ====
+    ImGui::ShowTestWindow();
  
-  if (!processUnbufferedInput(fe))
+    if (!processUnbufferedInput(fe))
     return false;
  
-  return ret;
+    return ret;
 }
  
 bool TutorialApplication::processUnbufferedInput(const Ogre::FrameEvent& fe)
 {
+
   static bool mouseDownLastFrame = false;
   static Ogre::Real toggleTimer = 0.0;
   static Ogre::Real rotate = static_cast<Ogre::Real>(.13);
