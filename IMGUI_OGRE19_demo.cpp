@@ -44,7 +44,9 @@ void TutorialApplication::createScene()
  
 bool TutorialApplication::frameStarted(const Ogre::FrameEvent& fe)
 {
-    bool ret = BaseApplication::frameRenderingQueued(fe); // Captures OIS input
+    // Need to capture/update each device
+    mKeyboard->capture();
+    mMouse->capture();
 
     // ===== Start IMGUI frame =====
     Ogre::Rect screen_size(0,0,mWindow->getWidth(),mWindow->getHeight());
@@ -52,13 +54,10 @@ bool TutorialApplication::frameStarted(const Ogre::FrameEvent& fe)
 
     // ===== Draw IMGUI demo window ====
     ImGui::ShowTestWindow();
- 
-    if (!processUnbufferedInput(fe))
-    return false;
- 
-    return ret;
+
+    return processUnbufferedInput(fe);
 }
- 
+
 bool TutorialApplication::processUnbufferedInput(const Ogre::FrameEvent& fe)
 {
 
