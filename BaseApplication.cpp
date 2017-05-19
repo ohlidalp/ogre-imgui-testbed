@@ -29,7 +29,13 @@ static OIS::InputManager*          mInputManager = nullptr;
 static OIS::Mouse*                 mMouse        = nullptr;
 static OIS::Keyboard*              mKeyboard     = nullptr;
 
-class BaseApplication : public Ogre::FrameListener, public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener
+class MiniFrameListener: public Ogre::FrameListener
+{
+    virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt) override;
+    virtual bool frameStarted(const Ogre::FrameEvent& evt) override;
+};
+
+class BaseApplication :  public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener
 {
 public:
     void Shutdown();
@@ -43,9 +49,7 @@ public:
 
     void loadResources(void);
 
-    // Ogre FrameListener
-    virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt) override;
-    virtual bool frameStarted(const Ogre::FrameEvent& evt) override;
+
 
     // OIS KeyListener
     virtual bool keyPressed(const OIS::KeyEvent &arg) override;
@@ -77,7 +81,9 @@ int main(int argc, char *argv[])
             return 0;
         }
 
-        
+        MiniFrameListener frame_listener;
+        mRoot->addFrameListener(&frame_listener);
+
         mRoot->startRendering();
         app.Shutdown();
     }
@@ -181,7 +187,7 @@ void BaseApplication::createFrameListener(void)
     // Register as a Window listener
     Ogre::WindowEventUtilities::addWindowEventListener(mWindow, this);
 
-    mRoot->addFrameListener(this);
+    
 
     // === Create IMGUI ====
     Ogre::ImguiManager::createSingleton();
@@ -201,7 +207,7 @@ void BaseApplication::createViewports(void)
 //---------------------------------------------------------------------------
 
 
-bool BaseApplication::frameStarted(const Ogre::FrameEvent& fe)
+bool MiniFrameListener::frameStarted(const Ogre::FrameEvent& fe)
 {
     // Need to capture/update each device
     mKeyboard->capture();
@@ -258,7 +264,7 @@ bool BaseApplication::setup(void)
     return true;
 };
 //---------------------------------------------------------------------------
-bool BaseApplication::frameRenderingQueued(const Ogre::FrameEvent& evt)
+bool MiniFrameListener::frameRenderingQueued(const Ogre::FrameEvent& evt)
 {
     if(mWindow->isClosed())
         return false;
