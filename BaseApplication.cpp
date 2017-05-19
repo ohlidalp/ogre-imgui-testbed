@@ -1,51 +1,93 @@
-/*
------------------------------------------------------------------------------
-Filename:    BaseApplication.cpp
------------------------------------------------------------------------------
 
-This source file is part of the
-   ___                 __    __ _ _    _
-  /___\__ _ _ __ ___  / / /\ \ (_) | _(_)
- //  // _` | '__/ _ \ \ \/  \/ / | |/ / |
-/ \_// (_| | | |  __/  \  /\  /| |   <| |
-\___/ \__, |_|  \___|   \/  \/ |_|_|\_\_|
-      |___/
-Tutorial Framework (for Ogre 1.9)
-http://www.ogre3d.org/wiki/
------------------------------------------------------------------------------
-*/
-#include "stdafx.h" // precompiled!!
 
-#include "BaseApplication.h"
+#include <OgreCamera.h>
+#include <OgreEntity.h>
+#include <OgreLogManager.h>
+#include <OgreRoot.h>
+#include <OgreViewport.h>
+#include <OgreSceneManager.h>
+#include <OgreRenderWindow.h>
+#include <OgreConfigFile.h>
+
+
+#  include <OISEvents.h>
+#  include <OISInputManager.h>
+#  include <OISKeyboard.h>
+#  include <OISMouse.h>
+
 #include "ImguiManager.h"
+
+static Ogre::Root*                 mRoot       = nullptr;
+static Ogre::Camera*               mCamera     = nullptr;
+static Ogre::SceneManager*         mSceneMgr   = nullptr;
+static Ogre::RenderWindow*         mWindow     = nullptr;
+
+static bool                        mShutDown = false;
+
+//OIS Input devices
+static OIS::InputManager*          mInputManager = nullptr;
+static OIS::Mouse*                 mMouse        = nullptr;
+static OIS::Keyboard*              mKeyboard     = nullptr;
+
+class BaseApplication : public Ogre::FrameListener, public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener
+{
+public:
+    void Shutdown();
+    bool setup();
+    bool configure(void);
+    void chooseSceneManager(void);
+    void createCamera(void);
+    void createFrameListener(void);
+    void createScene(void);
+    void createViewports(void);
+
+    void loadResources(void);
+
+    // Ogre FrameListener
+    virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt) override;
+    virtual bool frameStarted(const Ogre::FrameEvent& evt) override;
+
+    // OIS KeyListener
+    virtual bool keyPressed(const OIS::KeyEvent &arg) override;
+    virtual bool keyReleased(const OIS::KeyEvent &arg) override;
+
+    // OIS MouseListener
+    virtual bool mouseMoved(const OIS::MouseEvent &arg) override;
+    virtual bool mousePressed(const OIS::MouseEvent &arg, OIS::MouseButtonID id) override;
+    virtual bool mouseReleased(const OIS::MouseEvent &arg, OIS::MouseButtonID id) override;
+
+    // --  Ogre::WindowEventListener --
+
+    // Adjust mouse clipping area
+    virtual void windowResized(Ogre::RenderWindow* rw) override;
+    // Unattach OIS before window shutdown (very important under Linux)
+    virtual void windowClosed(Ogre::RenderWindow* rw) override;
+
+};
 
 int main(int argc, char *argv[])
 {
     try
     {
         BaseApplication app;
-        app.go();
+
+        if (!app.setup())
+        {
+            app.Shutdown();
+            return 0;
+        }
+
+        
+        mRoot->startRendering();
+        app.Shutdown();
     }
     catch(Ogre::Exception& e)
     {
         std::cerr << "An exception has occurred: " << e.getFullDescription().c_str() << std::endl;
     }
 
+    
     return 0;
-}
-
-//---------------------------------------------------------------------------
-BaseApplication::BaseApplication(void)
-    : mRoot(0),
-    mCamera(0),
-    mSceneMgr(0),
-    mWindow(0),
-    mPluginsCfg(Ogre::StringUtil::BLANK),
-    mShutDown(false),
-    mInputManager(0),
-    mMouse(0),
-    mKeyboard(0)
-{
 }
 
 void BaseApplication::createScene()
@@ -56,7 +98,7 @@ void BaseApplication::createScene()
 }
 
 //---------------------------------------------------------------------------
-BaseApplication::~BaseApplication(void)
+void BaseApplication::Shutdown(void)
 {
 
     // Remove ourself as a Window listener
@@ -180,23 +222,16 @@ void BaseApplication::loadResources(void)
 {
     Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups();
 }
-//---------------------------------------------------------------------------
-void BaseApplication::go(void)
-{
-#ifdef _DEBUG
-    mPluginsCfg = "plugins_d.cfg";
-#else
-    mPluginsCfg = "plugins.cfg";
-#endif
 
-    if (!setup())
-        return;
-
-    mRoot->startRendering();
-}
 //---------------------------------------------------------------------------
 bool BaseApplication::setup(void)
 {
+#ifdef _DEBUG
+    std::string mPluginsCfg = "plugins_d.cfg";
+#else
+    std::string mPluginsCfg = "plugins.cfg";
+#endif
+
     mRoot = new Ogre::Root(mPluginsCfg);
 
 

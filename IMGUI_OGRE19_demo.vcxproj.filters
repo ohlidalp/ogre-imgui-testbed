@@ -22,9 +22,6 @@
     <ClInclude Include="targetver.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="BaseApplication.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="lib\DearIMGUI\imconfig.h">
       <Filter>lib/DearIMGUI</Filter>
     </ClInclude>

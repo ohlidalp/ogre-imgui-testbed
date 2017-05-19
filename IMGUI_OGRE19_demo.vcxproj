@@ -154,7 +154,6 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BaseApplication.h" />
     <ClInclude Include="lib\DearIMGUI\imconfig.h" />
     <ClInclude Include="lib\DearIMGUI\imgui.h" />
     <ClInclude Include="lib\DearIMGUI\imgui_internal.h" />
