@@ -12,5 +12,8 @@ ipch
 # Not included so that every user makes his pick on first run
 ogre.cfg
 
+# IMGUI configfile, generated
+imgui.ini
+
 # logfile
 Ogre.log

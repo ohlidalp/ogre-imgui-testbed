@@ -17,6 +17,7 @@ http://www.ogre3d.org/wiki/
 #include "stdafx.h" // precompiled!!
 
 #include "BaseApplication.h"
+#include "ImguiManager.h"
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
 #include <macUtils.h>
@@ -114,6 +115,17 @@ void BaseApplication::createFrameListener(void)
     mWindow->getCustomAttribute("WINDOW", &windowHnd);
     windowHndStr << windowHnd;
     pl.insert(std::make_pair(std::string("WINDOW"), windowHndStr.str()));
+#if OGRE_PLATFORM == OGRE_PLATFORM_LINUX
+            pl.insert(OIS::ParamList::value_type("x11_mouse_hide", "false"));
+            pl.insert(OIS::ParamList::value_type("XAutoRepeatOn", "false"));
+            pl.insert(OIS::ParamList::value_type("x11_mouse_grab", "false"));
+   // RoR         pl.insert(OIS::ParamList::value_type("x11_keyboard_grab", "false"));
+#else
+            pl.insert(OIS::ParamList::value_type("w32_mouse", "DISCL_FOREGROUND"));
+            pl.insert(OIS::ParamList::value_type("w32_mouse", "DISCL_NONEXCLUSIVE"));
+   // RoR         pl.insert(OIS::ParamList::value_type("w32_keyboard", "DISCL_FOREGROUND"));
+   // RoR         pl.insert(OIS::ParamList::value_type("w32_keyboard", "DISCL_NONEXCLUSIVE"));
+#endif // LINUX
 
     mInputManager = OIS::InputManager::createInputSystem(pl);
 
@@ -392,12 +404,14 @@ bool BaseApplication::keyPressed( const OIS::KeyEvent &arg )
     }
 
     mCameraMan->injectKeyDown(arg);
+    Ogre::ImguiManager::getSingleton().keyPressed(arg);
     return true;
 }
 //---------------------------------------------------------------------------
 bool BaseApplication::keyReleased(const OIS::KeyEvent &arg)
 {
     mCameraMan->injectKeyUp(arg);
+    Ogre::ImguiManager::getSingleton().keyReleased(arg);
     return true;
 }
 //---------------------------------------------------------------------------
@@ -405,6 +419,7 @@ bool BaseApplication::mouseMoved(const OIS::MouseEvent &arg)
 {
     if (mTrayMgr->injectMouseMove(arg)) return true;
     mCameraMan->injectMouseMove(arg);
+    Ogre::ImguiManager::getSingleton().mouseMoved(arg);
     return true;
 }
 //---------------------------------------------------------------------------
@@ -412,6 +427,7 @@ bool BaseApplication::mousePressed(const OIS::MouseEvent &arg, OIS::MouseButtonI
 {
     if (mTrayMgr->injectMouseDown(arg, id)) return true;
     mCameraMan->injectMouseDown(arg, id);
+    Ogre::ImguiManager::getSingleton().mousePressed(arg, id);
     return true;
 }
 //---------------------------------------------------------------------------
@@ -419,6 +435,7 @@ bool BaseApplication::mouseReleased(const OIS::MouseEvent &arg, OIS::MouseButton
 {
     if (mTrayMgr->injectMouseUp(arg, id)) return true;
     mCameraMan->injectMouseUp(arg, id);
+    Ogre::ImguiManager::getSingleton().mouseReleased(arg, id);
     return true;
 }
 //---------------------------------------------------------------------------
