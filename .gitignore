@@ -17,3 +17,6 @@ imgui.ini
 
 # logfile
 Ogre.log
+
+# Font texture debug output
+FontTexture_*.png
