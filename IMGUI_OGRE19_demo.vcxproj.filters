@@ -69,9 +69,6 @@
     <ClCompile Include="BaseApplication.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="IMGUI_OGRE19_demo.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="stdafx.cpp">
       <Filter>src</Filter>
     </ClCompile>

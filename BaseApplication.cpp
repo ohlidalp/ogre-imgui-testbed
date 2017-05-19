@@ -19,19 +19,40 @@ http://www.ogre3d.org/wiki/
 #include "BaseApplication.h"
 #include "ImguiManager.h"
 
+int main(int argc, char *argv[])
+{
+    try
+    {
+        BaseApplication app;
+        app.go();
+    }
+    catch(Ogre::Exception& e)
+    {
+        std::cerr << "An exception has occurred: " << e.getFullDescription().c_str() << std::endl;
+    }
+
+    return 0;
+}
+
 //---------------------------------------------------------------------------
 BaseApplication::BaseApplication(void)
     : mRoot(0),
     mCamera(0),
     mSceneMgr(0),
     mWindow(0),
-    mResourcesCfg(Ogre::StringUtil::BLANK),
     mPluginsCfg(Ogre::StringUtil::BLANK),
     mShutDown(false),
     mInputManager(0),
     mMouse(0),
     mKeyboard(0)
 {
+}
+
+void BaseApplication::createScene()
+{
+  mSceneMgr->setAmbientLight(Ogre::ColourValue(.7f, .7f, .7f));
+  mCamera->getViewport()->setBackgroundColour(Ogre::ColourValue(0.f, 0.2f, 0.1f)); // Dark green
+ 
 }
 
 //---------------------------------------------------------------------------
@@ -119,6 +140,10 @@ void BaseApplication::createFrameListener(void)
     Ogre::WindowEventUtilities::addWindowEventListener(mWindow, this);
 
     mRoot->addFrameListener(this);
+
+    // === Create IMGUI ====
+    Ogre::ImguiManager::createSingleton();
+    Ogre::ImguiManager::getSingleton().init(mSceneMgr, mKeyboard, mMouse); // OIS mouse + keyboard
 }
 
 //---------------------------------------------------------------------------
@@ -132,43 +157,24 @@ void BaseApplication::createViewports(void)
     mCamera->setAspectRatio(Ogre::Real(vp->getActualWidth()) / Ogre::Real(vp->getActualHeight()));
 }
 //---------------------------------------------------------------------------
-void BaseApplication::setupResources(void)
+
+
+bool BaseApplication::frameStarted(const Ogre::FrameEvent& fe)
 {
-    // Load resource paths from config file
-    Ogre::ConfigFile cf;
-    cf.load(mResourcesCfg);
+    // Need to capture/update each device
+    mKeyboard->capture();
+    mMouse->capture();
 
-    // Go through all sections & settings in the file
-    Ogre::ConfigFile::SectionIterator seci = cf.getSectionIterator();
+    // ===== Start IMGUI frame =====
+    Ogre::Rect screen_size(0,0,mWindow->getWidth(),mWindow->getHeight());
+    Ogre::ImguiManager::getSingleton().newFrame(fe.timeSinceLastFrame, screen_size);
 
-    Ogre::String secName, typeName, archName;
-    while (seci.hasMoreElements())
-    {
-        secName = seci.peekNextKey();
-        Ogre::ConfigFile::SettingsMultiMap *settings = seci.getNext();
-        Ogre::ConfigFile::SettingsMultiMap::iterator i;
-        for (i = settings->begin(); i != settings->end(); ++i)
-        {
-            typeName = i->first;
-            archName = i->second;
+    // ===== Draw IMGUI demo window ====
+    ImGui::ShowTestWindow();
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
-            // OS X does not set the working directory relative to the app.
-            // In order to make things portable on OS X we need to provide
-            // the loading with it's own bundle path location.
-            if (!Ogre::StringUtil::startsWith(archName, "/", false)) // only adjust relative directories
-                archName = Ogre::String(Ogre::macBundlePath() + "/" + archName);
-#endif
-
-            Ogre::ResourceGroupManager::getSingleton().addResourceLocation(
-                archName, typeName, secName);
-        }
-    }
+    return true;
 }
-//---------------------------------------------------------------------------
-void BaseApplication::createResourceListener(void)
-{
-}
+
 //---------------------------------------------------------------------------
 void BaseApplication::loadResources(void)
 {
@@ -178,10 +184,8 @@ void BaseApplication::loadResources(void)
 void BaseApplication::go(void)
 {
 #ifdef _DEBUG
-    mResourcesCfg = "resources_d.cfg";
     mPluginsCfg = "plugins_d.cfg";
 #else
-    mResourcesCfg = "resources.cfg";
     mPluginsCfg = "plugins.cfg";
 #endif
 
@@ -195,7 +199,7 @@ bool BaseApplication::setup(void)
 {
     mRoot = new Ogre::Root(mPluginsCfg);
 
-    setupResources();
+
 
     bool carryOn = configure();
     if (!carryOn) return false;
@@ -207,8 +211,7 @@ bool BaseApplication::setup(void)
     // Set default mipmap level (NB some APIs ignore this)
     Ogre::TextureManager::getSingleton().setDefaultNumMipmaps(5);
 
-    // Create any resource listeners (for loading screens)
-    createResourceListener();
+
     // Load resources
     loadResources();
 

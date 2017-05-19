@@ -168,7 +168,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BaseApplication.cpp" />
-    <ClCompile Include="IMGUI_OGRE19_demo.cpp" />
     <ClCompile Include="lib\DearIMGUI\imgui.cpp" />
     <ClCompile Include="lib\DearIMGUI\imgui_demo.cpp" />
     <ClCompile Include="lib\DearIMGUI\imgui_draw.cpp" />

@@ -46,34 +46,40 @@ public:
     virtual void go(void);
 
 protected:
-    virtual bool setup();
-    virtual bool configure(void);
-    virtual void chooseSceneManager(void);
-    virtual void createCamera(void);
-    virtual void createFrameListener(void);
-    virtual void createScene(void) = 0; // Override me!
-    virtual void createViewports(void);
-    virtual void setupResources(void);
-    virtual void createResourceListener(void);
-    virtual void loadResources(void);
-    virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt);
+    bool setup();
+    bool configure(void);
+    void chooseSceneManager(void);
+    void createCamera(void);
+    void createFrameListener(void);
+    void createScene(void);
+    void createViewports(void);
 
-    virtual bool keyPressed(const OIS::KeyEvent &arg);
-    virtual bool keyReleased(const OIS::KeyEvent &arg);
-    virtual bool mouseMoved(const OIS::MouseEvent &arg);
-    virtual bool mousePressed(const OIS::MouseEvent &arg, OIS::MouseButtonID id);
-    virtual bool mouseReleased(const OIS::MouseEvent &arg, OIS::MouseButtonID id);
+    void loadResources(void);
+
+    // Ogre FrameListener
+    virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt) override;
+    virtual bool frameStarted(const Ogre::FrameEvent& evt) override;
+
+    // OIS KeyListener
+    virtual bool keyPressed(const OIS::KeyEvent &arg) override;
+    virtual bool keyReleased(const OIS::KeyEvent &arg) override;
+
+    // OIS MouseListener
+    virtual bool mouseMoved(const OIS::MouseEvent &arg) override;
+    virtual bool mousePressed(const OIS::MouseEvent &arg, OIS::MouseButtonID id) override;
+    virtual bool mouseReleased(const OIS::MouseEvent &arg, OIS::MouseButtonID id) override;
+
+    // --  Ogre::WindowEventListener --
 
     // Adjust mouse clipping area
-    virtual void windowResized(Ogre::RenderWindow* rw);
+    virtual void windowResized(Ogre::RenderWindow* rw) override;
     // Unattach OIS before window shutdown (very important under Linux)
-    virtual void windowClosed(Ogre::RenderWindow* rw);
+    virtual void windowClosed(Ogre::RenderWindow* rw) override;
 
     Ogre::Root*                 mRoot;
     Ogre::Camera*               mCamera;
     Ogre::SceneManager*         mSceneMgr;
     Ogre::RenderWindow*         mWindow;
-    Ogre::String                mResourcesCfg;
     Ogre::String                mPluginsCfg;
 
     bool                        mShutDown;
