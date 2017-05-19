@@ -27,48 +27,17 @@ http://www.ogre3d.org/wiki/
 #include <OgreRenderWindow.h>
 #include <OgreConfigFile.h>
 
-#if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
-#  include <OIS/OISEvents.h>
-#  include <OIS/OISInputManager.h>
-#  include <OIS/OISKeyboard.h>
-#  include <OIS/OISMouse.h>
 
-#  include <OGRE/SdkTrays.h>
-#  include <OGRE/SdkCameraMan.h>
-#else
 #  include <OISEvents.h>
 #  include <OISInputManager.h>
 #  include <OISKeyboard.h>
 #  include <OISMouse.h>
 
-#  include <SdkTrays.h>
-#  include <SdkCameraMan.h>
-#endif
 
-#ifdef OGRE_STATIC_LIB
-#  define OGRE_STATIC_GL
-#  if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
-#    define OGRE_STATIC_Direct3D9
-// D3D10 will only work on vista, so be careful about statically linking
-#    if OGRE_USE_D3D10
-#      define OGRE_STATIC_Direct3D10
-#    endif
-#  endif
-#  define OGRE_STATIC_BSPSceneManager
-#  define OGRE_STATIC_ParticleFX
-#  define OGRE_STATIC_CgProgramManager
-#  ifdef OGRE_USE_PCZ
-#    define OGRE_STATIC_PCZSceneManager
-#    define OGRE_STATIC_OctreeZone
-#  else
-#    define OGRE_STATIC_OctreeSceneManager
-#  endif
-#  include "OgreStaticPluginLoader.h"
-#endif
 
 //---------------------------------------------------------------------------
 
-class BaseApplication : public Ogre::FrameListener, public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener, OgreBites::SdkTrayListener
+class BaseApplication : public Ogre::FrameListener, public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener
 {
 public:
     BaseApplication(void);
@@ -83,7 +52,6 @@ protected:
     virtual void createCamera(void);
     virtual void createFrameListener(void);
     virtual void createScene(void) = 0; // Override me!
-    virtual void destroyScene(void);
     virtual void createViewports(void);
     virtual void setupResources(void);
     virtual void createResourceListener(void);
@@ -108,14 +76,6 @@ protected:
     Ogre::String                mResourcesCfg;
     Ogre::String                mPluginsCfg;
 
-    Ogre::OverlaySystem*        mOverlaySystem;
-
-    // OgreBites
-    OgreBites::InputContext     mInputContext;
-    OgreBites::SdkTrayManager*	mTrayMgr;
-    OgreBites::SdkCameraMan*    mCameraMan;     	// Basic camera controller
-    OgreBites::ParamsPanel*     mDetailsPanel;   	// Sample details panel
-    bool                        mCursorWasVisible;	// Was cursor visible before dialog appeared?
     bool                        mShutDown;
 
     //OIS Input devices
@@ -123,12 +83,6 @@ protected:
     OIS::Mouse*                 mMouse;
     OIS::Keyboard*              mKeyboard;
 
-    // Added for Mac compatibility
-    Ogre::String                 m_ResourcePath;
-
-#ifdef OGRE_STATIC_LIB
-    Ogre::StaticPluginLoader m_StaticPluginLoader;
-#endif
 };
 
 //---------------------------------------------------------------------------

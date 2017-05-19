@@ -11,6 +11,5 @@
 #include <tchar.h>
 
 #include <Ogre.h>
-#include <Overlay/OgreOverlay.h>
 
 // TODO: reference additional headers your program requires here
