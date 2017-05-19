@@ -1,5 +1,4 @@
 
-
 #include <OgreCamera.h>
 #include <OgreEntity.h>
 #include <OgreLogManager.h>
@@ -9,11 +8,10 @@
 #include <OgreRenderWindow.h>
 #include <OgreConfigFile.h>
 
-
-#  include <OISEvents.h>
-#  include <OISInputManager.h>
-#  include <OISKeyboard.h>
-#  include <OISMouse.h>
+#include <OISEvents.h>
+#include <OISInputManager.h>
+#include <OISKeyboard.h>
+#include <OISMouse.h>
 
 #include "ImguiManager.h"
 
@@ -35,10 +33,32 @@ static OIS::InputManager*          mInputManager = nullptr;
 static OIS::Mouse*                 mMouse        = nullptr;
 static OIS::Keyboard*              mKeyboard     = nullptr;
 
+// Declarations
+class MiniWindowHandler;
+void Shutdown(MiniWindowHandler* win_handler);
+
 class MiniFrameListener: public Ogre::FrameListener
 {
-    virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt) override;
-    virtual bool frameStarted(const Ogre::FrameEvent& evt) override;
+    virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt) override
+    {
+        return (!mWindow->isClosed() && (!mShutDown)); // False means "exit the application"
+    }
+
+    virtual bool frameStarted(const Ogre::FrameEvent& evt) override
+    {
+        // Need to capture/update each device
+        mKeyboard->capture();
+        mMouse->capture();
+
+        // ===== Start IMGUI frame =====
+        Ogre::Rect screen_size(0,0,mWindow->getWidth(),mWindow->getHeight());
+        Ogre::ImguiManager::getSingleton().newFrame(evt.timeSinceLastFrame, screen_size);
+
+        // ===== Draw IMGUI demo window ====
+        ImGui::ShowTestWindow();
+
+        return true;
+    }
 };
 
 class MiniInputListener: public OIS::KeyListener, public OIS::MouseListener
@@ -79,8 +99,6 @@ class MiniInputListener: public OIS::KeyListener, public OIS::MouseListener
     }
 };
 
-void Shutdown();
-
 class MiniWindowHandler: public Ogre::WindowEventListener
 {
 public:
@@ -99,84 +117,11 @@ public:
     // Unattach OIS before window shutdown (very important under Linux)
     virtual void windowClosed(Ogre::RenderWindow* rw) override
     {
-        Shutdown(); // We only have one window
+        Shutdown(this); // We only have one window
     }
 };
 
-static MiniWindowHandler g_window_handler;
-
-
-
-class BaseApplication 
-{
-public:
-
-    void createCamera(void);
-    void createFrameListener(void);
-    void createScene(void);
-    void createViewports(void);
-
-    void loadResources(void);
-};
-
-int main(int argc, char *argv[])
-{
-    try
-    {
-        BaseApplication app;
-
-        mRoot = new Ogre::Root(mPluginsCfg);
-
-        // Show the configuration dialog and initialise the system.
-        // NOTE: If you have valid file 'ogre.cfg', you can use `root.restoreConfig()` instead.
-        if(!mRoot->showConfigDialog())
-        {
-            // User abort
-            Shutdown();
-            return 0;
-        }
-
-        const bool create_window = true; // Let's be descriptive :)
-        const char* window_name = "OGRE/ImGui demo app";
-        mWindow = mRoot->initialise(create_window, window_name);
-
-        mSceneMgr = mRoot->createSceneManager(Ogre::ST_GENERIC);
-
-        app.createCamera();
-        app.createViewports();
-        Ogre::TextureManager::getSingleton().setDefaultNumMipmaps(5);
-        app.loadResources();
-        app.createScene();
-        app.createFrameListener();
-
-        MiniFrameListener frame_listener;
-        mRoot->addFrameListener(&frame_listener);
-
-        MiniInputListener input_listener;
-        mMouse->setEventCallback(&input_listener);
-        mKeyboard->setEventCallback(&input_listener);
-
-        mRoot->startRendering();
-        Shutdown();
-    }
-    catch(Ogre::Exception& e)
-    {
-        std::cerr << "An exception has occurred: " << e.getFullDescription().c_str() << std::endl;
-    }
-
-    
-    return 0;
-}
-
-void BaseApplication::createScene()
-{
-  mSceneMgr->setAmbientLight(Ogre::ColourValue(.7f, .7f, .7f));
-  mCamera->getViewport()->setBackgroundColour(Ogre::ColourValue(0.f, 0.2f, 0.1f)); // Dark green
- 
-}
-
-//---------------------------------------------------------------------------
-void Shutdown(void)
+void Shutdown(MiniWindowHandler* win_handler)
 {
     if(mInputManager)
     {
@@ -187,112 +132,96 @@ void Shutdown(void)
         mInputManager = 0;
     }
     // Remove ourself as a Window listener
-    Ogre::WindowEventUtilities::removeWindowEventListener(mWindow, &g_window_handler);
+    Ogre::WindowEventUtilities::removeWindowEventListener(mWindow, win_handler);
     delete mRoot;
     mRoot = nullptr;
 }
 
-
-
-//---------------------------------------------------------------------------
-void BaseApplication::createCamera(void)
+int main(int argc, char *argv[])
 {
-    // Create the camera
-    mCamera = mSceneMgr->createCamera("PlayerCam");
+    try
+    {
+        mRoot = new Ogre::Root(mPluginsCfg);
 
-    // Position it at 500 in Z direction
-    mCamera->setPosition(Ogre::Vector3(0,0,80));
-    // Look back along -Z
-    mCamera->lookAt(Ogre::Vector3(0,0,-300));
-    mCamera->setNearClipDistance(5);
-}
-//---------------------------------------------------------------------------
-void BaseApplication::createFrameListener(void)
-{
-    Ogre::LogManager::getSingletonPtr()->logMessage("*** Initializing OIS ***");
-    OIS::ParamList pl;
-    size_t windowHnd = 0;
-    std::ostringstream windowHndStr;
+        // Show the configuration dialog and initialise the system.
+        // NOTE: If you have valid file 'ogre.cfg', you can use `root.restoreConfig()` instead.
+        if(!mRoot->showConfigDialog())
+        {
+            // User abort
+            delete mRoot;
+            return 0;
+        }
 
-    mWindow->getCustomAttribute("WINDOW", &windowHnd);
-    windowHndStr << windowHnd;
-    pl.insert(std::make_pair(std::string("WINDOW"), windowHndStr.str()));
+        const bool create_window = true; // Let's be descriptive :)
+        const char* window_name = "OGRE/ImGui demo app";
+        mWindow = mRoot->initialise(create_window, window_name);
+
+        mSceneMgr = mRoot->createSceneManager(Ogre::ST_GENERIC);
+        mCamera = mSceneMgr->createCamera("PlayerCam");
+
+        // Create one viewport, entire window
+        Ogre::Viewport* vp = mWindow->addViewport(mCamera);
+        vp->setBackgroundColour(Ogre::ColourValue(0,0,0));
+
+        // Alter the camera aspect ratio to match the viewport
+        mCamera->setAspectRatio(Ogre::Real(vp->getActualWidth()) / Ogre::Real(vp->getActualHeight()));
+
+        Ogre::TextureManager::getSingleton().setDefaultNumMipmaps(5);
+        Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups();
+
+        mSceneMgr->setAmbientLight(Ogre::ColourValue(.7f, .7f, .7f));
+        mCamera->getViewport()->setBackgroundColour(Ogre::ColourValue(0.f, 0.2f, 0.1f)); // Dark green
+
+        // OIS setup
+        OIS::ParamList pl;
+
+        size_t windowHnd = 0;
+        std::ostringstream windowHndStr;
+        mWindow->getCustomAttribute("WINDOW", &windowHnd);
+        windowHndStr << windowHnd;
+        pl.insert(std::make_pair(std::string("WINDOW"), windowHndStr.str()));
 #if OGRE_PLATFORM == OGRE_PLATFORM_LINUX
-            pl.insert(OIS::ParamList::value_type("x11_mouse_hide", "false"));
-            pl.insert(OIS::ParamList::value_type("XAutoRepeatOn", "false"));
-            pl.insert(OIS::ParamList::value_type("x11_mouse_grab", "false"));
-   // RoR         pl.insert(OIS::ParamList::value_type("x11_keyboard_grab", "false"));
+        pl.insert(OIS::ParamList::value_type("x11_mouse_hide", "false"));
+        pl.insert(OIS::ParamList::value_type("XAutoRepeatOn", "false"));
+        pl.insert(OIS::ParamList::value_type("x11_mouse_grab", "false"));
 #else
-            pl.insert(OIS::ParamList::value_type("w32_mouse", "DISCL_FOREGROUND"));
-            pl.insert(OIS::ParamList::value_type("w32_mouse", "DISCL_NONEXCLUSIVE"));
-   // RoR         pl.insert(OIS::ParamList::value_type("w32_keyboard", "DISCL_FOREGROUND"));
-   // RoR         pl.insert(OIS::ParamList::value_type("w32_keyboard", "DISCL_NONEXCLUSIVE"));
-#endif // LINUX
+        pl.insert(OIS::ParamList::value_type("w32_mouse", "DISCL_FOREGROUND"));
+        pl.insert(OIS::ParamList::value_type("w32_mouse", "DISCL_NONEXCLUSIVE"));
+#endif
 
-    mInputManager = OIS::InputManager::createInputSystem(pl);
+        mInputManager = OIS::InputManager::createInputSystem(pl);
 
-    mKeyboard = static_cast<OIS::Keyboard*>(mInputManager->createInputObject(OIS::OISKeyboard, true));
-    mMouse = static_cast<OIS::Mouse*>(mInputManager->createInputObject(OIS::OISMouse, true));
+        mKeyboard = static_cast<OIS::Keyboard*>(mInputManager->createInputObject(OIS::OISKeyboard, true));
+        mMouse = static_cast<OIS::Mouse*>(mInputManager->createInputObject(OIS::OISMouse, true));
 
-    // Set initial mouse clipping size
-    g_window_handler.windowResized(mWindow);
+        MiniWindowHandler window_handler;
 
-    // Register as a Window listener
-    Ogre::WindowEventUtilities::addWindowEventListener(mWindow, &g_window_handler);
+        // Set initial mouse clipping size
+        window_handler.windowResized(mWindow);
 
-    
+        // Register as a Window listener
+        Ogre::WindowEventUtilities::addWindowEventListener(mWindow, &window_handler);
 
-    // === Create IMGUI ====
-    Ogre::ImguiManager::createSingleton();
-    Ogre::ImguiManager::getSingleton().init(mSceneMgr, mKeyboard, mMouse); // OIS mouse + keyboard
+        // === Create IMGUI ====
+        Ogre::ImguiManager::createSingleton();
+        Ogre::ImguiManager::getSingleton().init(mSceneMgr, mKeyboard, mMouse); // OIS mouse + keyboard
+
+        MiniFrameListener frame_listener;
+        mRoot->addFrameListener(&frame_listener);
+
+        MiniInputListener input_listener;
+        mMouse->setEventCallback(&input_listener);
+        mKeyboard->setEventCallback(&input_listener);
+
+        mRoot->startRendering();
+
+        Shutdown(&window_handler);
+    }
+    catch(Ogre::Exception& e)
+    {
+        std::cerr << "An exception has occurred: " << e.getFullDescription().c_str() << std::endl;
+    }
+
+    return 0;
 }
-
-//---------------------------------------------------------------------------
-void BaseApplication::createViewports(void)
-{
-    // Create one viewport, entire window
-    Ogre::Viewport* vp = mWindow->addViewport(mCamera);
-    vp->setBackgroundColour(Ogre::ColourValue(0,0,0));
-
-    // Alter the camera aspect ratio to match the viewport
-    mCamera->setAspectRatio(Ogre::Real(vp->getActualWidth()) / Ogre::Real(vp->getActualHeight()));
-}
-//---------------------------------------------------------------------------
-
-
-bool MiniFrameListener::frameStarted(const Ogre::FrameEvent& fe)
-{
-    // Need to capture/update each device
-    mKeyboard->capture();
-    mMouse->capture();
-
-    // ===== Start IMGUI frame =====
-    Ogre::Rect screen_size(0,0,mWindow->getWidth(),mWindow->getHeight());
-    Ogre::ImguiManager::getSingleton().newFrame(fe.timeSinceLastFrame, screen_size);
-
-    // ===== Draw IMGUI demo window ====
-    ImGui::ShowTestWindow();
-
-    return true;
-}
-
-//---------------------------------------------------------------------------
-void BaseApplication::loadResources(void)
-{
-    Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups();
-}
-
-
-//---------------------------------------------------------------------------
-bool MiniFrameListener::frameRenderingQueued(const Ogre::FrameEvent& evt)
-{
-    if(mWindow->isClosed())
-        return false;
-
-    if(mShutDown)
-        return false;
-
-    return true;
-}
-//---------------------------------------------------------------------------
 
