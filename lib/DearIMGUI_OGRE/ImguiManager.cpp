@@ -22,7 +22,6 @@
 
 using namespace Ogre;
 
-
 template<> ImguiManager* Singleton<ImguiManager>::msSingleton = 0;
 
 void ImguiManager::createSingleton()
@@ -32,27 +31,30 @@ void ImguiManager::createSingleton()
         msSingleton = new ImguiManager();
     }
 }
+
 ImguiManager* ImguiManager::getSingletonPtr(void)
 {
     createSingleton();
     return msSingleton;
 }
+
 ImguiManager& ImguiManager::getSingleton(void)
 {  
     createSingleton();
-    return ( *msSingleton );  
+    return ( *msSingleton );
 }
 
 ImguiManager::ImguiManager()
-:mSceneMgr(0)
-,mLastRenderedFrame(-1)
-,OIS::MouseListener()
-,OIS::KeyListener()
-,mKeyInput(0)
-,mMouseInput(0)
+    :mSceneMgr(0)
+    ,mLastRenderedFrame(-1)
+    ,OIS::MouseListener()
+    ,OIS::KeyListener()
+    ,mKeyInput(0)
+    ,mMouseInput(0)
 {
 
 }
+
 ImguiManager::~ImguiManager()
 {
     while(mRenderables.size()>0)
@@ -62,6 +64,7 @@ ImguiManager::~ImguiManager()
     }
     mSceneMgr->removeRenderQueueListener(this);
 }
+
 void ImguiManager::init(Ogre::SceneManager * mgr,OIS::Keyboard* keyInput, OIS::Mouse* mouseInput)
 {
     mSceneMgr  = mgr;
@@ -94,7 +97,8 @@ void ImguiManager::init(Ogre::SceneManager * mgr,OIS::Keyboard* keyInput, OIS::M
     createFontTexture();
     createMaterial();
 }
- //Inherhited from OIS::MouseListener
+
+//Inherhited from OIS::MouseListener
 bool ImguiManager::mouseMoved( const OIS::MouseEvent &arg )
 {
 
@@ -105,6 +109,7 @@ bool ImguiManager::mouseMoved( const OIS::MouseEvent &arg )
 
     return true;
 }
+
 bool ImguiManager::mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id )
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -114,6 +119,7 @@ bool ImguiManager::mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID 
     }
     return true;
 }
+
 bool ImguiManager::mouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID id )
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -123,6 +129,7 @@ bool ImguiManager::mouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID
     }
     return true;
 }
+
 //Inherhited from OIS::KeyListener
 bool ImguiManager::keyPressed( const OIS::KeyEvent &arg )
 {
@@ -137,12 +144,14 @@ bool ImguiManager::keyPressed( const OIS::KeyEvent &arg )
 
     return true;
 }
+
 bool ImguiManager::keyReleased( const OIS::KeyEvent &arg )
 {
     ImGuiIO& io = ImGui::GetIO();
     io.KeysDown[arg.key] = false;
     return true;
 }
+
 void ImguiManager::updateVertexData()
 {
     int currentFrame = ImGui::GetFrameCount();
@@ -151,7 +160,6 @@ void ImguiManager::updateVertexData()
         return ;
     }
     mLastRenderedFrame=currentFrame;
-
 
     ImDrawData* draw_data = ImGui::GetDrawData();
     while(mRenderables.size()<draw_data->CmdListsCount)
@@ -170,41 +178,37 @@ void ImguiManager::updateVertexData()
     }
 
 }
-//-----------------------------------------------------------------------------------
+
 void ImguiManager::renderQueueEnded(uint8 queueGroupId, const String& invocation,bool& repeatThisInvocation)
 {
     if(queueGroupId == Ogre::RENDER_QUEUE_OVERLAY && invocation !="SHADOWS")
     {
-        
         Ogre::Viewport* vp = Ogre::Root::getSingletonPtr()->getRenderSystem()->_getViewport();
 
         if(vp != NULL && vp->getTarget()->isPrimary())
         {
-            //if (vp->getOverlaysEnabled())
-            {
-                if(mFrameEnded) return;
-                mFrameEnded=true;
-                ImGui::Render();
-                updateVertexData();
-                ImGuiIO& io = ImGui::GetIO();
-                Ogre::Matrix4 projMatrix(2.0f/io.DisplaySize.x, 0.0f,                   0.0f,-1.0f,
-                                 0.0f,                 -2.0f/io.DisplaySize.y,  0.0f, 1.0f,
-                                 0.0f,                  0.0f,                  -1.0f, 0.0f,
-                                 0.0f,                  0.0f,                   0.0f, 1.0f);
 
-                mPass->getVertexProgramParameters()->setNamedConstant("ProjectionMatrix",projMatrix);
-                for(std::list<ImGUIRenderable*>::iterator it = mRenderables.begin();it!=mRenderables.end();++it)
-                {
-                    mSceneMgr->_injectRenderWithPass(mPass,(*it),0,false,false);
-                }
+            if(mFrameEnded) return;
+            mFrameEnded=true;
+            ImGui::Render();
+            updateVertexData();
+            ImGuiIO& io = ImGui::GetIO();
+            Ogre::Matrix4 projMatrix(2.0f/io.DisplaySize.x, 0.0f,                   0.0f,-1.0f,
+                                0.0f,                 -2.0f/io.DisplaySize.y,  0.0f, 1.0f,
+                                0.0f,                  0.0f,                  -1.0f, 0.0f,
+                                0.0f,                  0.0f,                   0.0f, 1.0f);
+
+            mPass->getVertexProgramParameters()->setNamedConstant("ProjectionMatrix",projMatrix);
+            for(std::list<ImGUIRenderable*>::iterator it = mRenderables.begin();it!=mRenderables.end();++it)
+            {
+                mSceneMgr->_injectRenderWithPass(mPass,(*it),0,false,false);
             }
         }
     }
 }
-//-----------------------------------------------------------------------------------
+
 void ImguiManager::createMaterial()
 {
-    
     static const char* vertexShaderSrcD3D11 =
     {
     "cbuffer vertexBuffer : register(b0) \n"
@@ -232,9 +236,7 @@ void ImguiManager::createMaterial()
     "return output;\n"
     "}"
     };
-    
 
- 
     static const char* pixelShaderSrcD3D11 =
     {
     "struct PS_INPUT\n"
@@ -252,7 +254,8 @@ void ImguiManager::createMaterial()
     "return out_col; \n"
     "}"
     };
-	static const char* vertexShaderSrcD3D9 =
+
+    static const char* vertexShaderSrcD3D9 =
     {
     "uniform float4x4 ProjectionMatrix; \n"
     "struct VS_INPUT\n"
@@ -276,7 +279,7 @@ void ImguiManager::createMaterial()
     "return output;\n"
     "}"
     };
-   
+
     static const char* pixelShaderSrcSrcD3D9 =
      {
     "struct PS_INPUT\n"
@@ -333,7 +336,7 @@ void ImguiManager::createMaterial()
     Ogre::HighLevelGpuProgramPtr vertexShaderD3D11 = mgr.getByName("imgui/VP/D3D11");
     Ogre::HighLevelGpuProgramPtr pixelShaderD3D11 = mgr.getByName("imgui/FP/D3D11");
 
-	Ogre::HighLevelGpuProgramPtr vertexShaderD3D9 = mgr.getByName("imgui/VP/D3D9");
+    Ogre::HighLevelGpuProgramPtr vertexShaderD3D9 = mgr.getByName("imgui/VP/D3D9");
     Ogre::HighLevelGpuProgramPtr pixelShaderD3D9 = mgr.getByName("imgui/FP/D3D9");
 
     Ogre::HighLevelGpuProgramPtr vertexShaderGL = mgr.getByName("imgui/VP/GL150");
@@ -344,7 +347,7 @@ void ImguiManager::createMaterial()
         vertexShaderUnified = mgr.createProgram("imgui/VP",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,"unified",GPT_VERTEX_PROGRAM);
     }
     if(pixelShaderUnified.isNull())
-        {
+    {
         pixelShaderUnified = mgr.createProgram("imgui/FP",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,"unified",GPT_FRAGMENT_PROGRAM);
     }
 
@@ -361,9 +364,10 @@ void ImguiManager::createMaterial()
         vertexShaderD3D11->load();
 
         vertexShaderPtr->addDelegateProgram(vertexShaderD3D11->getName());
-        }
+    }
+
     if (pixelShaderD3D11.isNull())
-        {
+    {
         pixelShaderD3D11 = mgr.createProgram("imgui/FP/D3D11", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
                 "hlsl", Ogre::GPT_FRAGMENT_PROGRAM);
         pixelShaderD3D11->setParameter("target", "ps_4_0");
@@ -372,7 +376,8 @@ void ImguiManager::createMaterial()
         pixelShaderD3D11->load();
 
         pixelShaderPtr->addDelegateProgram(pixelShaderD3D11->getName());
-        }
+    }
+
     if (vertexShaderD3D9.isNull())
     {
         vertexShaderD3D9 = mgr.createProgram("imgui/VP/D3D9", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
@@ -381,9 +386,10 @@ void ImguiManager::createMaterial()
         vertexShaderD3D9->setParameter("entry_point", "main");
         vertexShaderD3D9->setSource(vertexShaderSrcD3D9);
         vertexShaderD3D9->load();
-    
+
         vertexShaderPtr->addDelegateProgram(vertexShaderD3D9->getName());
     }
+
     if (pixelShaderD3D9.isNull())
     {
         pixelShaderD3D9 = mgr.createProgram("imgui/FP/D3D9", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
@@ -392,7 +398,7 @@ void ImguiManager::createMaterial()
         pixelShaderD3D9->setParameter("entry_point", "main");
         pixelShaderD3D9->setSource(pixelShaderSrcSrcD3D9);
         pixelShaderD3D9->load();
-    
+
         pixelShaderPtr->addDelegateProgram(pixelShaderD3D9->getName());
     }
 
@@ -403,9 +409,10 @@ void ImguiManager::createMaterial()
         vertexShaderGL->setSource(vertexShaderSrcGLSL);
         vertexShaderGL->load();
         vertexShaderPtr->addDelegateProgram(vertexShaderGL->getName());
-        }
+    }
+
     if (pixelShaderGL.isNull())
-        {
+    {
         pixelShaderGL = mgr.createProgram("imgui/FP/GL150", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
                 "glsl", Ogre::GPT_FRAGMENT_PROGRAM);
         pixelShaderGL->setSource(pixelShaderSrcGLSL);
@@ -413,8 +420,8 @@ void ImguiManager::createMaterial()
         pixelShaderGL->setParameter("sampler0","int 0");
 
         pixelShaderPtr->addDelegateProgram(pixelShaderGL->getName());
-        }
-   
+    }
+
     Ogre::MaterialPtr imguiMaterial = Ogre::MaterialManager::getSingleton().create("imgui/material", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
     mPass = imguiMaterial->getTechnique(0)->getPass(0);
     mPass->setFragmentProgram("imgui/FP");
@@ -425,9 +432,7 @@ void ImguiManager::createMaterial()
     mPass->setSceneBlending(Ogre::SBT_TRANSPARENT_ALPHA);
     mPass->setSeparateSceneBlendingOperation(Ogre::SBO_ADD,Ogre::SBO_ADD);
     mPass->setSeparateSceneBlending(Ogre::SBF_SOURCE_ALPHA,Ogre::SBF_ONE_MINUS_SOURCE_ALPHA,Ogre::SBF_ONE_MINUS_SOURCE_ALPHA,Ogre::SBF_ZERO);
-        
 
-    //mPass->getFragmentProgramParameters()->setNamedConstant("sampler0",0);
     mPass->createTextureUnitState()->setTextureName("ImguiFontTex");
 }
 
@@ -442,13 +447,12 @@ void ImguiManager::createFontTexture()
     mFontTex = TextureManager::getSingleton().createManual("ImguiFontTex",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,TEX_TYPE_2D,width,height,1,1,PF_R8G8B8A8);
 
     const PixelBox & lockBox = mFontTex->getBuffer()->lock(Image::Box(0, 0, width, height), HardwareBuffer::HBL_DISCARD);
-	size_t texDepth = PixelUtil::getNumElemBytes(lockBox.format);
+    size_t texDepth = PixelUtil::getNumElemBytes(lockBox.format);
 
     memcpy(lockBox.data,pixels, width*height*texDepth);
-	mFontTex->getBuffer()->unlock();
-    
-    
+    mFontTex->getBuffer()->unlock();
 }
+
 void ImguiManager::newFrame(float deltaTime,const Ogre::Rect & windowRect)
 {
     mFrameEnded=false;
@@ -462,8 +466,7 @@ void ImguiManager::newFrame(float deltaTime,const Ogre::Rect & windowRect)
     io.KeySuper = false;
 
     // Setup display size (every frame to accommodate for window resizing)
-     io.DisplaySize = ImVec2((float)(windowRect.right - windowRect.left), (float)(windowRect.bottom - windowRect.top));
-
+    io.DisplaySize = ImVec2((float)(windowRect.right - windowRect.left), (float)(windowRect.bottom - windowRect.top));
 
     // Start the frame
     ImGui::NewFrame();
