@@ -17,6 +17,12 @@
 
 #include "ImguiManager.h"
 
+#ifdef _DEBUG
+    static const std::string mPluginsCfg = "plugins_d.cfg";
+#else
+    static const std::string mPluginsCfg = "plugins.cfg";
+#endif
+
 static Ogre::Root*                 mRoot       = nullptr;
 static Ogre::Camera*               mCamera     = nullptr;
 static Ogre::SceneManager*         mSceneMgr   = nullptr;
@@ -104,10 +110,7 @@ static MiniWindowHandler g_window_handler;
 class BaseApplication 
 {
 public:
-    
-    bool setup();
-    bool configure(void);
-    void chooseSceneManager(void);
+
     void createCamera(void);
     void createFrameListener(void);
     void createScene(void);
@@ -122,11 +125,29 @@ int main(int argc, char *argv[])
     {
         BaseApplication app;
 
-        if (!app.setup())
+        mRoot = new Ogre::Root(mPluginsCfg);
+
+        // Show the configuration dialog and initialise the system.
+        // NOTE: If you have valid file 'ogre.cfg', you can use `root.restoreConfig()` instead.
+        if(!mRoot->showConfigDialog())
         {
+            // User abort
             Shutdown();
             return 0;
         }
+
+        const bool create_window = true; // Let's be descriptive :)
+        const char* window_name = "OGRE/ImGui demo app";
+        mWindow = mRoot->initialise(create_window, window_name);
+
+        mSceneMgr = mRoot->createSceneManager(Ogre::ST_GENERIC);
+
+        app.createCamera();
+        app.createViewports();
+        Ogre::TextureManager::getSingleton().setDefaultNumMipmaps(5);
+        app.loadResources();
+        app.createScene();
+        app.createFrameListener();
 
         MiniFrameListener frame_listener;
         mRoot->addFrameListener(&frame_listener);
@@ -171,31 +192,8 @@ void Shutdown(void)
     mRoot = nullptr;
 }
 
-//---------------------------------------------------------------------------
-bool BaseApplication::configure(void)
-{
-    // Show the configuration dialog and initialise the system.
-    // You can skip this and use root.restoreConfig() to load configuration
-    // settings if you were sure there are valid ones saved in ogre.cfg.
-    if(mRoot->showConfigDialog())
-    {
-        // If returned true, user clicked OK so initialise.
-        // Here we choose to let the system create a default rendering window by passing 'true'.
-        mWindow = mRoot->initialise(true, "TutorialApplication Render Window");
 
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-//---------------------------------------------------------------------------
-void BaseApplication::chooseSceneManager(void)
-{
-    // Get the SceneManager, in this case a generic one
-    mSceneMgr = mRoot->createSceneManager(Ogre::ST_GENERIC);
-}
+
 //---------------------------------------------------------------------------
 void BaseApplication::createCamera(void)
 {
@@ -284,40 +282,7 @@ void BaseApplication::loadResources(void)
     Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups();
 }
 
-//---------------------------------------------------------------------------
-bool BaseApplication::setup(void)
-{
-#ifdef _DEBUG
-    std::string mPluginsCfg = "plugins_d.cfg";
-#else
-    std::string mPluginsCfg = "plugins.cfg";
-#endif
 
-    mRoot = new Ogre::Root(mPluginsCfg);
-
-
-
-    bool carryOn = configure();
-    if (!carryOn) return false;
-
-    chooseSceneManager();
-    createCamera();
-    createViewports();
-
-    // Set default mipmap level (NB some APIs ignore this)
-    Ogre::TextureManager::getSingleton().setDefaultNumMipmaps(5);
-
-
-    // Load resources
-    loadResources();
-
-    // Create the scene
-    createScene();
-
-    createFrameListener();
-
-    return true;
-};
 //---------------------------------------------------------------------------
 bool MiniFrameListener::frameRenderingQueued(const Ogre::FrameEvent& evt)
 {
