@@ -35,10 +35,76 @@ class MiniFrameListener: public Ogre::FrameListener
     virtual bool frameStarted(const Ogre::FrameEvent& evt) override;
 };
 
-class BaseApplication :  public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener
+class MiniInputListener: public OIS::KeyListener, public OIS::MouseListener
+{
+    bool MiniInputListener::keyPressed( const OIS::KeyEvent &arg ) override
+    {
+        if (arg.key == OIS::KC_ESCAPE) // All extras we need
+        {
+            mShutDown = true;
+        }
+
+        Ogre::ImguiManager::getSingleton().keyPressed(arg);
+        return true;
+    }
+
+    bool MiniInputListener::keyReleased(const OIS::KeyEvent &arg) override
+    {
+        Ogre::ImguiManager::getSingleton().keyReleased(arg);
+        return true;
+    }
+
+    bool MiniInputListener::mouseMoved(const OIS::MouseEvent &arg) override
+    {
+        Ogre::ImguiManager::getSingleton().mouseMoved(arg);
+        return true;
+    }
+
+    bool MiniInputListener::mousePressed(const OIS::MouseEvent &arg, OIS::MouseButtonID id) override
+    {
+        Ogre::ImguiManager::getSingleton().mousePressed(arg, id);
+        return true;
+    }
+
+    bool MiniInputListener::mouseReleased(const OIS::MouseEvent &arg, OIS::MouseButtonID id) override
+    {
+        Ogre::ImguiManager::getSingleton().mouseReleased(arg, id);
+        return true;
+    }
+};
+
+void Shutdown();
+
+class MiniWindowHandler: public Ogre::WindowEventListener
 {
 public:
-    void Shutdown();
+    // Adjust mouse clipping area
+    virtual void windowResized(Ogre::RenderWindow* rw) override
+    {
+        unsigned int width, height, depth;
+        int left, top;
+        rw->getMetrics(width, height, depth, left, top);
+
+        const OIS::MouseState &ms = mMouse->getMouseState();
+        ms.width = width;
+        ms.height = height;
+    }
+
+    // Unattach OIS before window shutdown (very important under Linux)
+    virtual void windowClosed(Ogre::RenderWindow* rw) override
+    {
+        Shutdown(); // We only have one window
+    }
+};
+
+static MiniWindowHandler g_window_handler;
+
+
+
+class BaseApplication 
+{
+public:
+    
     bool setup();
     bool configure(void);
     void chooseSceneManager(void);
@@ -48,25 +114,6 @@ public:
     void createViewports(void);
 
     void loadResources(void);
-
-
-
-    // OIS KeyListener
-    virtual bool keyPressed(const OIS::KeyEvent &arg) override;
-    virtual bool keyReleased(const OIS::KeyEvent &arg) override;
-
-    // OIS MouseListener
-    virtual bool mouseMoved(const OIS::MouseEvent &arg) override;
-    virtual bool mousePressed(const OIS::MouseEvent &arg, OIS::MouseButtonID id) override;
-    virtual bool mouseReleased(const OIS::MouseEvent &arg, OIS::MouseButtonID id) override;
-
-    // --  Ogre::WindowEventListener --
-
-    // Adjust mouse clipping area
-    virtual void windowResized(Ogre::RenderWindow* rw) override;
-    // Unattach OIS before window shutdown (very important under Linux)
-    virtual void windowClosed(Ogre::RenderWindow* rw) override;
-
 };
 
 int main(int argc, char *argv[])
@@ -77,15 +124,19 @@ int main(int argc, char *argv[])
 
         if (!app.setup())
         {
-            app.Shutdown();
+            Shutdown();
             return 0;
         }
 
         MiniFrameListener frame_listener;
         mRoot->addFrameListener(&frame_listener);
 
+        MiniInputListener input_listener;
+        mMouse->setEventCallback(&input_listener);
+        mKeyboard->setEventCallback(&input_listener);
+
         mRoot->startRendering();
-        app.Shutdown();
+        Shutdown();
     }
     catch(Ogre::Exception& e)
     {
@@ -104,13 +155,20 @@ void BaseApplication::createScene()
 }
 
 //---------------------------------------------------------------------------
-void BaseApplication::Shutdown(void)
+void Shutdown(void)
 {
+    if(mInputManager)
+    {
+        mInputManager->destroyInputObject(mMouse);
+        mInputManager->destroyInputObject(mKeyboard);
 
+        OIS::InputManager::destroyInputSystem(mInputManager);
+        mInputManager = 0;
+    }
     // Remove ourself as a Window listener
-    Ogre::WindowEventUtilities::removeWindowEventListener(mWindow, this);
-    windowClosed(mWindow);
+    Ogre::WindowEventUtilities::removeWindowEventListener(mWindow, &g_window_handler);
     delete mRoot;
+    mRoot = nullptr;
 }
 
 //---------------------------------------------------------------------------
@@ -178,14 +236,11 @@ void BaseApplication::createFrameListener(void)
     mKeyboard = static_cast<OIS::Keyboard*>(mInputManager->createInputObject(OIS::OISKeyboard, true));
     mMouse = static_cast<OIS::Mouse*>(mInputManager->createInputObject(OIS::OISMouse, true));
 
-    mMouse->setEventCallback(this);
-    mKeyboard->setEventCallback(this);
-
     // Set initial mouse clipping size
-    windowResized(mWindow);
+    g_window_handler.windowResized(mWindow);
 
     // Register as a Window listener
-    Ogre::WindowEventUtilities::addWindowEventListener(mWindow, this);
+    Ogre::WindowEventUtilities::addWindowEventListener(mWindow, &g_window_handler);
 
     
 
@@ -275,136 +330,4 @@ bool MiniFrameListener::frameRenderingQueued(const Ogre::FrameEvent& evt)
     return true;
 }
 //---------------------------------------------------------------------------
-bool BaseApplication::keyPressed( const OIS::KeyEvent &arg )
-{
 
-    if (arg.key == OIS::KC_T)   // cycle polygon rendering mode
-    {
-        Ogre::String newVal;
-        Ogre::TextureFilterOptions tfo;
-        unsigned int aniso;
-        static char tex_filter = 'X';
-
-        switch (tex_filter)
-        {
-        case 'B':
-            newVal = "Trilinear";
-            tfo = Ogre::TFO_TRILINEAR;
-            aniso = 1;
-            break;
-        case 'T':
-            newVal = "Anisotropic";
-            tfo = Ogre::TFO_ANISOTROPIC;
-            aniso = 8;
-            break;
-        case 'A':
-            newVal = "None";
-            tfo = Ogre::TFO_NONE;
-            aniso = 1;
-            break;
-        default:
-            newVal = "Bilinear";
-            tfo = Ogre::TFO_BILINEAR;
-            aniso = 1;
-        }
-
-        Ogre::MaterialManager::getSingleton().setDefaultTextureFiltering(tfo);
-        Ogre::MaterialManager::getSingleton().setDefaultAnisotropy(aniso);
-        tex_filter = newVal[0];
-    }
-    else if (arg.key == OIS::KC_R)   // cycle polygon rendering mode
-    {
-        Ogre::String newVal;
-        Ogre::PolygonMode pm;
-
-        switch (mCamera->getPolygonMode())
-        {
-        case Ogre::PM_SOLID:
-            newVal = "Wireframe";
-            pm = Ogre::PM_WIREFRAME;
-            break;
-        case Ogre::PM_WIREFRAME:
-            newVal = "Points";
-            pm = Ogre::PM_POINTS;
-            break;
-        default:
-            newVal = "Solid";
-            pm = Ogre::PM_SOLID;
-        }
-
-        mCamera->setPolygonMode(pm);
-    }
-    else if(arg.key == OIS::KC_F5)   // refresh all textures
-    {
-        Ogre::TextureManager::getSingleton().reloadAll();
-    }
-    else if (arg.key == OIS::KC_SYSRQ)   // take a screenshot
-    {
-        mWindow->writeContentsToTimestampedFile("screenshot", ".jpg");
-    }
-    else if (arg.key == OIS::KC_ESCAPE)
-    {
-        mShutDown = true;
-    }
-
-    Ogre::ImguiManager::getSingleton().keyPressed(arg);
-    return true;
-}
-//---------------------------------------------------------------------------
-bool BaseApplication::keyReleased(const OIS::KeyEvent &arg)
-{
-
-    Ogre::ImguiManager::getSingleton().keyReleased(arg);
-    return true;
-}
-//---------------------------------------------------------------------------
-bool BaseApplication::mouseMoved(const OIS::MouseEvent &arg)
-{
-
-    Ogre::ImguiManager::getSingleton().mouseMoved(arg);
-    return true;
-}
-//---------------------------------------------------------------------------
-bool BaseApplication::mousePressed(const OIS::MouseEvent &arg, OIS::MouseButtonID id)
-{
-
-    Ogre::ImguiManager::getSingleton().mousePressed(arg, id);
-    return true;
-}
-//---------------------------------------------------------------------------
-bool BaseApplication::mouseReleased(const OIS::MouseEvent &arg, OIS::MouseButtonID id)
-{
-
-    Ogre::ImguiManager::getSingleton().mouseReleased(arg, id);
-    return true;
-}
-//---------------------------------------------------------------------------
-// Adjust mouse clipping area
-void BaseApplication::windowResized(Ogre::RenderWindow* rw)
-{
-    unsigned int width, height, depth;
-    int left, top;
-    rw->getMetrics(width, height, depth, left, top);
-
-    const OIS::MouseState &ms = mMouse->getMouseState();
-    ms.width = width;
-    ms.height = height;
-}
-//---------------------------------------------------------------------------
-// Unattach OIS before window shutdown (very important under Linux)
-void BaseApplication::windowClosed(Ogre::RenderWindow* rw)
-{
-    // Only close for window that created OIS (the main window in these demos)
-    if(rw == mWindow)
-    {
-        if(mInputManager)
-        {
-            mInputManager->destroyInputObject(mMouse);
-            mInputManager->destroyInputObject(mKeyboard);
-
-            OIS::InputManager::destroyInputSystem(mInputManager);
-            mInputManager = 0;
-        }
-    }
-}
-//---------------------------------------------------------------------------
