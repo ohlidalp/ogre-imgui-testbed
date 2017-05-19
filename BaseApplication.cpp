@@ -113,8 +113,9 @@ private:
         mMouse->capture();
 
         // ===== Start IMGUI frame =====
-        Ogre::Rect screen_size(0,0,mWindow->getWidth(),mWindow->getHeight());
-        Ogre::ImguiManager::getSingleton().newFrame(evt.timeSinceLastFrame, screen_size);
+        int left, top, width, height;
+        mWindow->getViewport(0)->getActualDimensions(left, top, width, height); // output params
+        Ogre::ImguiManager::getSingleton().newFrame(evt.timeSinceLastFrame, Ogre::Rect(left, top, width, height));
 
         // ===== Draw IMGUI demo window ====
         ImGui::ShowTestWindow();
