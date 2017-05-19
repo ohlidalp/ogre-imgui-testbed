@@ -35,7 +35,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -115,21 +115,22 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>Disabled</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>lib\DearIMGUI_OGRE;lib\DearIMGUI;C:\Lib\boost-1.61-vc140-x86-12.03.2016;c:\Lib\OGRE-SDK-1.9.0-vc140-x86-12.03.2016\include\OIS;c:\Lib\OGRE-SDK-1.9.0-vc140-x86-12.03.2016\include\OGRE\Overlay;c:\Lib\OGRE-SDK-1.9.0-vc140-x86-12.03.2016\include\OGRE;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>lib\DearIMGUI_OGRE;lib\DearIMGUI;c:\Lib\ror-dependencies-build-directx-fulltest2\Dependencies_Windows_Visual-Studio-14-2015\include\\OGRE\Overlay;c:\Lib\ror-dependencies-build-directx-fulltest2\Dependencies_Windows_Visual-Studio-14-2015\include\\OiS;c:\Lib\ror-dependencies-build-directx-fulltest2\Dependencies_Windows_Visual-Studio-14-2015\include\\OGRE;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>C:\Lib\boost-1.61-vc140-x86-12.03.2016\lib;C:\Lib\OGRE-SDK-1.9.0-vc140-x86-12.03.2016\lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>OgreMain_d.lib;OgreOverlay_d.lib;OIS_d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>c:\Lib\ror-dependencies-build-directx-fulltest2\Dependencies_Windows_Visual-Studio-14-2015\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>OgreMain.lib;OgreOverlay.lib;OIS.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
