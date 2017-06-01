@@ -46,6 +46,9 @@
     <ClInclude Include="lib\DearIMGUI_OGRE\ImguiRenderable.h">
       <Filter>lib/DearIMGUI-OGRE</Filter>
     </ClInclude>
+    <ClInclude Include="imguinodegrapheditor.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="lib\DearIMGUI\imgui.cpp">
@@ -69,5 +72,6 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="imguinodegrapheditor.cpp" />
   </ItemGroup>
 </Project>

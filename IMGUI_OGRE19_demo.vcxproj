@@ -118,7 +118,7 @@
       <Optimization>Disabled</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>false</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>lib\DearIMGUI_OGRE;lib\DearIMGUI;c:\Lib\ror-dependencies-rapidjson-build\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE\Overlay;c:\Lib\ror-dependencies-rapidjson-build\Dependencies_Windows_Visual-Studio-14-2015\include\OiS;c:\Lib\ror-dependencies-rapidjson-build\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
@@ -154,6 +154,7 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="imguinodegrapheditor.h" />
     <ClInclude Include="lib\DearIMGUI\imconfig.h" />
     <ClInclude Include="lib\DearIMGUI\imgui.h" />
     <ClInclude Include="lib\DearIMGUI\imgui_internal.h" />
@@ -167,6 +168,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BaseApplication.cpp" />
+    <ClCompile Include="imguinodegrapheditor.cpp" />
     <ClCompile Include="lib\DearIMGUI\imgui.cpp" />
     <ClCompile Include="lib\DearIMGUI\imgui_demo.cpp" />
     <ClCompile Include="lib\DearIMGUI\imgui_draw.cpp" />
