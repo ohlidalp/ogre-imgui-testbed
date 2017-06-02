@@ -17,16 +17,90 @@
 
 #include "ImguiManager.h"
 
+#include <string>
+
 #ifdef _DEBUG
     static const std::string mPluginsCfg = "plugins_d.cfg";
 #else
     static const std::string mPluginsCfg = "plugins.cfg";
 #endif
 
+class Console
+{
+public:
+    static const size_t MAX_LINES = 200;
+    static const size_t INPUT_BUFFER_LEN = 500;
+
+    std::string              m_lines[MAX_LINES];
+    size_t                   m_lines_caret;
+    bool                     m_lines_full;
+    std::vector<std::string> m_history;
+    char                     m_input_buffer[INPUT_BUFFER_LEN];
+
+    void Draw()
+    {
+        if (!ImGui::Begin("RoR-Console-Draft"))
+        {
+            return;
+        }
+
+        const float CONSOLE_PADDING = 6.f;
+
+        // Some stupid header text
+        ImGui::Text("This is a test console");
+        ImGui::Separator();
+        
+        // The actual console body
+        ImVec2 body_size = ImVec2(0,-ImGui::GetItemsLineHeightWithSpacing());
+        ImGui::BeginChild("ScrollingRegion", body_size, false, ImGuiWindowFlags_HorizontalScrollbar);
+
+        // Spacing: eliminate extra horizontal spacing to make separate text elements appear as fluent colored text.
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(1.f, 1.f)); // Also tighten vertical spacing
+
+        ImVec2 pos = ImGui::GetCursorPos();
+        pos.x += CONSOLE_PADDING;
+        pos.y += CONSOLE_PADDING;
+        ImGui::SetCursorPos(pos);
+
+        // Console body experiments
+        ImGui::Text("XXXXX|=====| 5+5");
+        
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + CONSOLE_PADDING);
+        ImGui::Text("=====|=====| 5+5");
+        
+        ImVec4 col_white(1.f, 1.f, 1.f, 1.f);
+        ImVec4 col_green(0.2f, 0.8f, 0.3f, 1.f);
+        ImVec4 col_blue(0.1f, 0.4f, 0.8f, 1.f);
+
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + CONSOLE_PADDING);
+        ImGui::TextColored(col_blue, "=====|");
+        ImGui::SameLine();
+        ImGui::TextColored(col_green, "=====|");
+        ImGui::SameLine();
+        ImGui::Text(" 5x5");
+
+        // End body
+        ImGui::PopStyleVar();
+        ImGui::EndChild();
+
+        // The botom tooltip area
+        ImGui::TextColored(col_blue, "  < tooltip here >");
+
+        // The bottom-most input box
+        ImGui::InputText("Command:", m_input_buffer, INPUT_BUFFER_LEN);
+
+        // Finalize the window
+        ImGui::End();
+    }
+
+};
+
 struct GuiState
 {
     bool test_window_visible;
     bool style_editor_visible;
+    bool mainmenu_visible;
+    bool console_visible;
 };
 
 class DemoApp: public Ogre::FrameListener, public OIS::KeyListener, public OIS::MouseListener,  public Ogre::WindowEventListener
@@ -89,6 +163,7 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
         style.WindowTitleAlign   = ImVec2(0.5f, 0.5f);
         style.ItemSpacing        = ImVec2(5.f, 5.f);
         style.GrabRounding       = 3.f;
+        style.ChildWindowRounding = 4.f;
 
 
     }
@@ -114,13 +189,23 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
 
     }
 
+    void RoR_DrawConsole()
+    {
+        static Console console;
+        console.Draw();
+    }
+
     void DrawGui()
     {
         if (ImGui::BeginMainMenuBar())
         {
-            ImGui::Checkbox("Test window", &m_gui_state.test_window_visible);
+            ImGui::Checkbox("Test", &m_gui_state.test_window_visible);
             ImGui::SameLine();
-            ImGui::Checkbox("Style editor", &m_gui_state.style_editor_visible);
+            ImGui::Checkbox("Styles", &m_gui_state.style_editor_visible);
+            ImGui::SameLine();
+            ImGui::Checkbox("MMenu", &m_gui_state.mainmenu_visible);
+            ImGui::SameLine();
+            ImGui::Checkbox("Console", &m_gui_state.console_visible);
 
             ImGui::EndMainMenuBar();
         }
@@ -135,9 +220,17 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
             ImGui::ShowStyleEditor();
         }
 
-        // Test main menu for ROR
-        this->RoR_DrawMainMenu();
+        if (m_gui_state.mainmenu_visible)
+        {
+            this->RoR_DrawMainMenu();
+        }
+
+        if (m_gui_state.console_visible)
+        {
+            this->RoR_DrawConsole();
+        }
     }
+
 
     void Go()
     {
