@@ -23,11 +23,49 @@
     static const std::string mPluginsCfg = "plugins.cfg";
 #endif
 
+struct GuiState
+{
+    bool test_window_visible;
+};
+
 class DemoApp: public Ogre::FrameListener, public OIS::KeyListener, public OIS::MouseListener,  public Ogre::WindowEventListener
 {
 public:
+    void DrawGui()
+    {
+        if (ImGui::BeginMainMenuBar())
+        {
+            if (ImGui::BeginMenu("(dummy)File"))
+            {
+                ImGui::MenuItem("(dummy)Open");
+                ImGui::MenuItem("(dummy)Save");
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("(dummy)Nodes"))
+            {
+                ImGui::MenuItem("(dummy)Add source");
+                ImGui::MenuItem("(dummy)Add sink");
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::Checkbox("Show test window", &m_gui_state.test_window_visible);
+
+            ImGui::EndMainMenuBar();
+        }
+
+        if (m_gui_state.test_window_visible)
+        {
+            ImGui::ShowTestWindow(&m_gui_state.test_window_visible);
+        }
+    }
+
     void Go()
     {
+        memset(&m_gui_state, 0, sizeof(GuiState));
+
         mRoot = new Ogre::Root(mPluginsCfg);
 
         // Show the configuration dialog and initialise the system.
@@ -117,8 +155,8 @@ private:
         mWindow->getViewport(0)->getActualDimensions(left, top, width, height); // output params
         Ogre::ImguiManager::getSingleton().newFrame(evt.timeSinceLastFrame, Ogre::Rect(left, top, width, height));
 
-        // ===== Draw IMGUI demo window ====
-        ImGui::ShowTestWindow();
+        // ===== Draw IMGUI  ====
+        this->DrawGui();
 
         return true;
     }
@@ -203,6 +241,8 @@ private:
     OIS::InputManager*          mInputManager;
     OIS::Mouse*                 mMouse       ;
     OIS::Keyboard*              mKeyboard    ;
+
+    GuiState                    m_gui_state;
 };
 
 
