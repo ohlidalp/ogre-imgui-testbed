@@ -97,14 +97,17 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
     {
         int flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
         ImGui::SetNextWindowPosCenter();
-        ImGui::SetNextWindowSize(ImVec2(200.f, 200.f));
+        const float WIDTH = 200.f;
+        ImGui::SetNextWindowContentWidth(WIDTH);
         if (ImGui::Begin("Main menu", nullptr, static_cast<ImGuiWindowFlags_>(flags)))
         {
-            ImGui::Button("Single player");
-            ImGui::Button("Multi player");
+            ImVec2 btn_size(WIDTH - ImGui::GetStyle().WindowPadding.x, 0.f); // Weird but necessary
+
+            ImGui::Button("Single player", btn_size);
+            ImGui::Button("Multi player" , btn_size);
             ImGui::Separator();
-            ImGui::Button("Settings");
-            ImGui::Button("Exit game");
+            ImGui::Button("Settings" , btn_size);
+            ImGui::Button("Exit game", btn_size);
 
             ImGui::End();
         }
