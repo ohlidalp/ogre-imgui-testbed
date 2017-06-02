@@ -26,32 +26,95 @@
 struct GuiState
 {
     bool test_window_visible;
+    bool style_editor_visible;
 };
 
 class DemoApp: public Ogre::FrameListener, public OIS::KeyListener, public OIS::MouseListener,  public Ogre::WindowEventListener
 {
 public:
+    void RoR_SetGuiStyle()
+    {
+// Exported colors
+
+ImGuiStyle& style = ImGui::GetStyle();
+style.Colors[ImGuiCol_Text]                  = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+style.Colors[ImGuiCol_TextDisabled]          = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);
+style.Colors[ImGuiCol_WindowBg]              = ImVec4(0.06f, 0.06f, 0.06f, 1.00f);
+style.Colors[ImGuiCol_ChildWindowBg]         = ImVec4(0.00f, 0.00f, 0.00f, 0.99f);
+style.Colors[ImGuiCol_PopupBg]               = ImVec4(0.05f, 0.05f, 0.10f, 1.00f);
+style.Colors[ImGuiCol_Border]                = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+style.Colors[ImGuiCol_BorderShadow]          = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+style.Colors[ImGuiCol_FrameBg]               = ImVec4(0.44f, 0.51f, 0.52f, 1.00f);
+style.Colors[ImGuiCol_FrameBgHovered]        = ImVec4(0.90f, 0.80f, 0.80f, 0.99f);
+style.Colors[ImGuiCol_FrameBgActive]         = ImVec4(0.90f, 0.65f, 0.65f, 0.98f);
+style.Colors[ImGuiCol_TitleBg]               = ImVec4(0.27f, 0.27f, 0.54f, 1.00f);
+style.Colors[ImGuiCol_TitleBgCollapsed]      = ImVec4(0.40f, 0.40f, 0.80f, 1.00f);
+style.Colors[ImGuiCol_TitleBgActive]         = ImVec4(0.32f, 0.32f, 0.63f, 1.00f);
+style.Colors[ImGuiCol_MenuBarBg]             = ImVec4(0.40f, 0.40f, 0.55f, 1.00f);
+style.Colors[ImGuiCol_ScrollbarBg]           = ImVec4(0.20f, 0.25f, 0.30f, 0.99f);
+style.Colors[ImGuiCol_ScrollbarGrab]         = ImVec4(0.40f, 0.40f, 0.80f, 1.00f);
+style.Colors[ImGuiCol_ScrollbarGrabHovered]  = ImVec4(0.40f, 0.40f, 0.80f, 0.99f);
+style.Colors[ImGuiCol_ScrollbarGrabActive]   = ImVec4(0.80f, 0.50f, 0.50f, 0.99f);
+style.Colors[ImGuiCol_ComboBg]               = ImVec4(0.20f, 0.20f, 0.20f, 0.99f);
+style.Colors[ImGuiCol_CheckMark]             = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+style.Colors[ImGuiCol_SliderGrab]            = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+style.Colors[ImGuiCol_SliderGrabActive]      = ImVec4(0.80f, 0.50f, 0.50f, 1.00f);
+style.Colors[ImGuiCol_Button]                = ImVec4(0.57f, 0.27f, 0.04f, 1.00f);
+style.Colors[ImGuiCol_ButtonHovered]         = ImVec4(0.89f, 0.41f, 0.05f, 0.98f);
+style.Colors[ImGuiCol_ButtonActive]          = ImVec4(1.00f, 0.69f, 0.27f, 1.00f);
+style.Colors[ImGuiCol_Header]                = ImVec4(0.40f, 0.40f, 0.90f, 0.99f);
+style.Colors[ImGuiCol_HeaderHovered]         = ImVec4(0.45f, 0.45f, 0.90f, 0.98f);
+style.Colors[ImGuiCol_HeaderActive]          = ImVec4(0.53f, 0.53f, 0.87f, 0.97f);
+style.Colors[ImGuiCol_Column]                = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+style.Colors[ImGuiCol_ColumnHovered]         = ImVec4(0.70f, 0.60f, 0.60f, 1.00f);
+style.Colors[ImGuiCol_ColumnActive]          = ImVec4(0.90f, 0.70f, 0.70f, 1.00f);
+style.Colors[ImGuiCol_ResizeGrip]            = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+style.Colors[ImGuiCol_ResizeGripHovered]     = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+style.Colors[ImGuiCol_ResizeGripActive]      = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+style.Colors[ImGuiCol_CloseButton]           = ImVec4(0.50f, 0.50f, 0.90f, 1.00f);
+style.Colors[ImGuiCol_CloseButtonHovered]    = ImVec4(0.70f, 0.70f, 0.90f, 1.00f);
+style.Colors[ImGuiCol_CloseButtonActive]     = ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
+style.Colors[ImGuiCol_PlotLines]             = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+style.Colors[ImGuiCol_PlotLinesHovered]      = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
+style.Colors[ImGuiCol_PlotHistogram]         = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
+style.Colors[ImGuiCol_PlotHistogramHovered]  = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
+style.Colors[ImGuiCol_TextSelectedBg]        = ImVec4(0.00f, 0.00f, 1.00f, 1.00f);
+style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+
+        // Other styles
+        style.WindowPadding      = ImVec2(10.f, 10.f);
+        style.FrameRounding      = 2.f;
+        style.WindowRounding     = 4.f;
+        style.WindowTitleAlign   = ImVec2(0.5f, 0.5f);
+        style.ItemSpacing        = ImVec2(5.f, 5.f);
+
+
+    }
+
+    void RoR_DrawMainMenu()
+    {
+        int flags = ImGuiWindowFlags_NoCollapse;
+        ImGui::SetNextWindowPosCenter();
+        if (ImGui::Begin("Main menu", nullptr, static_cast<ImGuiWindowFlags_>(flags)))
+        {
+            ImGui::Button("Single player");
+            ImGui::Button("Multi player");
+            ImGui::Separator();
+            ImGui::Button("Settings");
+            ImGui::Button("Exit game");
+
+            ImGui::End();
+        }
+
+    }
+
     void DrawGui()
     {
         if (ImGui::BeginMainMenuBar())
         {
-            if (ImGui::BeginMenu("(dummy)File"))
-            {
-                ImGui::MenuItem("(dummy)Open");
-                ImGui::MenuItem("(dummy)Save");
-
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("(dummy)Nodes"))
-            {
-                ImGui::MenuItem("(dummy)Add source");
-                ImGui::MenuItem("(dummy)Add sink");
-
-                ImGui::EndMenu();
-            }
-
-            ImGui::Checkbox("Show test window", &m_gui_state.test_window_visible);
+            ImGui::Checkbox("Test window", &m_gui_state.test_window_visible);
+            ImGui::SameLine();
+            ImGui::Checkbox("Style editor", &m_gui_state.style_editor_visible);
 
             ImGui::EndMainMenuBar();
         }
@@ -60,6 +123,14 @@ public:
         {
             ImGui::ShowTestWindow(&m_gui_state.test_window_visible);
         }
+
+        if (m_gui_state.style_editor_visible)
+        {
+            ImGui::ShowStyleEditor();
+        }
+
+        // Test main menu for ROR
+        this->RoR_DrawMainMenu();
     }
 
     void Go()
@@ -127,6 +198,8 @@ public:
         // === Create IMGUI ====
         Ogre::ImguiManager::createSingleton();
         Ogre::ImguiManager::getSingleton().init(mSceneMgr, mKeyboard, mMouse); // OIS mouse + keyboard
+
+        this->RoR_SetGuiStyle();
 
         mRoot->addFrameListener(this);
 
