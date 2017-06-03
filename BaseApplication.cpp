@@ -99,8 +99,58 @@ struct GuiState
 {
     bool test_window_visible;
     bool style_editor_visible;
-    bool mainmenu_visible;
     bool console_visible;
+};
+
+// RoR prototype
+class GuiMainMenu
+{
+public:
+    // This class implements hand-made keyboard focus - button count must be known for wrapping
+    const size_t NUM_BUTTONS = 4; // Buttons: SinglePlayer, MultiPlayer, Settings, Exit
+    const float  WINDOW_WIDTH = 200.f;
+
+    GuiMainMenu(): m_is_visible(false), m_kb_focus_index(-1) {}
+
+    inline bool* GetVisibleFlag()  { return &m_is_visible; }
+    inline bool  IsVisible() const { return m_is_visible; }
+
+    // Keyboard updates - move up/down and wrap on top/bottom. Initial index is '-1' which means "no focus"
+    void KeyUpPressed()   { m_kb_focus_index = (m_kb_focus_index <= 0) ? (NUM_BUTTONS-1) : (m_kb_focus_index - 1); }
+    void KeyDownPressed() { m_kb_focus_index = (m_kb_focus_index < (NUM_BUTTONS - 1)) ? (m_kb_focus_index + 1) : 0; }
+
+    void Draw()
+    {
+        int flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
+        ImGui::SetNextWindowPosCenter();
+        
+        ImGui::SetNextWindowContentWidth(WINDOW_WIDTH);
+        if (!ImGui::Begin("Main menu", nullptr, static_cast<ImGuiWindowFlags_>(flags)))
+        {
+            return;
+        }
+
+        ImVec2 btn_size(WINDOW_WIDTH - ImGui::GetStyle().WindowPadding.x, 0.f); // Weird but necessary
+
+        const char* sp_title = (m_kb_focus_index == 0) ? "--> Single player <--" : "Single player";
+        ImGui::Button(sp_title, btn_size);
+            
+        const char* mp_title = (m_kb_focus_index == 1) ? "--> Multi player <--" : "Multi player";
+        ImGui::Button(mp_title , btn_size);
+
+        ImGui::Separator();
+
+        const char* settings_title = (m_kb_focus_index == 2) ? "--> Settings <--" : "Settings";
+        ImGui::Button(settings_title, btn_size);
+
+        const char* exit_title = (m_kb_focus_index == 3) ? "--> Exit game <--" : "Exit game";
+        ImGui::Button(exit_title, btn_size);
+
+        ImGui::End();
+    }
+private:
+    bool   m_is_visible;
+    int    m_kb_focus_index; // -1 = no focus; 0+ = button index
 };
 
 class DemoApp: public Ogre::FrameListener, public OIS::KeyListener, public OIS::MouseListener,  public Ogre::WindowEventListener
@@ -168,27 +218,6 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
 
     }
 
-    void RoR_DrawMainMenu()
-    {
-        int flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
-        ImGui::SetNextWindowPosCenter();
-        const float WIDTH = 200.f;
-        ImGui::SetNextWindowContentWidth(WIDTH);
-        if (ImGui::Begin("Main menu", nullptr, static_cast<ImGuiWindowFlags_>(flags)))
-        {
-            ImVec2 btn_size(WIDTH - ImGui::GetStyle().WindowPadding.x, 0.f); // Weird but necessary
-
-            ImGui::Button("Single player", btn_size);
-            ImGui::Button("Multi player" , btn_size);
-            ImGui::Separator();
-            ImGui::Button("Settings" , btn_size);
-            ImGui::Button("Exit game", btn_size);
-
-            ImGui::End();
-        }
-
-    }
-
     void RoR_DrawConsole()
     {
         static Console console;
@@ -203,7 +232,7 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
             ImGui::SameLine();
             ImGui::Checkbox("Styles", &m_gui_state.style_editor_visible);
             ImGui::SameLine();
-            ImGui::Checkbox("MMenu", &m_gui_state.mainmenu_visible);
+            ImGui::Checkbox("MMenu", m_main_menu.GetVisibleFlag());
             ImGui::SameLine();
             ImGui::Checkbox("Console", &m_gui_state.console_visible);
 
@@ -220,9 +249,9 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
             ImGui::ShowStyleEditor();
         }
 
-        if (m_gui_state.mainmenu_visible)
+        if (m_main_menu.IsVisible())
         {
-            this->RoR_DrawMainMenu();
+            m_main_menu.Draw();
         }
 
         if (m_gui_state.console_visible)
@@ -339,6 +368,14 @@ private:
         {
             mShutDown = true;
         }
+        else if (arg.key == OIS::KC_UP)
+        {
+            m_main_menu.KeyUpPressed();
+        }
+        else if (arg.key == OIS::KC_DOWN)
+        {
+            m_main_menu.KeyDownPressed();
+        }
 
         Ogre::ImguiManager::getSingleton().keyPressed(arg);
         return true;
@@ -415,6 +452,7 @@ private:
     OIS::Keyboard*              mKeyboard    ;
 
     GuiState                    m_gui_state;
+    GuiMainMenu                 m_main_menu;
 };
 
 
