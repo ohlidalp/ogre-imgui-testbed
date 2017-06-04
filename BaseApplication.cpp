@@ -382,7 +382,7 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
         Ogre::WindowEventUtilities::addWindowEventListener(mWindow, this);
 
         // === Create IMGUI ====
-        m_imgui.init(mSceneMgr, mKeyboard, mMouse); // OIS mouse + keyboard
+        m_imgui.Init(mSceneMgr, mKeyboard, mMouse); // OIS mouse + keyboard
 
         this->RoR_SetGuiStyle();
 
@@ -411,7 +411,7 @@ private:
         // ===== Start IMGUI frame =====
         int left, top, width, height;
         mWindow->getViewport(0)->getActualDimensions(left, top, width, height); // output params
-        m_imgui.newFrame(evt.timeSinceLastFrame, Ogre::Rect(left, top, width, height));
+        m_imgui.NewFrame(evt.timeSinceLastFrame, Ogre::Rect(left, top, width, height));
 
         // ===== Draw IMGUI  ====
         this->DrawGui();
@@ -510,7 +510,7 @@ private:
 
     GuiState                    m_gui_state;
     GuiMainMenu                 m_main_menu;
-    ImguiManager                m_imgui;
+    OgreImGui                m_imgui;
 };
 
 

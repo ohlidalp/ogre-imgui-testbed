@@ -11,77 +11,66 @@
 #include "OgreRenderable.h"
 #include <OgreRenderOperation.h>
 
+class OgreImGui : public Ogre::RenderQueueListener, public OIS::MouseListener, public OIS::KeyListener
+{
+public:
+    OgreImGui();
 
+    void Shutdown();
+    void Init(Ogre::SceneManager* mgr, OIS::Keyboard* keyInput, OIS::Mouse* mouseInput);
+    void NewFrame(float deltaTime,const Ogre::Rect & windowRect);
 
+    //inherited from RenderQueueListener
+    virtual void renderQueueEnded(Ogre::uint8 queueGroupId, const Ogre::String& invocation,bool& repeatThisInvocation) override;
 
-    class ImguiManager : public Ogre::RenderQueueListener,public OIS::MouseListener,public OIS::KeyListener
+    //Inherited from OIS::MouseListener
+    virtual bool mouseMoved( const OIS::MouseEvent &arg ) override;
+    virtual bool mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id ) override;
+    virtual bool mouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID id ) override;
+
+    //Inherited from OIS::KeyListener
+    virtual bool keyPressed( const OIS::KeyEvent &arg ) override;
+    virtual bool keyReleased( const OIS::KeyEvent &arg ) override;
+
+private:
+
+    class ImGUIRenderable : public Ogre::Renderable
     {
-        public:
+    public:
+        ImGUIRenderable();
+        virtual ~ImGUIRenderable();
 
-        ImguiManager();
-        void Shutdown();
+        void updateVertexData(ImDrawData* data,unsigned int cmdIndex);
+        Ogre::Real getSquaredViewDepth(const Ogre::Camera* cam) const   { (void)cam; return 0; }
 
-        virtual void init(Ogre::SceneManager* mgr,OIS::Keyboard* keyInput, OIS::Mouse* mouseInput);
+        void setMaterial( const Ogre::String& matName );
+        void setMaterial(const Ogre::MaterialPtr & material);
+        virtual const Ogre::MaterialPtr& getMaterial(void) const override;
+        virtual void getWorldTransforms( Ogre::Matrix4* xform ) const override;
+        virtual void getRenderOperation( Ogre::RenderOperation& op ) override;
+        virtual const Ogre::LightList& getLights(void) const override;
 
-        virtual void newFrame(float deltaTime,const Ogre::Rect & windowRect);
+        int                      mVertexBufferSize;
+        int                      mIndexBufferSize;
 
-        //inherited from RenderQueueListener
-        virtual void renderQueueEnded(Ogre::uint8 queueGroupId, const Ogre::String& invocation,bool& repeatThisInvocation);
+    private:
+        void initImGUIRenderable(void);
 
-        //Inherhited from OIS::MouseListener
-        virtual bool mouseMoved( const OIS::MouseEvent &arg );
-		virtual bool mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id );
-		virtual bool mouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID id );
-        //Inherhited from OIS::KeyListener
-		virtual bool keyPressed( const OIS::KeyEvent &arg );
-		virtual bool keyReleased( const OIS::KeyEvent &arg );
-
-        void updateVertexData();
-
-        protected:
-
-        class ImGUIRenderable : public Ogre::Renderable
-            {
-
-            public:
-                ImGUIRenderable();
-                ~ImGUIRenderable();
-
-                void updateVertexData(ImDrawData* data,unsigned int cmdIndex);
-                Ogre::Real getSquaredViewDepth(const Ogre::Camera* cam) const   { (void)cam; return 0; }
-
-                void setMaterial( const Ogre::String& matName );
-		        virtual void setMaterial(const Ogre::MaterialPtr & material);
-                virtual const Ogre::MaterialPtr& getMaterial(void) const;
-                virtual void getWorldTransforms( Ogre::Matrix4* xform ) const;
-                virtual void getRenderOperation( Ogre::RenderOperation& op );
-                virtual const Ogre::LightList& getLights(void) const;
-
-                int                      mVertexBufferSize;
-                int                      mIndexBufferSize;
-
-            private:
-
-                Ogre::MaterialPtr mMaterial;
-                Ogre::RenderOperation mRenderOp;
-
-                void initImGUIRenderable(void);
-
-            };
-
-        void createFontTexture();
-        void createMaterial();
-
-        std::list<ImGUIRenderable*> mRenderables;
-
-        Ogre::SceneManager*				mSceneMgr;
-        Ogre::Pass*						mPass;
-        int                         mLastRenderedFrame;
-
-        Ogre::TexturePtr                  mFontTex;
-
-        bool                        mFrameEnded;
-        OIS::Keyboard*              mKeyInput;
-        OIS::Mouse*                 mMouseInput;
+        Ogre::MaterialPtr mMaterial;
+        Ogre::RenderOperation mRenderOp;
     };
+
+    void createFontTexture();
+    void createMaterial();
+    void updateVertexData();
+
+    std::list<ImGUIRenderable*> mRenderables;
+    Ogre::SceneManager*         mSceneMgr;
+    Ogre::Pass*                 mPass;
+    int                         mLastRenderedFrame;
+    Ogre::TexturePtr            mFontTex;
+    bool                        mFrameEnded;
+    OIS::Keyboard*              mKeyInput;
+    OIS::Mouse*                 mMouseInput;
+};
 
