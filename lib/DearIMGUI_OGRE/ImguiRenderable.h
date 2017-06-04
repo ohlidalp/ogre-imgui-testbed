@@ -7,15 +7,14 @@
 #include <OgreRenderOperation.h>
 
 struct ImDrawData;
-namespace Ogre 
-{
+
     class SceneManager;
-    class ImGUIRenderable : public Renderable
+    class ImGUIRenderable : public Ogre::Renderable
     {
     protected:
 
-        MaterialPtr mMaterial;
-        RenderOperation mRenderOp;
+        Ogre::MaterialPtr mMaterial;
+        Ogre::RenderOperation mRenderOp;
 
         void initImGUIRenderable(void);
        
@@ -24,14 +23,14 @@ namespace Ogre
         ~ImGUIRenderable();
 
         void updateVertexData(ImDrawData* data,unsigned int cmdIndex);
-        Real getSquaredViewDepth(const Camera* cam) const   { (void)cam; return 0; }
+        Ogre::Real getSquaredViewDepth(const Ogre::Camera* cam) const   { (void)cam; return 0; }
 
-        void setMaterial( const String& matName );
-		virtual void setMaterial(const MaterialPtr & material);
-        virtual const MaterialPtr& getMaterial(void) const;
-        virtual void getWorldTransforms( Matrix4* xform ) const;
-        virtual void getRenderOperation( RenderOperation& op );
-        virtual const LightList& getLights(void) const;
+        void setMaterial( const Ogre::String& matName );
+		virtual void setMaterial(const Ogre::MaterialPtr & material);
+        virtual const Ogre::MaterialPtr& getMaterial(void) const;
+        virtual void getWorldTransforms( Ogre::Matrix4* xform ) const;
+        virtual void getRenderOperation( Ogre::RenderOperation& op );
+        virtual const Ogre::LightList& getLights(void) const;
 
         int                      mVertexBufferSize;
         int                      mIndexBufferSize;
@@ -39,9 +38,8 @@ namespace Ogre
         
 
     };
-    /** @} */
-    /** @} */
 
-}// namespace
+
+
 
 #endif

@@ -510,7 +510,7 @@ private:
 
     GuiState                    m_gui_state;
     GuiMainMenu                 m_main_menu;
-    Ogre::ImguiManager          m_imgui;
+    ImguiManager                m_imgui;
 };
 
 

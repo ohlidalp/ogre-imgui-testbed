@@ -10,11 +10,10 @@
 
 #include "ImguiRenderable.h"
 
-namespace Ogre
-{
-    class SceneManager;
 
-    class ImguiManager : public RenderQueueListener,public OIS::MouseListener,public OIS::KeyListener
+
+
+    class ImguiManager : public Ogre::RenderQueueListener,public OIS::MouseListener,public OIS::KeyListener
     {
         public:
 
@@ -26,7 +25,7 @@ namespace Ogre
         virtual void newFrame(float deltaTime,const Ogre::Rect & windowRect);
 
         //inherited from RenderQueueListener
-        virtual void renderQueueEnded(uint8 queueGroupId, const String& invocation,bool& repeatThisInvocation);
+        virtual void renderQueueEnded(Ogre::uint8 queueGroupId, const Ogre::String& invocation,bool& repeatThisInvocation);
 
         //Inherhited from OIS::MouseListener
         virtual bool mouseMoved( const OIS::MouseEvent &arg );
@@ -45,14 +44,14 @@ namespace Ogre
 
         std::list<ImGUIRenderable*> mRenderables;
 
-        SceneManager*				mSceneMgr;
-        Pass*						mPass;
+        Ogre::SceneManager*				mSceneMgr;
+        Ogre::Pass*						mPass;
         int                         mLastRenderedFrame;
 
-        TexturePtr                  mFontTex;
+        Ogre::TexturePtr                  mFontTex;
 
         bool                        mFrameEnded;
         OIS::Keyboard*              mKeyInput;
         OIS::Mouse*                 mMouseInput;
     };
-}
+

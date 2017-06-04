@@ -40,8 +40,7 @@ THE SOFTWARE.
 #include <OgreRoot.h>
 
 
-namespace Ogre
-{
+
     ImGUIRenderable::ImGUIRenderable():
     mVertexBufferSize(5000)
     ,mIndexBufferSize(10000)
@@ -59,26 +58,26 @@ namespace Ogre
         mUseIdentityProjection  = true;
         mUseIdentityView        = true;
 
-        mRenderOp.vertexData = OGRE_NEW VertexData();
-        mRenderOp.indexData  = OGRE_NEW IndexData();
+        mRenderOp.vertexData = OGRE_NEW Ogre::VertexData();
+        mRenderOp.indexData  = OGRE_NEW Ogre::IndexData();
 
         mRenderOp.vertexData->vertexCount   = 0;
         mRenderOp.vertexData->vertexStart   = 0;
 
         mRenderOp.indexData->indexCount = 0;
         mRenderOp.indexData->indexStart = 0;
-        mRenderOp.operationType             = RenderOperation::OT_TRIANGLE_LIST;
+        mRenderOp.operationType             = Ogre::RenderOperation::OT_TRIANGLE_LIST;
         mRenderOp.useIndexes                                    = true; 
         mRenderOp.useGlobalInstancingVertexBufferIsAvailable    = false;
 
-        VertexDeclaration* decl     = mRenderOp.vertexData->vertexDeclaration;
+        Ogre::VertexDeclaration* decl     = mRenderOp.vertexData->vertexDeclaration;
         
         // vertex declaration
         size_t offset = 0;
         decl->addElement(0,offset,Ogre::VET_FLOAT2,Ogre::VES_POSITION);
-        offset += VertexElement::getTypeSize( VET_FLOAT2 );
+        offset += Ogre::VertexElement::getTypeSize( Ogre::VET_FLOAT2 );
         decl->addElement(0,offset,Ogre::VET_FLOAT2,Ogre::VES_TEXTURE_COORDINATES,0);
-        offset += VertexElement::getTypeSize( VET_FLOAT2 );
+        offset += Ogre::VertexElement::getTypeSize( Ogre::VET_FLOAT2 );
         decl->addElement(0,offset,Ogre::VET_COLOUR,Ogre::VES_DIFFUSE);
 
         
@@ -91,32 +90,31 @@ namespace Ogre
         OGRE_DELETE mRenderOp.vertexData;
     }
     //-----------------------------------------------------------------------------------
-    void ImGUIRenderable::setMaterial( const String& matName )
+    void ImGUIRenderable::setMaterial( const Ogre::String& matName )
     {
-        mMaterial = MaterialManager::getSingleton().getByName( matName );
-        if( mMaterial.isNull() )
+        mMaterial = Ogre::MaterialManager::getSingleton().getByName( matName );
+        if( !mMaterial.isNull() )
         {
-            OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Could not find material " + matName,
-                        "ImGUIRenderable::setMaterial" );
+            return;
         }
     
         // Won't load twice anyway
         mMaterial->load();
     }
 	//-----------------------------------------------------------------------------------
-    void ImGUIRenderable::setMaterial(const MaterialPtr & material)
+    void ImGUIRenderable::setMaterial(const Ogre::MaterialPtr & material)
     {
         mMaterial = material;
     }
     //-----------------------------------------------------------------------------------
-    const MaterialPtr& ImGUIRenderable::getMaterial(void) const
+    const Ogre::MaterialPtr& ImGUIRenderable::getMaterial(void) const
     {
         return mMaterial;
     }
     //-----------------------------------------------------------------------------------
     void ImGUIRenderable::updateVertexData(ImDrawData* draw_data,unsigned int cmdIndex)
     {
-        VertexBufferBinding* bind   = mRenderOp.vertexData->vertexBufferBinding;
+        Ogre::VertexBufferBinding* bind   = mRenderOp.vertexData->vertexBufferBinding;
 
         const ImDrawList* cmd_list = draw_data->CmdLists[cmdIndex];
 
@@ -132,7 +130,7 @@ namespace Ogre
             mIndexBufferSize = cmd_list->IdxBuffer.size();
 
             mRenderOp.indexData->indexBuffer=
-            Ogre::HardwareBufferManager::getSingleton().createIndexBuffer(HardwareIndexBuffer::IT_16BIT,mIndexBufferSize,Ogre::HardwareBuffer::HBU_WRITE_ONLY);
+            Ogre::HardwareBufferManager::getSingleton().createIndexBuffer(Ogre::HardwareIndexBuffer::IT_16BIT,mIndexBufferSize,Ogre::HardwareBuffer::HBU_WRITE_ONLY);
             
         }
       
@@ -156,19 +154,19 @@ namespace Ogre
      
     }
     //-----------------------------------------------------------------------------------
-    void ImGUIRenderable::getWorldTransforms( Matrix4* xform ) const
+    void ImGUIRenderable::getWorldTransforms( Ogre::Matrix4* xform ) const
     {
         *xform = Ogre::Matrix4::IDENTITY;
     }
     //-----------------------------------------------------------------------------------
-    void ImGUIRenderable::getRenderOperation(RenderOperation& op)
+    void ImGUIRenderable::getRenderOperation(Ogre::RenderOperation& op)
     {
         op = mRenderOp;
     }
     //-----------------------------------------------------------------------------------
-    const LightList& ImGUIRenderable::getLights(void) const
+    const Ogre::LightList& ImGUIRenderable::getLights(void) const
     {
-        static const LightList l;
+        static const Ogre::LightList l;
         return l;
     }
-}
+

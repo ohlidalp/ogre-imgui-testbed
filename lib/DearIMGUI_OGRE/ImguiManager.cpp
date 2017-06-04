@@ -20,9 +20,6 @@
 #include <OgreHardwarePixelBuffer.h>
 #include <OgreRenderTarget.h>
 
-using namespace Ogre;
-
-
 ImguiManager::ImguiManager()
     :mSceneMgr(0)
     ,mLastRenderedFrame(-1)
@@ -139,7 +136,7 @@ void ImguiManager::updateVertexData()
     ImDrawData* draw_data = ImGui::GetDrawData();
     while(mRenderables.size()<draw_data->CmdListsCount)
     {
-        mRenderables.push_back(new Ogre::ImGUIRenderable());
+        mRenderables.push_back(new ImGUIRenderable());
     }
     while(mRenderables.size()>draw_data->CmdListsCount)
     {
@@ -154,7 +151,7 @@ void ImguiManager::updateVertexData()
 
 }
 
-void ImguiManager::renderQueueEnded(uint8 queueGroupId, const String& invocation,bool& repeatThisInvocation)
+void ImguiManager::renderQueueEnded(Ogre::uint8 queueGroupId, const Ogre::String& invocation,bool& repeatThisInvocation)
 {
     if((queueGroupId != Ogre::RENDER_QUEUE_OVERLAY) || (invocation == "SHADOWS"))
     {
@@ -334,15 +331,15 @@ void ImguiManager::createMaterial()
     
     if(vertexShaderUnified.isNull())
     {
-        vertexShaderUnified = mgr.createProgram("imgui/VP",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,"unified",GPT_VERTEX_PROGRAM);
+        vertexShaderUnified = mgr.createProgram("imgui/VP",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,"unified",Ogre::GPT_VERTEX_PROGRAM);
     }
     if(pixelShaderUnified.isNull())
     {
-        pixelShaderUnified = mgr.createProgram("imgui/FP",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,"unified",GPT_FRAGMENT_PROGRAM);
+        pixelShaderUnified = mgr.createProgram("imgui/FP",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,"unified",Ogre::GPT_FRAGMENT_PROGRAM);
     }
 
-    UnifiedHighLevelGpuProgram* vertexShaderPtr = static_cast<UnifiedHighLevelGpuProgram*>(vertexShaderUnified.get());
-    UnifiedHighLevelGpuProgram* pixelShaderPtr = static_cast<UnifiedHighLevelGpuProgram*>(pixelShaderUnified.get());
+    Ogre::UnifiedHighLevelGpuProgram* vertexShaderPtr = static_cast<Ogre::UnifiedHighLevelGpuProgram*>(vertexShaderUnified.get());
+    Ogre::UnifiedHighLevelGpuProgram* pixelShaderPtr = static_cast<Ogre::UnifiedHighLevelGpuProgram*>(pixelShaderUnified.get());
 
     if (vertexShaderD3D11.isNull())
     {
@@ -416,7 +413,7 @@ void ImguiManager::createMaterial()
     mPass = imguiMaterial->getTechnique(0)->getPass(0);
     mPass->setFragmentProgram("imgui/FP");
     mPass->setVertexProgram("imgui/VP");
-    mPass->setCullingMode(CULL_NONE);
+    mPass->setCullingMode(Ogre::CULL_NONE);
     mPass->setDepthFunction(Ogre::CMPF_ALWAYS_PASS);
     mPass->setLightingEnabled(false);
     mPass->setSceneBlending(Ogre::SBT_TRANSPARENT_ALPHA);
@@ -434,13 +431,13 @@ void ImguiManager::createFontTexture()
     int width, height;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 
-    mFontTex = TextureManager::getSingleton().createManual("ImguiFontTex",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,TEX_TYPE_2D,width,height,1,1,PF_R8G8B8A8);
+    mFontTex = Ogre::TextureManager::getSingleton().createManual("ImguiFontTex",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,Ogre::TEX_TYPE_2D,width,height,1,1,Ogre::PF_R8G8B8A8);
 
     // Lock texture for writing
-    const PixelBox & lockBox = mFontTex->getBuffer()->lock(Image::Box(0, 0, width, height), HardwareBuffer::HBL_DISCARD);
+    const Ogre::PixelBox & lockBox = mFontTex->getBuffer()->lock(Ogre::Image::Box(0, 0, width, height), Ogre::HardwareBuffer::HBL_DISCARD);
 
     // Copy texture to ImGui
-    size_t texDepth = PixelUtil::getNumElemBytes(lockBox.format);
+    size_t texDepth = Ogre::PixelUtil::getNumElemBytes(lockBox.format);
     memcpy(lockBox.data,pixels, width*height*texDepth);
 
     // Unlock
