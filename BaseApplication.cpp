@@ -25,11 +25,67 @@
     static const std::string mPluginsCfg = "plugins.cfg";
 #endif
 
+class GVarBase
+{
+public:
+    GVarBase(const char* name, const char* conf_name): name(name), conf_name(conf_name) {}
+
+    const char* name;
+    const char* conf_name;
+};
+
+template <typename T>
+class GVar: public GVarBase
+{
+public:
+    GVar(const char* name, const char* conf): GVarBase(name, conf) {}
+
+    inline T& GetActiveValue() const { return m_value_active; }
+    inline T& GetPendingValue() const { return m_value_pending; }
+
+    void     SetPendingValue(T& const val) { m_value_pending = val; }
+    void     ApplyPendingValue();
+
+private:
+    T           m_value_active;
+    T           m_value_pending;
+};
+
+GVar<int>         GVAR_INT("int", "Integer");
+GVar<int>         GVAR_INT2("int2", "Integer2");
+GVar<std::string> GVAR_STR("str", "String");
+
+GVarBase* GVARS[] = { &GVAR_INT, &GVAR_INT2, &GVAR_STR };
+
+ImVec4 col_white(1.f, 1.f, 1.f, 1.f);
+ImVec4 col_green(0.2f, 0.8f, 0.3f, 1.f);
+ImVec4 col_blue(0.1f, 0.4f, 0.8f, 1.f);
+
 class Console
 {
 public:
+
+    struct ConsoleCmd
+    {
+        ConsoleCmd(const char* name, const char* syntax, const char* descr): 
+            cmd_name(name), cmd_syntax(syntax), cmd_descr(descr) {}
+
+        const char* cmd_name;
+        const char* cmd_syntax;
+        const char* cmd_descr;
+    };
+
     static const size_t MAX_LINES = 200;
     static const size_t INPUT_BUFFER_LEN = 500;
+
+    static const char* CMD_GET;// = "get";
+    static const char* CMD_SET;// = "set";
+    static const char* CMD_GRAVITY;// = "gravity";
+    static const char* CMD_HELP;// = "help";
+    static const char* CMD_VERSION;// = "version";
+    static const char* CMD_GOTO;// = "goto";
+    static const char* CMD_QUIT;// = "quit";
+    static const char* CMD_SCRIPT;// = "script";
 
     std::string              m_lines[MAX_LINES];
     size_t                   m_lines_caret;
@@ -45,17 +101,14 @@ public:
         }
 
         const float CONSOLE_PADDING = 6.f;
-
-        // Some stupid header text
-        ImGui::Text("This is a test console");
-        ImGui::Separator();
         
         // The actual console body
-        ImVec2 body_size = ImVec2(0,-ImGui::GetItemsLineHeightWithSpacing());
-        ImGui::BeginChild("ScrollingRegion", body_size, false, ImGuiWindowFlags_HorizontalScrollbar);
+        const float body_height = -(ImGui::GetItemsLineHeightWithSpacing() * 3.f);
+        const int body_flags = ImGuiWindowFlags_HorizontalScrollbar;
+        ImGui::BeginChild("ScrollingRegion", ImVec2(0,body_height), false, body_flags);
 
-        // Spacing: eliminate extra horizontal spacing to make separate text elements appear as fluent colored text.
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(1.f, 1.f)); // Also tighten vertical spacing
+        // Spacing: minimize spacing to make separate text elements appear as fluent colored text.
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(1.f, 1.f));
 
         ImVec2 pos = ImGui::GetCursorPos();
         pos.x += CONSOLE_PADDING;
@@ -67,10 +120,6 @@ public:
         
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + CONSOLE_PADDING);
         ImGui::Text("=====|=====| 5+5");
-        
-        ImVec4 col_white(1.f, 1.f, 1.f, 1.f);
-        ImVec4 col_green(0.2f, 0.8f, 0.3f, 1.f);
-        ImVec4 col_blue(0.1f, 0.4f, 0.8f, 1.f);
 
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + CONSOLE_PADDING);
         ImGui::TextColored(col_blue, "=====|");
@@ -94,6 +143,15 @@ public:
     }
 
 };
+
+     const char* Console::CMD_GET = "get";
+     const char* Console::CMD_SET = "set";
+     const char* Console::CMD_GRAVITY = "gravity";
+     const char* Console::CMD_HELP = "help";
+     const char* Console::CMD_VERSION = "version";
+     const char* Console::CMD_GOTO = "goto";
+     const char* Console::CMD_QUIT = "quit";
+     const char* Console::CMD_SCRIPT = "script";
 
 struct GuiState
 {
