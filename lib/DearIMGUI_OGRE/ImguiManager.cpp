@@ -22,27 +22,6 @@
 
 using namespace Ogre;
 
-template<> ImguiManager* Singleton<ImguiManager>::msSingleton = 0;
-
-void ImguiManager::createSingleton()
-{
-    if(!msSingleton)
-    {
-        msSingleton = new ImguiManager();
-    }
-}
-
-ImguiManager* ImguiManager::getSingletonPtr(void)
-{
-    createSingleton();
-    return msSingleton;
-}
-
-ImguiManager& ImguiManager::getSingleton(void)
-{  
-    createSingleton();
-    return ( *msSingleton );
-}
 
 ImguiManager::ImguiManager()
     :mSceneMgr(0)
@@ -55,13 +34,9 @@ ImguiManager::ImguiManager()
 
 }
 
-ImguiManager::~ImguiManager()
+void ImguiManager::Shutdown()
 {
-    while(mRenderables.size()>0)
-    {
-        delete mRenderables.back();
-        mRenderables.pop_back();
-    }
+    // FIXME: Deleting renderables here causes a segfault for some reason...
     mSceneMgr->removeRenderQueueListener(this);
 }
 

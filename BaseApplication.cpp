@@ -382,8 +382,7 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
         Ogre::WindowEventUtilities::addWindowEventListener(mWindow, this);
 
         // === Create IMGUI ====
-        Ogre::ImguiManager::createSingleton();
-        Ogre::ImguiManager::getSingleton().init(mSceneMgr, mKeyboard, mMouse); // OIS mouse + keyboard
+        m_imgui.init(mSceneMgr, mKeyboard, mMouse); // OIS mouse + keyboard
 
         this->RoR_SetGuiStyle();
 
@@ -412,7 +411,7 @@ private:
         // ===== Start IMGUI frame =====
         int left, top, width, height;
         mWindow->getViewport(0)->getActualDimensions(left, top, width, height); // output params
-        Ogre::ImguiManager::getSingleton().newFrame(evt.timeSinceLastFrame, Ogre::Rect(left, top, width, height));
+        m_imgui.newFrame(evt.timeSinceLastFrame, Ogre::Rect(left, top, width, height));
 
         // ===== Draw IMGUI  ====
         this->DrawGui();
@@ -435,31 +434,31 @@ private:
             m_main_menu.KeyDownPressed();
         }
 
-        Ogre::ImguiManager::getSingleton().keyPressed(arg);
+        m_imgui.keyPressed(arg);
         return true;
     }
 
     bool keyReleased(const OIS::KeyEvent &arg) override
     {
-        Ogre::ImguiManager::getSingleton().keyReleased(arg);
+        m_imgui.keyReleased(arg);
         return true;
     }
 
     bool mouseMoved(const OIS::MouseEvent &arg) override
     {
-        Ogre::ImguiManager::getSingleton().mouseMoved(arg);
+        m_imgui.mouseMoved(arg);
         return true;
     }
 
     bool mousePressed(const OIS::MouseEvent &arg, OIS::MouseButtonID id) override
     {
-        Ogre::ImguiManager::getSingleton().mousePressed(arg, id);
+        m_imgui.mousePressed(arg, id);
         return true;
     }
 
     bool mouseReleased(const OIS::MouseEvent &arg, OIS::MouseButtonID id) override
     {
-        Ogre::ImguiManager::getSingleton().mouseReleased(arg, id);
+        m_imgui.mouseReleased(arg, id);
         return true;
     }
 
@@ -511,6 +510,7 @@ private:
 
     GuiState                    m_gui_state;
     GuiMainMenu                 m_main_menu;
+    Ogre::ImguiManager          m_imgui;
 };
 
 
