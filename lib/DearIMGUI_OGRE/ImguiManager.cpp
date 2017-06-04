@@ -1,5 +1,4 @@
 #include <imgui.h>
-#include "ImguiRenderable.h"
 #include "ImguiManager.h"
 
 #include <OgreMaterialManager.h>
@@ -467,3 +466,134 @@ void ImguiManager::newFrame(float deltaTime,const Ogre::Rect & windowRect)
     // Start the frame
     ImGui::NewFrame();
 }
+
+// -------------------------- ImGui Renderable ------------------------------ // 
+
+ ImguiManager::ImGUIRenderable::ImGUIRenderable():
+    mVertexBufferSize(5000)
+    ,mIndexBufferSize(10000)
+    {
+        initImGUIRenderable();
+
+        //By default we want ImGUIRenderables to still work in wireframe mode
+        setPolygonModeOverrideable( false );
+        
+    }
+    //-----------------------------------------------------------------------------------
+    void ImguiManager::ImGUIRenderable::initImGUIRenderable(void)
+    {
+        // use identity projection and view matrices
+        mUseIdentityProjection  = true;
+        mUseIdentityView        = true;
+
+        mRenderOp.vertexData = OGRE_NEW Ogre::VertexData();
+        mRenderOp.indexData  = OGRE_NEW Ogre::IndexData();
+
+        mRenderOp.vertexData->vertexCount   = 0;
+        mRenderOp.vertexData->vertexStart   = 0;
+
+        mRenderOp.indexData->indexCount = 0;
+        mRenderOp.indexData->indexStart = 0;
+        mRenderOp.operationType             = Ogre::RenderOperation::OT_TRIANGLE_LIST;
+        mRenderOp.useIndexes                                    = true; 
+        mRenderOp.useGlobalInstancingVertexBufferIsAvailable    = false;
+
+        Ogre::VertexDeclaration* decl     = mRenderOp.vertexData->vertexDeclaration;
+        
+        // vertex declaration
+        size_t offset = 0;
+        decl->addElement(0,offset,Ogre::VET_FLOAT2,Ogre::VES_POSITION);
+        offset += Ogre::VertexElement::getTypeSize( Ogre::VET_FLOAT2 );
+        decl->addElement(0,offset,Ogre::VET_FLOAT2,Ogre::VES_TEXTURE_COORDINATES,0);
+        offset += Ogre::VertexElement::getTypeSize( Ogre::VET_FLOAT2 );
+        decl->addElement(0,offset,Ogre::VET_COLOUR,Ogre::VES_DIFFUSE);
+
+        
+          // set basic white material
+        this->setMaterial( "imgui/material" );
+    }
+    //-----------------------------------------------------------------------------------
+    ImguiManager::ImGUIRenderable::~ImGUIRenderable()
+    {
+        OGRE_DELETE mRenderOp.vertexData;
+    }
+    //-----------------------------------------------------------------------------------
+    void ImguiManager::ImGUIRenderable::setMaterial( const Ogre::String& matName )
+    {
+        mMaterial = Ogre::MaterialManager::getSingleton().getByName( matName );
+        if( !mMaterial.isNull() )
+        {
+            return;
+        }
+    
+        // Won't load twice anyway
+        mMaterial->load();
+    }
+	//-----------------------------------------------------------------------------------
+    void ImguiManager::ImGUIRenderable::setMaterial(const Ogre::MaterialPtr & material)
+    {
+        mMaterial = material;
+    }
+    //-----------------------------------------------------------------------------------
+    const Ogre::MaterialPtr& ImguiManager::ImGUIRenderable::getMaterial(void) const
+    {
+        return mMaterial;
+    }
+    //-----------------------------------------------------------------------------------
+    void ImguiManager::ImGUIRenderable::updateVertexData(ImDrawData* draw_data,unsigned int cmdIndex)
+    {
+        Ogre::VertexBufferBinding* bind   = mRenderOp.vertexData->vertexBufferBinding;
+
+        const ImDrawList* cmd_list = draw_data->CmdLists[cmdIndex];
+
+        if (bind->getBindings().empty() || mVertexBufferSize != cmd_list->VtxBuffer.size())
+        {
+            mVertexBufferSize = cmd_list->VtxBuffer.size();
+
+            bind->setBinding(0,Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(sizeof(ImDrawVert),mVertexBufferSize,Ogre::HardwareBuffer::HBU_WRITE_ONLY));
+
+        }
+        if (mRenderOp.indexData->indexBuffer.isNull() || mIndexBufferSize != cmd_list->IdxBuffer.size())
+        {
+            mIndexBufferSize = cmd_list->IdxBuffer.size();
+
+            mRenderOp.indexData->indexBuffer=
+            Ogre::HardwareBufferManager::getSingleton().createIndexBuffer(Ogre::HardwareIndexBuffer::IT_16BIT,mIndexBufferSize,Ogre::HardwareBuffer::HBU_WRITE_ONLY);
+            
+        }
+      
+        // Copy all vertices
+        ImDrawVert* vtx_dst = (ImDrawVert*)(bind->getBuffer(0)->lock(Ogre::HardwareBuffer::HBL_DISCARD));
+        ImDrawIdx* idx_dst = (ImDrawIdx*)(mRenderOp.indexData->indexBuffer->lock(Ogre::HardwareBuffer::HBL_DISCARD));
+
+       
+        memcpy(vtx_dst, &cmd_list->VtxBuffer[0], mVertexBufferSize * sizeof(ImDrawVert));
+        memcpy(idx_dst, &cmd_list->IdxBuffer[0], mIndexBufferSize * sizeof(ImDrawIdx));
+          
+         
+        mRenderOp.vertexData->vertexStart = 0;
+        mRenderOp.vertexData->vertexCount =  cmd_list->VtxBuffer.size();
+        mRenderOp.indexData->indexStart = 0;
+        mRenderOp.indexData->indexCount =  cmd_list->IdxBuffer.size();
+
+        bind->getBuffer(0)->unlock();
+        mRenderOp.indexData->indexBuffer->unlock();
+
+     
+    }
+    //-----------------------------------------------------------------------------------
+    void ImguiManager::ImGUIRenderable::getWorldTransforms( Ogre::Matrix4* xform ) const
+    {
+        *xform = Ogre::Matrix4::IDENTITY;
+    }
+    //-----------------------------------------------------------------------------------
+    void ImguiManager::ImGUIRenderable::getRenderOperation(Ogre::RenderOperation& op)
+    {
+        op = mRenderOp;
+    }
+    //-----------------------------------------------------------------------------------
+    const Ogre::LightList& ImguiManager::ImGUIRenderable::getLights(void) const
+    {
+        static const Ogre::LightList l;
+        return l;
+    }

@@ -7,8 +7,9 @@
 
 #include <OgreRenderQueueListener.h>
 #include <OgreTexture.h>
-
-#include "ImguiRenderable.h"
+#include "OgrePrerequisites.h"
+#include "OgreRenderable.h"
+#include <OgreRenderOperation.h>
 
 
 
@@ -38,6 +39,35 @@
         void updateVertexData();
 
         protected:
+
+        class ImGUIRenderable : public Ogre::Renderable
+            {
+
+            public:
+                ImGUIRenderable();
+                ~ImGUIRenderable();
+
+                void updateVertexData(ImDrawData* data,unsigned int cmdIndex);
+                Ogre::Real getSquaredViewDepth(const Ogre::Camera* cam) const   { (void)cam; return 0; }
+
+                void setMaterial( const Ogre::String& matName );
+		        virtual void setMaterial(const Ogre::MaterialPtr & material);
+                virtual const Ogre::MaterialPtr& getMaterial(void) const;
+                virtual void getWorldTransforms( Ogre::Matrix4* xform ) const;
+                virtual void getRenderOperation( Ogre::RenderOperation& op );
+                virtual const Ogre::LightList& getLights(void) const;
+
+                int                      mVertexBufferSize;
+                int                      mIndexBufferSize;
+
+            private:
+
+                Ogre::MaterialPtr mMaterial;
+                Ogre::RenderOperation mRenderOp;
+
+                void initImGUIRenderable(void);
+
+            };
 
         void createFontTexture();
         void createMaterial();

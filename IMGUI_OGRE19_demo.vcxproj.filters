@@ -43,9 +43,6 @@
     <ClInclude Include="lib\DearIMGUI_OGRE\ImguiManager.h">
       <Filter>lib/DearIMGUI-OGRE</Filter>
     </ClInclude>
-    <ClInclude Include="lib\DearIMGUI_OGRE\ImguiRenderable.h">
-      <Filter>lib/DearIMGUI-OGRE</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="lib\DearIMGUI\imgui.cpp">
@@ -58,9 +55,6 @@
       <Filter>lib/DearIMGUI</Filter>
     </ClCompile>
     <ClCompile Include="lib\DearIMGUI_OGRE\ImguiManager.cpp">
-      <Filter>lib/DearIMGUI-OGRE</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\DearIMGUI_OGRE\ImguiRenderable.cpp">
       <Filter>lib/DearIMGUI-OGRE</Filter>
     </ClCompile>
     <ClCompile Include="BaseApplication.cpp">
