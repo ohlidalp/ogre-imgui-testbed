@@ -161,6 +161,157 @@ struct GuiState
 };
 
 // RoR prototype
+class GuiTopMenubar
+{
+public:
+    const float   PANEL_WIDTH = 400.f;
+    const float   PANEL_TOP = 100.f;
+    const float   MENU_Y_OFFSET = 40.f;
+    const float   PANEL_HOVER_AREA_HEIGHT = 50.f;
+    const ImVec4  PANEL_BG_COLOR = ImVec4(0.1f, 0.1f, 0.1f, 0.6f);
+    const ImVec4  TRANSPARENT_COLOR = ImVec4(0,0,0,0);
+    const ImVec4  MENU_BG_COLOR  = ImVec4(0.25f, 0.25f, 0.25f, 0.5f);
+
+    enum class TopMenu { TOPMENU_NONE, TOPMENU_SIM, TOPMENU_ACTORS, TOPMENU_TOOLS };
+
+    GuiTopMenubar(): m_open_menu(TopMenu::TOPMENU_NONE) {}
+
+    void Update()
+    {
+        ImVec2 window_target_pos = ImVec2((ImGui::GetIO().DisplaySize.x/2.f) - (PANEL_WIDTH / 2.f), PANEL_TOP);
+        if (!this->ShouldDisplay(window_target_pos))
+        {
+            m_open_menu = TopMenu::TOPMENU_NONE;
+            return;
+        }
+
+        // ImGui's 'menubar' and 'menuitem' features won't quite cut it...
+        // Let's do our own menus and menuitems using buttons and coloring tricks.
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, PANEL_BG_COLOR);
+        ImGui::PushStyleColor(ImGuiCol_Button,   TRANSPARENT_COLOR);
+
+        // The panel
+        int flags = ImGuiWindowFlags_NoCollapse  | ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoMove
+                  | ImGuiWindowFlags_NoResize    | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar;
+        ImGui::SetNextWindowContentSize(ImVec2(PANEL_WIDTH, 0.f));
+        ImGui::SetNextWindowPos(window_target_pos);
+        if (!ImGui::Begin("Top menubar", nullptr, static_cast<ImGuiWindowFlags_>(flags)))
+        {
+            return;
+        }
+
+        // The 'simulation' button
+        ImVec2 window_pos = ImGui::GetWindowPos();
+        ImVec2 sim_cursor = ImGui::GetCursorPos();
+        ImGui::Button("Simulation");
+        if ((m_open_menu != TopMenu::TOPMENU_SIM) && ImGui::IsItemHovered())
+        {
+            m_open_menu = TopMenu::TOPMENU_SIM;
+        }
+
+        ImGui::SameLine();
+
+        // The 'vehicles' button
+        ImVec2 actors_cursor = ImGui::GetCursorPos();
+        ImGui::Button("Vehicles (2)");
+        if ((m_open_menu != TopMenu::TOPMENU_ACTORS) && ImGui::IsItemHovered())
+        {
+            m_open_menu = TopMenu::TOPMENU_ACTORS;
+        }
+
+        ImGui::SameLine();
+
+        // The 'tools' button
+        ImVec2 tools_cursor = ImGui::GetCursorPos();
+        ImGui::Button("Tools");
+        if ((m_open_menu != TopMenu::TOPMENU_TOOLS) && ImGui::IsItemHovered())
+        {
+            m_open_menu = TopMenu::TOPMENU_TOOLS;
+        }  
+
+        ImGui::PopStyleColor(2);
+        ImGui::End();
+
+        ImVec2 menu_pos;
+        switch (m_open_menu)
+        {
+        case TopMenu::TOPMENU_SIM:
+            menu_pos.y = window_pos.y + sim_cursor.y + MENU_Y_OFFSET;
+            menu_pos.x = sim_cursor.x + window_pos.x - ImGui::GetStyle().WindowPadding.x;
+            ImGui::SetNextWindowPos(menu_pos);
+            if (ImGui::Begin("Sim menu", nullptr, static_cast<ImGuiWindowFlags_>(flags)))
+            {
+                ImGui::Button("Spawn new");
+                ImGui::Button("Reload current");
+                ImGui::Button("Remove current");
+                m_open_menu_hoverbox_min = menu_pos;
+                m_open_menu_hoverbox_max.x = menu_pos.x + ImGui::GetWindowWidth();
+                m_open_menu_hoverbox_max.y = menu_pos.y + ImGui::GetWindowHeight();
+                ImGui::End();
+            }
+            break;
+
+        case TopMenu::TOPMENU_ACTORS:
+            menu_pos.y = window_pos.y + actors_cursor.y + MENU_Y_OFFSET;
+            menu_pos.x = actors_cursor.x + window_pos.x - ImGui::GetStyle().WindowPadding.x;
+            ImGui::SetNextWindowPos(menu_pos);
+            if (ImGui::Begin("Actors menu", nullptr, static_cast<ImGuiWindowFlags_>(flags)))
+            {
+                ImGui::Button("(dummy) vehicle1");
+                ImGui::Button("(dummy) vehicle2");
+                m_open_menu_hoverbox_min = menu_pos;
+                m_open_menu_hoverbox_max.x = menu_pos.x + ImGui::GetWindowWidth();
+                m_open_menu_hoverbox_max.y = menu_pos.y + ImGui::GetWindowHeight();
+                ImGui::End();
+            }
+            break;
+
+        case TopMenu::TOPMENU_TOOLS:
+            menu_pos.y = window_pos.y + tools_cursor.y + MENU_Y_OFFSET;
+            menu_pos.x = tools_cursor.x + window_pos.x - ImGui::GetStyle().WindowPadding.x;
+            ImGui::SetNextWindowPos(menu_pos);
+            if (ImGui::Begin("Tools menu", nullptr, static_cast<ImGuiWindowFlags_>(flags)))
+            {
+                ImGui::Button("Spawner log");
+                ImGui::Button("Friction settings");
+                m_open_menu_hoverbox_min = menu_pos;
+                m_open_menu_hoverbox_max.x = menu_pos.x + ImGui::GetWindowWidth();
+                m_open_menu_hoverbox_max.y = menu_pos.y + ImGui::GetWindowHeight();
+                ImGui::End();
+            }
+            break;
+
+        default:
+            m_open_menu_hoverbox_min = ImVec2(0,0);
+            m_open_menu_hoverbox_max = ImVec2(0,0);
+        }
+    }
+
+    bool ShouldDisplay(ImVec2 window_pos)
+    {
+        ImVec2 box_min(0,0);
+        ImVec2 box_max(ImGui::GetIO().DisplaySize.x, PANEL_TOP + PANEL_HOVER_AREA_HEIGHT);
+        ImVec2 mouse_pos = ImGui::GetIO().MousePos;
+        bool window_hovered ((mouse_pos.x >= box_min.x) && (mouse_pos.x <= box_max.x) &&
+                             (mouse_pos.y >= box_min.y) && (mouse_pos.y <= box_max.y));
+
+        if (m_open_menu == TopMenu::TOPMENU_NONE)
+        {
+            return window_hovered;
+        }
+
+        bool menu_hovered ((mouse_pos.x >= m_open_menu_hoverbox_min.x) && (mouse_pos.x <= m_open_menu_hoverbox_max.x) &&
+                           (mouse_pos.y >= m_open_menu_hoverbox_min.y) && (mouse_pos.y <= m_open_menu_hoverbox_max.y));
+        return (menu_hovered || window_hovered);
+    }
+
+private:
+    ImVec2  m_open_menu_hoverbox_min;
+    ImVec2  m_open_menu_hoverbox_max;
+    TopMenu m_open_menu;
+};
+
+// RoR prototype
 class GuiMainMenu
 {
 public:
@@ -316,6 +467,9 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
         {
             this->RoR_DrawConsole();
         }
+
+        static GuiTopMenubar menubar;
+        menubar.Update();
     }
 
 
@@ -510,7 +664,7 @@ private:
 
     GuiState                    m_gui_state;
     GuiMainMenu                 m_main_menu;
-    OgreImGui                m_imgui;
+    OgreImGui                   m_imgui;
 };
 
 
