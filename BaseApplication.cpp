@@ -18,6 +18,203 @@
 #include "ImguiManager.h"
 
 #include <string>
+#include <memory>
+
+#define BUF_LEN(_ARR)  (sizeof(_ARR)/sizeof(*_ARR))
+
+struct MpServerData
+{
+    MpServerData(const char* name, const char* terrn, size_t users, size_t cap, const char* ip, size_t port):
+        num_users(users), max_users(cap), net_port(port)
+    {
+        strncpy(server_name,  name,  BUF_LEN(server_name ));
+        strncpy(terrain_name, terrn, BUF_LEN(terrain_name));
+        strncpy(ip_addr,      ip,    BUF_LEN(ip_addr     ));
+        
+        snprintf(display_users, BUF_LEN(display_users), "%u/%u", num_users, max_users);
+        snprintf(display_addr,  BUF_LEN(display_addr ), "%s:%d", ip_addr, net_port);
+    }
+
+    char        server_name[100];
+    char        terrain_name[100];
+    size_t      num_users;
+    size_t      max_users;
+    char        display_users[20];
+    char        ip_addr[100];
+    size_t      net_port;
+    char        display_addr[50];
+};
+
+struct ServerListData;
+
+class MultiplayerSelector
+{
+public:
+    MultiplayerSelector();
+    void Draw();
+
+private:
+    enum class Mode { ONLINE, DIRECT };
+
+    std::unique_ptr<ServerListData> m_data;
+    int                             m_selected_item;
+    Mode                            m_mode;
+    bool                            m_is_refreshing;
+    char                            m_window_title[50];
+    char                            m_input_buf_nick[100];
+    char                            m_input_buf_passwd[30];
+    char                            m_input_buf_directip[100];
+    char                            m_input_buf_directport[100];
+};
+
+struct ServerListData
+{
+    std::vector<MpServerData> servers;
+};
+
+
+const char* const ROR_VERSION_STRING = "0.5";
+#define RORNET_VERSION              "RoRnet_2.40"
+
+inline void DrawTableHeader(const char* title)
+{
+    float table_padding_y = 4.f;
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + table_padding_y);
+    ImGui::Text(title);
+    ImGui::NextColumn();
+}
+
+MultiplayerSelector::MultiplayerSelector():
+    m_selected_item(-1), m_mode(Mode::ONLINE), m_is_refreshing(false)
+{
+    snprintf(m_window_title, 50, "Multiplayer (Rigs of Rods %s | %s)", ROR_VERSION_STRING, RORNET_VERSION); 
+    // test dummies
+    m_data = std::make_unique<ServerListData>();
+    m_data->servers.emplace_back("server A", "A.terrn", 5, 15, "1.1.1.1", 1111);
+    m_data->servers.emplace_back("server B", "B.terrn", 4, 14, "2.2.2.2", 2222);
+    m_data->servers.emplace_back("server C", "C.terrn", 3, 13, "3.3.3.3", 3333);
+}
+
+
+void MultiplayerSelector::Draw()
+{
+    int window_flags = ImGuiWindowFlags_NoCollapse;
+    if (!ImGui::Begin(m_window_title, nullptr, window_flags))
+    {
+        return;
+    }
+    
+    // Window mode buttons
+    if (ImGui::Button("Online (refresh)"))
+    {
+        m_mode = Mode::ONLINE;
+        m_is_refreshing = !m_is_refreshing; // DEBUG
+        // TODO: refresh
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Direct IP"))
+    {
+        m_mode = Mode::DIRECT;
+    }
+
+    // Player nickname input field; right-aligned
+    ImGui::SameLine();
+    const char* nick_label = "Nickname";
+    float nick_input_width = 200.f;
+    float nick_cursor_x = ImGui::GetWindowContentRegionWidth()
+        - ImGui::CalcTextSize(nick_label).x - (nick_input_width - ImGui::GetStyle().ItemSpacing.x); // Dunno why there's extra "ItemSpacing" to subtract... ~ only_a_ptr, 06/2017
+    ImGui::SetCursorPosX(nick_cursor_x);
+    ImGui::PushItemWidth(nick_input_width);
+    if (ImGui::InputText(nick_label, m_input_buf_nick, BUF_LEN(m_input_buf_nick)))
+    {
+        std::cout<<"nickname: " << m_input_buf_nick <<std::endl;
+    }
+    ImGui::PopItemWidth();
+
+    if (m_mode == Mode::ONLINE && m_is_refreshing)
+    {
+        ImGui::Text("... refreshing ...");
+    }
+    if (m_mode == Mode::ONLINE && !m_is_refreshing)
+    {
+        // Setup serverlist table ... the scroll area
+        float table_height = ImGui::GetWindowHeight()
+            - ((2.f * ImGui::GetStyle().WindowPadding.y) + (3.f * ImGui::GetItemsLineHeightWithSpacing()) - ImGui::GetStyle().ItemSpacing.y);
+        ImGui::BeginChild("scrolling", ImVec2(0.f, table_height), false);
+        // ... the table itself
+        float width_percent = ImGui::GetWindowContentRegionWidth()/100.f;
+        ImGui::Columns(4, "mp-selector-columns");
+        ImGui::SetColumnOffset(1, 35.f * width_percent);
+        ImGui::SetColumnOffset(2, 75.f * width_percent);
+        ImGui::SetColumnOffset(3, 85.f * width_percent);
+        // Draw table header
+//        ImGui::Separator();
+        float table_padding_x = 4.f;
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + table_padding_x);
+        DrawTableHeader("Name");
+        DrawTableHeader("Terrain");
+        DrawTableHeader("Users");
+        DrawTableHeader("IP/Port");
+        ImGui::Separator();
+        // Draw table body
+        int num_servers = static_cast<int>(m_data->servers.size());
+        for (int i = 0; i < num_servers; i++)
+        {
+            // First column - selection control
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + table_padding_x);
+            MpServerData& server = m_data->servers[i];
+            if (ImGui::Selectable(server.server_name, m_selected_item == i, ImGuiSelectableFlags_SpanAllColumns))
+            {
+                m_selected_item = i;
+            }
+            ImGui::NextColumn();
+
+            // Other collumns
+            ImGui::Text(server.terrain_name);          ImGui::NextColumn();
+            ImGui::Text(server.display_users);         ImGui::NextColumn();
+            ImGui::Text(server.display_addr);          ImGui::NextColumn();
+        }
+        ImGui::Columns(1);
+//        ImGui::Separator();
+        ImGui::EndChild(); // End of scroll area
+
+        // Simple join button
+        if (ImGui::Button("Join", ImVec2(200.f, 0.f)))
+        {
+            std::cout<< "join btn clicked"<<std::endl;
+        }
+
+        // Password editbox; right-aligned
+        ImGui::SameLine();
+        float pw_width = 200.f;
+        const char* pw_label = "Password";
+        float pw_pos_x = ImGui::GetWindowContentRegionWidth() - (pw_width - ImGui::GetStyle().ItemSpacing.x) - ImGui::CalcTextSize(pw_label).x;
+        int input_pw_flags = ImGuiInputTextFlags_Password;
+        ImGui::PushItemWidth(pw_width);
+        ImGui::SetCursorPosX(pw_pos_x);
+        if (ImGui::InputText("Password", m_input_buf_passwd, BUF_LEN(m_input_buf_passwd), input_pw_flags))
+        {
+            std::cout << "set password: " << m_input_buf_passwd <<std::endl; // TEST!!!
+        }
+        ImGui::PopItemWidth();        
+    }
+    else if (m_mode == Mode::DIRECT)
+    {
+        float box_width = 300.f;
+    }
+
+    ImGui::End();
+}
+
+
+
+
+
+
+
+
+
+
 
 #ifdef _DEBUG
     static const std::string mPluginsCfg = "plugins_d.cfg";
@@ -157,210 +354,10 @@ struct GuiState
 {
     bool test_window_visible;
     bool style_editor_visible;
+    bool multiplayer_visible;
     bool console_visible;
 };
 
-// RoR prototype
-class GuiTopMenubar
-{
-public:
-    const float   PANEL_WIDTH = 400.f;
-    const float   PANEL_TOP = 100.f;
-    const float   MENU_Y_OFFSET = 40.f;
-    const float   PANEL_HOVER_AREA_HEIGHT = 50.f;
-    const ImVec4  PANEL_BG_COLOR = ImVec4(0.1f, 0.1f, 0.1f, 0.6f);
-    const ImVec4  TRANSPARENT_COLOR = ImVec4(0,0,0,0);
-    const ImVec4  MENU_BG_COLOR  = ImVec4(0.25f, 0.25f, 0.25f, 0.5f);
-
-    enum class TopMenu { TOPMENU_NONE, TOPMENU_SIM, TOPMENU_ACTORS, TOPMENU_TOOLS };
-
-    GuiTopMenubar(): m_open_menu(TopMenu::TOPMENU_NONE) {}
-
-    void Update()
-    {
-        ImVec2 window_target_pos = ImVec2((ImGui::GetIO().DisplaySize.x/2.f) - (PANEL_WIDTH / 2.f), PANEL_TOP);
-        if (!this->ShouldDisplay(window_target_pos))
-        {
-            m_open_menu = TopMenu::TOPMENU_NONE;
-            return;
-        }
-
-        // ImGui's 'menubar' and 'menuitem' features won't quite cut it...
-        // Let's do our own menus and menuitems using buttons and coloring tricks.
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, PANEL_BG_COLOR);
-        ImGui::PushStyleColor(ImGuiCol_Button,   TRANSPARENT_COLOR);
-
-        // The panel
-        int flags = ImGuiWindowFlags_NoCollapse  | ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoMove
-                  | ImGuiWindowFlags_NoResize    | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar;
-        ImGui::SetNextWindowContentSize(ImVec2(PANEL_WIDTH, 0.f));
-        ImGui::SetNextWindowPos(window_target_pos);
-        if (!ImGui::Begin("Top menubar", nullptr, static_cast<ImGuiWindowFlags_>(flags)))
-        {
-            return;
-        }
-
-        // The 'simulation' button
-        ImVec2 window_pos = ImGui::GetWindowPos();
-        ImVec2 sim_cursor = ImGui::GetCursorPos();
-        ImGui::Button("Simulation");
-        if ((m_open_menu != TopMenu::TOPMENU_SIM) && ImGui::IsItemHovered())
-        {
-            m_open_menu = TopMenu::TOPMENU_SIM;
-        }
-
-        ImGui::SameLine();
-
-        // The 'vehicles' button
-        ImVec2 actors_cursor = ImGui::GetCursorPos();
-        ImGui::Button("Vehicles (2)");
-        if ((m_open_menu != TopMenu::TOPMENU_ACTORS) && ImGui::IsItemHovered())
-        {
-            m_open_menu = TopMenu::TOPMENU_ACTORS;
-        }
-
-        ImGui::SameLine();
-
-        // The 'tools' button
-        ImVec2 tools_cursor = ImGui::GetCursorPos();
-        ImGui::Button("Tools");
-        if ((m_open_menu != TopMenu::TOPMENU_TOOLS) && ImGui::IsItemHovered())
-        {
-            m_open_menu = TopMenu::TOPMENU_TOOLS;
-        }  
-
-        ImGui::PopStyleColor(2);
-        ImGui::End();
-
-        ImVec2 menu_pos;
-        switch (m_open_menu)
-        {
-        case TopMenu::TOPMENU_SIM:
-            menu_pos.y = window_pos.y + sim_cursor.y + MENU_Y_OFFSET;
-            menu_pos.x = sim_cursor.x + window_pos.x - ImGui::GetStyle().WindowPadding.x;
-            ImGui::SetNextWindowPos(menu_pos);
-            if (ImGui::Begin("Sim menu", nullptr, static_cast<ImGuiWindowFlags_>(flags)))
-            {
-                ImGui::Button("Spawn new");
-                ImGui::Button("Reload current");
-                ImGui::Button("Remove current");
-                m_open_menu_hoverbox_min = menu_pos;
-                m_open_menu_hoverbox_max.x = menu_pos.x + ImGui::GetWindowWidth();
-                m_open_menu_hoverbox_max.y = menu_pos.y + ImGui::GetWindowHeight();
-                ImGui::End();
-            }
-            break;
-
-        case TopMenu::TOPMENU_ACTORS:
-            menu_pos.y = window_pos.y + actors_cursor.y + MENU_Y_OFFSET;
-            menu_pos.x = actors_cursor.x + window_pos.x - ImGui::GetStyle().WindowPadding.x;
-            ImGui::SetNextWindowPos(menu_pos);
-            if (ImGui::Begin("Actors menu", nullptr, static_cast<ImGuiWindowFlags_>(flags)))
-            {
-                ImGui::Button("(dummy) vehicle1");
-                ImGui::Button("(dummy) vehicle2");
-                m_open_menu_hoverbox_min = menu_pos;
-                m_open_menu_hoverbox_max.x = menu_pos.x + ImGui::GetWindowWidth();
-                m_open_menu_hoverbox_max.y = menu_pos.y + ImGui::GetWindowHeight();
-                ImGui::End();
-            }
-            break;
-
-        case TopMenu::TOPMENU_TOOLS:
-            menu_pos.y = window_pos.y + tools_cursor.y + MENU_Y_OFFSET;
-            menu_pos.x = tools_cursor.x + window_pos.x - ImGui::GetStyle().WindowPadding.x;
-            ImGui::SetNextWindowPos(menu_pos);
-            if (ImGui::Begin("Tools menu", nullptr, static_cast<ImGuiWindowFlags_>(flags)))
-            {
-                ImGui::Button("Spawner log");
-                ImGui::Button("Friction settings");
-                m_open_menu_hoverbox_min = menu_pos;
-                m_open_menu_hoverbox_max.x = menu_pos.x + ImGui::GetWindowWidth();
-                m_open_menu_hoverbox_max.y = menu_pos.y + ImGui::GetWindowHeight();
-                ImGui::End();
-            }
-            break;
-
-        default:
-            m_open_menu_hoverbox_min = ImVec2(0,0);
-            m_open_menu_hoverbox_max = ImVec2(0,0);
-        }
-    }
-
-    bool ShouldDisplay(ImVec2 window_pos)
-    {
-        ImVec2 box_min(0,0);
-        ImVec2 box_max(ImGui::GetIO().DisplaySize.x, PANEL_TOP + PANEL_HOVER_AREA_HEIGHT);
-        ImVec2 mouse_pos = ImGui::GetIO().MousePos;
-        bool window_hovered ((mouse_pos.x >= box_min.x) && (mouse_pos.x <= box_max.x) &&
-                             (mouse_pos.y >= box_min.y) && (mouse_pos.y <= box_max.y));
-
-        if (m_open_menu == TopMenu::TOPMENU_NONE)
-        {
-            return window_hovered;
-        }
-
-        bool menu_hovered ((mouse_pos.x >= m_open_menu_hoverbox_min.x) && (mouse_pos.x <= m_open_menu_hoverbox_max.x) &&
-                           (mouse_pos.y >= m_open_menu_hoverbox_min.y) && (mouse_pos.y <= m_open_menu_hoverbox_max.y));
-        return (menu_hovered || window_hovered);
-    }
-
-private:
-    ImVec2  m_open_menu_hoverbox_min;
-    ImVec2  m_open_menu_hoverbox_max;
-    TopMenu m_open_menu;
-};
-
-// RoR prototype
-class GuiMainMenu
-{
-public:
-    // This class implements hand-made keyboard focus - button count must be known for wrapping
-    const size_t NUM_BUTTONS = 4; // Buttons: SinglePlayer, MultiPlayer, Settings, Exit
-    const float  WINDOW_WIDTH = 200.f;
-
-    GuiMainMenu(): m_is_visible(false), m_kb_focus_index(-1) {}
-
-    inline bool* GetVisibleFlag()  { return &m_is_visible; }
-    inline bool  IsVisible() const { return m_is_visible; }
-
-    // Keyboard updates - move up/down and wrap on top/bottom. Initial index is '-1' which means "no focus"
-    void KeyUpPressed()   { m_kb_focus_index = (m_kb_focus_index <= 0) ? (NUM_BUTTONS-1) : (m_kb_focus_index - 1); }
-    void KeyDownPressed() { m_kb_focus_index = (m_kb_focus_index < (NUM_BUTTONS - 1)) ? (m_kb_focus_index + 1) : 0; }
-
-    void Draw()
-    {
-        int flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
-        ImGui::SetNextWindowPosCenter();
-        
-        ImGui::SetNextWindowContentWidth(WINDOW_WIDTH);
-        if (!ImGui::Begin("Main menu", nullptr, static_cast<ImGuiWindowFlags_>(flags)))
-        {
-            return;
-        }
-
-        ImVec2 btn_size(WINDOW_WIDTH - ImGui::GetStyle().WindowPadding.x, 0.f); // Weird but necessary
-
-        const char* sp_title = (m_kb_focus_index == 0) ? "--> Single player <--" : "Single player";
-        ImGui::Button(sp_title, btn_size);
-            
-        const char* mp_title = (m_kb_focus_index == 1) ? "--> Multi player <--" : "Multi player";
-        ImGui::Button(mp_title , btn_size);
-
-        ImGui::Separator();
-
-        const char* settings_title = (m_kb_focus_index == 2) ? "--> Settings <--" : "Settings";
-        ImGui::Button(settings_title, btn_size);
-
-        const char* exit_title = (m_kb_focus_index == 3) ? "--> Exit game <--" : "Exit game";
-        ImGui::Button(exit_title, btn_size);
-
-        ImGui::End();
-    }
-private:
-    bool   m_is_visible;
-    int    m_kb_focus_index; // -1 = no focus; 0+ = button index
-};
 
 class DemoApp: public Ogre::FrameListener, public OIS::KeyListener, public OIS::MouseListener,  public Ogre::WindowEventListener
 {
@@ -441,7 +438,7 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
             ImGui::SameLine();
             ImGui::Checkbox("Styles", &m_gui_state.style_editor_visible);
             ImGui::SameLine();
-            ImGui::Checkbox("MMenu", m_main_menu.GetVisibleFlag());
+            ImGui::Checkbox("Multiplayer", &m_gui_state.multiplayer_visible);
             ImGui::SameLine();
             ImGui::Checkbox("Console", &m_gui_state.console_visible);
 
@@ -458,18 +455,17 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
             ImGui::ShowStyleEditor();
         }
 
-        if (m_main_menu.IsVisible())
-        {
-            m_main_menu.Draw();
-        }
-
         if (m_gui_state.console_visible)
         {
             this->RoR_DrawConsole();
         }
 
-        static GuiTopMenubar menubar;
-        menubar.Update();
+        if (m_gui_state.multiplayer_visible)
+        {
+            m_multiplayer.Draw();
+        }
+
+        
     }
 
 
@@ -579,14 +575,6 @@ private:
         {
             mShutDown = true;
         }
-        else if (arg.key == OIS::KC_UP)
-        {
-            m_main_menu.KeyUpPressed();
-        }
-        else if (arg.key == OIS::KC_DOWN)
-        {
-            m_main_menu.KeyDownPressed();
-        }
 
         m_imgui.keyPressed(arg);
         return true;
@@ -663,7 +651,7 @@ private:
     OIS::Keyboard*              mKeyboard    ;
 
     GuiState                    m_gui_state;
-    GuiMainMenu                 m_main_menu;
+    MultiplayerSelector         m_multiplayer;
     OgreImGui                   m_imgui;
 };
 
