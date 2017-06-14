@@ -1,38 +1,117 @@
 
 #include "stdafx.h" // Precompiled
 
-#include <OgreCamera.h>
-#include <OgreEntity.h>
-#include <OgreLogManager.h>
-#include <OgreRoot.h>
-#include <OgreViewport.h>
-#include <OgreSceneManager.h>
-#include <OgreRenderWindow.h>
-#include <OgreConfigFile.h>
-
-#include <OISEvents.h>
-#include <OISInputManager.h>
-#include <OISKeyboard.h>
-#include <OISMouse.h>
-
 #include "ImguiManager.h"
 
-#include <string>
-#include <memory>
+#include <memory>    // std::unique_ptr
+#include <algorithm> // std::min()
 
-#define BUF_LEN(_ARR)  (sizeof(_ARR)/sizeof(*_ARR))
+#define ROR_ARRAYLEN(_BUF)  (sizeof(_BUF)/sizeof(*_BUF))
 
+/// ---------------------------- gvars prototype -------------------------------------
+
+template<size_t L>
+struct GStr
+{
+    inline GStr()
+    {
+        std::memset(buffer, 0, L);
+    }
+
+    inline GStr(GStr<L> & other)
+    {
+        std::memcpy(buffer, other.buffer, L);
+    }
+
+    inline GStr(const char* src)
+    {
+        const size_t src_len = std::strlen(src) + 1;
+        if (src_len > L)
+        {
+            std::memcpy(buffer, src, L);
+            buffer[L-1] = '\0';
+        }
+        else
+        {
+            std::strcpy(buffer, src);
+        }
+    }
+
+    char         buffer[L];
+    const size_t buf_len = L;
+};
+
+
+
+class GVarBase
+{
+public:
+    GVarBase(const char* name, const char* conf_name):
+        name(name), conf_name(conf_name)
+    {}
+
+    const char* name;
+    const char* conf_name;
+};
+
+
+
+template <typename T>
+class GVar: public GVarBase
+{
+public:
+    GVar(const char* name, const char* conf, T active_val, T pending_val):
+        GVarBase(name, conf), m_value_active(active_val), m_value_pending(pending_val)
+    {}
+
+    inline T const &   GetActiveValue() const                 { return m_value_active; }
+    inline T &         GetPendingValue()                      { return m_value_pending; }
+
+    inline void        SetPendingValue(T&  val)         { m_value_pending = val; }
+    void               ApplyPendingValue();
+    void               SetActiveValue(T&  val);
+
+private:
+    T           m_value_active;
+    T           m_value_pending;
+};
+
+namespace RoR
+{
+    namespace App
+    {
+
+    static GVar<GStr<200>>   mp_player_name      ("mp_player_name",     "Nickname", "Anonymous", "Anonymous");
+    static GVar<GStr<200>>   mp_server_password  ("mp_server_password", "Password", "Plaintext", "Plaintext");
+    static GVar<GStr<200>>   mp_server_host      ("mp_server_host",     "Server host", "1.1.1.1", "1.1.1.1");
+    static GVar<GStr<200>>   mp_server_port      ("mp_server_port",     "Server port", "1111", "1111");
+    static GVar<GStr<200>>   mp_portal_url       ("mp_portal_url",      "Multiplayer portal URL", "aaa", "aaa");
+
+    GVarBase* GVars[] =  // TEST
+    {
+        &mp_player_name    ,
+        &mp_server_password,
+        &mp_server_host    ,
+        &mp_server_port    ,
+        &mp_portal_url     ,
+    };    
+    }
+}
+
+// ================================== MP selector prototype ================================================
+namespace RoR
+{
 struct MpServerData
 {
     MpServerData(const char* name, const char* terrn, size_t users, size_t cap, const char* ip, size_t port):
         num_users(users), max_users(cap), net_port(port)
     {
-        strncpy(server_name,  name,  BUF_LEN(server_name ));
-        strncpy(terrain_name, terrn, BUF_LEN(terrain_name));
-        strncpy(ip_addr,      ip,    BUF_LEN(ip_addr     ));
+        strncpy(server_name,  name,  ROR_ARRAYLEN(server_name ));
+        strncpy(terrain_name, terrn, ROR_ARRAYLEN(terrain_name));
+        strncpy(ip_addr,      ip,    ROR_ARRAYLEN(ip_addr     ));
         
-        snprintf(display_users, BUF_LEN(display_users), "%u/%u", num_users, max_users);
-        snprintf(display_addr,  BUF_LEN(display_addr ), "%s:%d", ip_addr, net_port);
+        snprintf(display_users, ROR_ARRAYLEN(display_users), "%u/%u", num_users, max_users);
+        snprintf(display_addr,  ROR_ARRAYLEN(display_addr ), "%s:%d", ip_addr, net_port);
     }
 
     char        server_name[100];
@@ -61,10 +140,6 @@ private:
     Mode                            m_mode;
     bool                            m_is_refreshing;
     char                            m_window_title[50];
-    char                            m_input_buf_nick[100];
-    char                            m_input_buf_passwd[30];
-    char                            m_input_buf_directip[100];
-    char                            m_input_buf_directport[100];
 };
 
 struct ServerListData
@@ -125,15 +200,19 @@ void MultiplayerSelector::Draw()
         - ImGui::CalcTextSize(nick_label).x - (nick_input_width - ImGui::GetStyle().ItemSpacing.x); // Dunno why there's extra "ItemSpacing" to subtract... ~ only_a_ptr, 06/2017
     ImGui::SetCursorPosX(nick_cursor_x);
     ImGui::PushItemWidth(nick_input_width);
-    if (ImGui::InputText(nick_label, m_input_buf_nick, BUF_LEN(m_input_buf_nick)))
+    if (ImGui::InputText(nick_label, App::mp_player_name.GetPendingValue().buffer, App::mp_player_name.GetPendingValue().buf_len))
     {
-        std::cout<<"nickname: " << m_input_buf_nick <<std::endl;
+        std::cout<<"nickname: " << App::mp_player_name.GetPendingValue().buffer <<std::endl;
     }
     ImGui::PopItemWidth();
 
     if (m_mode == Mode::ONLINE && m_is_refreshing)
     {
-        ImGui::Text("... refreshing ...");
+        const char* refresh_lbl = "... refreshing ...";
+        const ImVec2 refresh_size = ImGui::CalcTextSize(refresh_lbl);
+        ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.f) - (refresh_size.x / 2.f));
+        ImGui::SetCursorPosY((ImGui::GetWindowSize().y / 2.f) - (refresh_size.y / 2.f));
+        ImGui::Text(refresh_lbl);
     }
     if (m_mode == Mode::ONLINE && !m_is_refreshing)
     {
@@ -148,7 +227,6 @@ void MultiplayerSelector::Draw()
         ImGui::SetColumnOffset(2, 75.f * width_percent);
         ImGui::SetColumnOffset(3, 85.f * width_percent);
         // Draw table header
-//        ImGui::Separator();
         float table_padding_x = 4.f;
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + table_padding_x);
         DrawTableHeader("Name");
@@ -175,7 +253,6 @@ void MultiplayerSelector::Draw()
             ImGui::Text(server.display_addr);          ImGui::NextColumn();
         }
         ImGui::Columns(1);
-//        ImGui::Separator();
         ImGui::EndChild(); // End of scroll area
 
         // Simple join button
@@ -192,9 +269,9 @@ void MultiplayerSelector::Draw()
         int input_pw_flags = ImGuiInputTextFlags_Password;
         ImGui::PushItemWidth(pw_width);
         ImGui::SetCursorPosX(pw_pos_x);
-        if (ImGui::InputText("Password", m_input_buf_passwd, BUF_LEN(m_input_buf_passwd), input_pw_flags))
+        if (ImGui::InputText("Password", App::mp_server_password.GetPendingValue().buffer, App::mp_server_password.GetPendingValue().buf_len, input_pw_flags))
         {
-            std::cout << "set password: " << m_input_buf_passwd <<std::endl; // TEST!!!
+            std::cout << "set password: " << App::mp_server_password.GetPendingValue().buffer <<std::endl; // TEST!!!
         }
         ImGui::PopItemWidth();        
     }
@@ -206,53 +283,14 @@ void MultiplayerSelector::Draw()
     ImGui::End();
 }
 
+} // namespace RoR
 
 
 
 
 
 
-
-
-
-
-#ifdef _DEBUG
-    static const std::string mPluginsCfg = "plugins_d.cfg";
-#else
-    static const std::string mPluginsCfg = "plugins.cfg";
-#endif
-
-class GVarBase
-{
-public:
-    GVarBase(const char* name, const char* conf_name): name(name), conf_name(conf_name) {}
-
-    const char* name;
-    const char* conf_name;
-};
-
-template <typename T>
-class GVar: public GVarBase
-{
-public:
-    GVar(const char* name, const char* conf): GVarBase(name, conf) {}
-
-    inline T& GetActiveValue() const { return m_value_active; }
-    inline T& GetPendingValue() const { return m_value_pending; }
-
-    void     SetPendingValue(T& const val) { m_value_pending = val; }
-    void     ApplyPendingValue();
-
-private:
-    T           m_value_active;
-    T           m_value_pending;
-};
-
-GVar<int>         GVAR_INT("int", "Integer");
-GVar<int>         GVAR_INT2("int2", "Integer2");
-GVar<std::string> GVAR_STR("str", "String");
-
-GVarBase* GVARS[] = { &GVAR_INT, &GVAR_INT2, &GVAR_STR };
+// -------------------------------------- console prototype -------------------------------------------
 
 ImVec4 col_white(1.f, 1.f, 1.f, 1.f);
 ImVec4 col_green(0.2f, 0.8f, 0.3f, 1.f);
@@ -324,6 +362,9 @@ public:
         ImGui::TextColored(col_green, "=====|");
         ImGui::SameLine();
         ImGui::Text(" 5x5");
+        
+
+
 
         // End body
         ImGui::PopStyleVar();
@@ -472,7 +513,11 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
     void Go()
     {
         memset(&m_gui_state, 0, sizeof(GuiState));
-
+#ifdef _DEBUG
+        static const std::string mPluginsCfg = "plugins_d.cfg";
+#else
+        static const std::string mPluginsCfg = "plugins.cfg";
+#endif
         mRoot = new Ogre::Root(mPluginsCfg);
 
         // Show the configuration dialog and initialise the system.
@@ -540,6 +585,10 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
 
         mMouse->setEventCallback(this);
         mKeyboard->setEventCallback(this);
+
+        GStr<100> krrG = "kRRRRRRRRRRRRrrrrr2";
+        std::cout << "================================\nbuf: " <<krrG.buffer 
+            << " len:" << krrG.buf_len << "================================"<<std::endl;
 
         mRoot->startRendering();
 
@@ -651,7 +700,7 @@ private:
     OIS::Keyboard*              mKeyboard    ;
 
     GuiState                    m_gui_state;
-    MultiplayerSelector         m_multiplayer;
+    RoR::MultiplayerSelector         m_multiplayer;
     OgreImGui                   m_imgui;
 };
 
