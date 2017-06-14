@@ -120,7 +120,7 @@
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OiS;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;D:\Lib\RoR-deps-SpeciesX-2016\includes\x86\OIS;D:\Lib\RoR-deps-SpeciesX-2016\includes\x86\Ogre;lib\DearIMGUI_OGRE;lib\DearIMGUI;c:\Lib\ror-dependencies-rapidjson-build\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE\Overlay;c:\Lib\ror-dependencies-rapidjson-build\Dependencies_Windows_Visual-Studio-14-2015\include\OiS;c:\Lib\ror-dependencies-rapidjson-build\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OiS;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;lib\DearIMGUI_OGRE;lib\DearIMGUI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
     </ClCompile>
@@ -129,7 +129,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\lib\Release;D:\Lib\RoR-deps-SpeciesX-2016\libs\x86\Ogre\RelWithDebInfo;D:\Lib\RoR-deps-SpeciesX-2016\libs\x86\OIS\Release;d:\lib\RoR-SpeciesX-deps-2016\libs\x86\ogre\RelWithDebInfo;c:\Lib\ror-dependencies-rapidjson-build\Dependencies_Windows_Visual-Studio-14-2015\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>OgreMain.lib;OIS.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

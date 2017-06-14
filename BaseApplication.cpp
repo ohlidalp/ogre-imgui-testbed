@@ -391,6 +391,57 @@ public:
      const char* Console::CMD_QUIT = "quit";
      const char* Console::CMD_SCRIPT = "script";
 
+//// -------------------------------------- Skeletonview test ------------------------------------------
+
+void DrawSkeletonView()
+{
+    // Var
+    ImVec2 screen_size = ImGui::GetIO().DisplaySize;
+
+    // Dummy fullscreen window to draw to
+    int window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar| ImGuiWindowFlags_NoInputs 
+                     | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
+    ImGui::Begin("RoR-SoftBodyView", NULL, screen_size, 0, window_flags);
+    ImDrawList* drawlist = ImGui::GetWindowDrawList();
+    ImGui::End();
+    
+    // ** COLOR = ABGR **
+    float pad1 = 100.f;
+
+    // Some test lines
+    ImVec2 mouse_pos = ImGui::GetIO().MousePos;
+
+    ImVec2 hpos_tl = ImVec2( ( (mouse_pos.x + pad1)/2.f),               ((mouse_pos.y + pad1)/2.f));            
+    ImVec2 hpos_tr = ImVec2( ( (mouse_pos.x + screen_size.x-pad1)/2.f), ((mouse_pos.y + pad1)/2.f));              
+    ImVec2 hpos_br = ImVec2( ( (mouse_pos.x + screen_size.x-pad1)/2.f), ((mouse_pos.y + screen_size.y-pad1)/2.f)); 
+    ImVec2 hpos_bl = ImVec2( ( (mouse_pos.x + pad1)/2.f),               ((mouse_pos.y + screen_size.y-pad1)/2.f)); 
+
+    //drawlist->AddLine(mouse_pos, mouse_pos, color, float_thickness
+    drawlist->AddLine(ImVec2(pad1,               pad1),               hpos_tl,  0xFFcc5588, 1.f);
+    drawlist->AddLine(ImVec2(screen_size.x-pad1, pad1),               hpos_tr,  0xFFcc5599, 2.f);
+    drawlist->AddLine(ImVec2(screen_size.x-pad1, screen_size.y-pad1), hpos_br,  0xFF2299dd, 3.f);
+    drawlist->AddLine(ImVec2(pad1,               screen_size.y-pad1), hpos_bl,  0xFFcc55bb, 4.f);
+
+    // Some test circles
+
+    drawlist->AddCircleFilled(ImVec2(pad1,               pad1),               5.f, 0xFFcc5588); 
+    drawlist->AddCircle      (ImVec2(pad1,               pad1),               8.f, 0xFFddbb33, 16, 2.f);
+    drawlist->AddCircleFilled(ImVec2(screen_size.x-pad1, pad1),               10.f, 0xFFcc5599);
+    drawlist->AddCircleFilled(ImVec2(screen_size.x-pad1, screen_size.y-pad1), 15.f, 0xFFcc55aa);
+    drawlist->AddCircleFilled(ImVec2(pad1,               screen_size.y-pad1), 20.f, 0xFFcc55bb);
+
+
+
+    // Triangle
+    // ... left side
+    drawlist->AddTriangle(hpos_tl, hpos_bl, mouse_pos, 0xFF22cc77);
+    // .. right side
+    drawlist->AddTriangleFilled(hpos_tr, hpos_br, mouse_pos, 0xFF55cc77);
+    drawlist->AddTriangle      (hpos_tr, hpos_br, mouse_pos, 0xFF2299dd, 3.f);
+}
+
+//// -------------------------------------- APP ------------------------------------------
+
 struct GuiState
 {
     bool test_window_visible;
@@ -506,6 +557,7 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
             m_multiplayer.Draw();
         }
 
+        DrawSkeletonView();
         
     }
 
