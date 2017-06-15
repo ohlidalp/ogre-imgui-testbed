@@ -11,6 +11,9 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
+    <Filter Include="lib/GraphEditor">
+      <UniqueIdentifier>{8a5d7df0-ca99-4e89-a38f-438e3b0c4299}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -43,6 +46,9 @@
     <ClInclude Include="lib\DearIMGUI_OGRE\ImguiManager.h">
       <Filter>lib/DearIMGUI-OGRE</Filter>
     </ClInclude>
+    <ClInclude Include="lib\imguinodegrapheditor\imguinodegrapheditor.h">
+      <Filter>lib/GraphEditor</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="lib\DearIMGUI\imgui.cpp">
@@ -62,6 +68,12 @@
     </ClCompile>
     <ClCompile Include="stdafx.cpp">
       <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\imguinodegrapheditor\imguinodegrapheditor.cpp">
+      <Filter>lib/GraphEditor</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\imguinodegrapheditor\ocornut_gist_node_editor.cpp">
+      <Filter>lib/GraphEditor</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

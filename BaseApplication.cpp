@@ -2,101 +2,19 @@
 #include "stdafx.h" // Precompiled
 
 #include "ImguiManager.h"
+#include "lib/imguinodegrapheditor/imguinodegrapheditor.h"
 
 #include <memory>    // std::unique_ptr
 #include <algorithm> // std::min()
 
 #define ROR_ARRAYLEN(_BUF)  (sizeof(_BUF)/sizeof(*_BUF))
 
-/// ---------------------------- gvars prototype -------------------------------------
-
-template<size_t L>
-struct GStr
-{
-    inline GStr()
-    {
-        std::memset(buffer, 0, L);
-    }
-
-    inline GStr(GStr<L> & other)
-    {
-        std::memcpy(buffer, other.buffer, L);
-    }
-
-    inline GStr(const char* src)
-    {
-        const size_t src_len = std::strlen(src) + 1;
-        if (src_len > L)
-        {
-            std::memcpy(buffer, src, L);
-            buffer[L-1] = '\0';
-        }
-        else
-        {
-            std::strcpy(buffer, src);
-        }
-    }
-
-    char         buffer[L];
-    const size_t buf_len = L;
-};
+void ShowExampleAppCustomNodeGraph(bool* opened);
 
 
-
-class GVarBase
-{
-public:
-    GVarBase(const char* name, const char* conf_name):
-        name(name), conf_name(conf_name)
-    {}
-
-    const char* name;
-    const char* conf_name;
-};
+/// ---------------------------- motionsim nodes prototype -------------------------------------
 
 
-
-template <typename T>
-class GVar: public GVarBase
-{
-public:
-    GVar(const char* name, const char* conf, T active_val, T pending_val):
-        GVarBase(name, conf), m_value_active(active_val), m_value_pending(pending_val)
-    {}
-
-    inline T const &   GetActiveValue() const                 { return m_value_active; }
-    inline T &         GetPendingValue()                      { return m_value_pending; }
-
-    inline void        SetPendingValue(T&  val)         { m_value_pending = val; }
-    void               ApplyPendingValue();
-    void               SetActiveValue(T&  val);
-
-private:
-    T           m_value_active;
-    T           m_value_pending;
-};
-
-namespace RoR
-{
-    namespace App
-    {
-
-    static GVar<GStr<200>>   mp_player_name      ("mp_player_name",     "Nickname", "Anonymous", "Anonymous");
-    static GVar<GStr<200>>   mp_server_password  ("mp_server_password", "Password", "Plaintext", "Plaintext");
-    static GVar<GStr<200>>   mp_server_host      ("mp_server_host",     "Server host", "1.1.1.1", "1.1.1.1");
-    static GVar<GStr<200>>   mp_server_port      ("mp_server_port",     "Server port", "1111", "1111");
-    static GVar<GStr<200>>   mp_portal_url       ("mp_portal_url",      "Multiplayer portal URL", "aaa", "aaa");
-
-    GVarBase* GVars[] =  // TEST
-    {
-        &mp_player_name    ,
-        &mp_server_password,
-        &mp_server_host    ,
-        &mp_server_port    ,
-        &mp_portal_url     ,
-    };    
-    }
-}
 
 // ================================== MP selector prototype ================================================
 namespace RoR
@@ -200,10 +118,10 @@ void MultiplayerSelector::Draw()
         - ImGui::CalcTextSize(nick_label).x - (nick_input_width - ImGui::GetStyle().ItemSpacing.x); // Dunno why there's extra "ItemSpacing" to subtract... ~ only_a_ptr, 06/2017
     ImGui::SetCursorPosX(nick_cursor_x);
     ImGui::PushItemWidth(nick_input_width);
-    if (ImGui::InputText(nick_label, App::mp_player_name.GetPendingValue().buffer, App::mp_player_name.GetPendingValue().buf_len))
-    {
-        std::cout<<"nickname: " << App::mp_player_name.GetPendingValue().buffer <<std::endl;
-    }
+  ///  if (ImGui::InputText(nick_label, App::mp_player_name.GetPendingValue().buffer, App::mp_player_name.GetPendingValue().buf_len))
+  ///  {
+  ///      std::cout<<"nickname: " << App::mp_player_name.GetPendingValue().buffer <<std::endl;
+  ///  }
     ImGui::PopItemWidth();
 
     if (m_mode == Mode::ONLINE && m_is_refreshing)
@@ -269,10 +187,10 @@ void MultiplayerSelector::Draw()
         int input_pw_flags = ImGuiInputTextFlags_Password;
         ImGui::PushItemWidth(pw_width);
         ImGui::SetCursorPosX(pw_pos_x);
-        if (ImGui::InputText("Password", App::mp_server_password.GetPendingValue().buffer, App::mp_server_password.GetPendingValue().buf_len, input_pw_flags))
-        {
-            std::cout << "set password: " << App::mp_server_password.GetPendingValue().buffer <<std::endl; // TEST!!!
-        }
+  //      if (ImGui::InputText("Password", App::mp_server_password.GetPendingValue().buffer, App::mp_server_password.GetPendingValue().buf_len, input_pw_flags))
+  //      {
+  //          std::cout << "set password: " << App::mp_server_password.GetPendingValue().buffer <<std::endl; // TEST!!!
+  //      }
         ImGui::PopItemWidth();        
     }
     else if (m_mode == Mode::DIRECT)
@@ -524,6 +442,9 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
 
     void DrawGui()
     {
+        static bool show_node_editor_test = false;
+        static bool show_node_editor_ocornut = false;
+
         if (ImGui::BeginMainMenuBar())
         {
             ImGui::Checkbox("Test", &m_gui_state.test_window_visible);
@@ -533,6 +454,10 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
             ImGui::Checkbox("Multiplayer", &m_gui_state.multiplayer_visible);
             ImGui::SameLine();
             ImGui::Checkbox("Console", &m_gui_state.console_visible);
+            ImGui::SameLine();
+            ImGui::Checkbox("Node-test", &show_node_editor_test);
+            ImGui::SameLine();
+            ImGui::Checkbox("Node-ocornut", &show_node_editor_ocornut);
 
             ImGui::EndMainMenuBar();
         }
@@ -557,7 +482,18 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
             m_multiplayer.Draw();
         }
 
-        DrawSkeletonView();
+        
+        if (show_node_editor_test)
+        {
+            ImGui::TestNodeGraphEditor();   // see its code for further info
+        }
+
+        if (show_node_editor_ocornut)
+        {
+            ShowExampleAppCustomNodeGraph(nullptr);
+        }
+
+    //    DrawSkeletonView();
         
     }
 
@@ -638,9 +574,7 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
         mMouse->setEventCallback(this);
         mKeyboard->setEventCallback(this);
 
-        GStr<100> krrG = "kRRRRRRRRRRRRrrrrr2";
-        std::cout << "================================\nbuf: " <<krrG.buffer 
-            << " len:" << krrG.buf_len << "================================"<<std::endl;
+
 
         mRoot->startRendering();
 
