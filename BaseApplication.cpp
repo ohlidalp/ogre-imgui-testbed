@@ -2,6 +2,7 @@
 #include "stdafx.h" // Precompiled
 
 #include "ImguiManager.h"
+#include "Application.h" // Debugging - copy of RoR
 #include "lib/imguinodegrapheditor/imguinodegrapheditor.h"
 
 #include <memory>    // std::unique_ptr
@@ -10,11 +11,6 @@
 #define ROR_ARRAYLEN(_BUF)  (sizeof(_BUF)/sizeof(*_BUF))
 
 void ShowExampleAppCustomNodeGraph(bool* opened);
-
-
-/// ---------------------------- motionsim nodes prototype -------------------------------------
-
-
 
 // ================================== MP selector prototype ================================================
 namespace RoR
@@ -368,7 +364,6 @@ struct GuiState
     bool console_visible;
 };
 
-
 class DemoApp: public Ogre::FrameListener, public OIS::KeyListener, public OIS::MouseListener,  public Ogre::WindowEventListener
 {
 public:
@@ -574,7 +569,27 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
         mMouse->setEventCallback(this);
         mKeyboard->setEventCallback(this);
 
+        std::cout << "=============== gvar testing =================" << std::endl <<std::endl;
+        
+        RoR::App::io_arcade_controls.SetActive(true);
+        RoR::App::io_arcade_controls.SetPending(true);
+        std::cout << "arcade:" << RoR::App::io_arcade_controls.GetActive() << std::endl;
+        RoR::App::io_arcade_controls.ApplyPending();
+   
+        RoR::App::gfx_envmap_rate.SetActive(2);
+        RoR::App::gfx_envmap_rate.SetPending(4);
+        std::cout << "envmap:" << RoR::App::gfx_envmap_rate.GetActive() << std::endl;
+        RoR::App::gfx_envmap_rate.ApplyPending();
 
+        RoR::App::sim_gearbox_mode.SetActive(RoR::SimGearboxMode::MANUAL_RANGES);
+        RoR::App::sim_gearbox_mode.SetPending(RoR::SimGearboxMode::MANUAL_STICK);
+        std::cout << "gearbox:" << (RoR::App::sim_gearbox_mode.GetActiveAsStr()) << std::endl;
+        RoR::App::sim_gearbox_mode.ApplyPending();
+
+        RoR::App::gfx_flares_mode.SetActive(RoR::GfxFlaresMode::NO_LIGHTSOURCES);
+        RoR::App::gfx_flares_mode.SetPending(RoR::GfxFlaresMode::ALL_VEHICLES_ALL_LIGHTS);
+        std::cout << "flares:" << (RoR::App::gfx_flares_mode.GetActiveAsStr()) << std::endl;
+        RoR::App::gfx_flares_mode.ApplyPending();
 
         mRoot->startRendering();
 
@@ -691,11 +706,12 @@ private:
 };
 
 
-
 int main(int argc, char *argv[])
 {
     try
     {
+
+
         DemoApp demo_app;
         demo_app.Go();
     }

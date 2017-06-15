@@ -120,7 +120,7 @@
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;NO_IMGUIFILESYSTEM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OiS;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;lib\DearIMGUI_OGRE;lib\DearIMGUI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\ois;C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\ogre;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OiS;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;lib\DearIMGUI_OGRE;lib\DearIMGUI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
     </ClCompile>
@@ -129,7 +129,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\lib\Release;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>OgreMain.lib;OIS.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -154,6 +154,7 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Application.h" />
     <ClInclude Include="lib\DearIMGUI\imconfig.h" />
     <ClInclude Include="lib\DearIMGUI\imgui.h" />
     <ClInclude Include="lib\DearIMGUI\imgui_internal.h" />
@@ -166,6 +167,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Application.cpp" />
     <ClCompile Include="BaseApplication.cpp" />
     <ClCompile Include="lib\DearIMGUI\imgui.cpp" />
     <ClCompile Include="lib\DearIMGUI\imgui_demo.cpp" />
