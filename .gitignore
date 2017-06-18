@@ -4,6 +4,8 @@ Release
 ipch
 *.sdf
 *.opensdf
+*.VC.db
+*.VC.opendb
 
 # directories created by VisualStudio
 *xx.pdb
