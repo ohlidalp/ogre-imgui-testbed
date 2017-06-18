@@ -120,7 +120,7 @@
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>lib\DearIMGUI_OGRE;lib\DearIMGUI;c:\Lib\ror-dependencies-build-directx-fulltest2\Dependencies_Windows_Visual-Studio-14-2015\include\\OGRE\Overlay;c:\Lib\ror-dependencies-build-directx-fulltest2\Dependencies_Windows_Visual-Studio-14-2015\include\\OiS;c:\Lib\ror-dependencies-build-directx-fulltest2\Dependencies_Windows_Visual-Studio-14-2015\include\\OGRE;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>lib\DearIMGUI_OGRE;lib\DearIMGUI;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\Ois;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
     </ClCompile>
@@ -129,7 +129,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>c:\Lib\ror-dependencies-build-directx-fulltest2\Dependencies_Windows_Visual-Studio-14-2015\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>OgreMain.lib;OgreOverlay.lib;OIS.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
