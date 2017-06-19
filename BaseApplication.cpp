@@ -52,85 +52,96 @@ public:
         m_scroll(0.0f, 0.0f)
     {
 
-
         // test dummies
         m_nodes.push_back(new ReadingNode());
+        m_nodes.push_back(new DisplayNode());
+        m_nodes.push_back(new DisplayNode());
+
+        m_nodes[1]->pos += ImVec2(300.f, -10.f);
+        m_nodes[1]->pos += ImVec2(250.f, 133.f);
+
+        // Links
+        m_nodes[0]->ToReading()->link_x.node = m_nodes[1]; // socket index 0 = default
+        m_nodes[0]->ToReading()->link_z.node = m_nodes[2]; // socket index 0 = default
     }
 private:
     struct Vec3 { float x, y, z; };
 
     struct Style { // Copypaste from https://github.com/Flix01/imgui/tree/2015-10-Addons/addons/imguinodegrapheditor
-        ImVec4 color_background;
+        //ImVec4 color_background;
         ImU32 color_grid;
-        float grid_line_width,grid_size;
-        ImU32 color_node;
-        ImU32 color_node_frame;
-        ImU32 color_node_selected;
-        ImU32 color_node_active;
-        ImU32 color_node_frame_selected;
-        ImU32 color_node_frame_active;
-        ImU32 color_node_hovered;
-        ImU32 color_node_frame_hovered;
-        float node_rounding;
+        float grid_line_width;
+        float grid_size;
+        //ImU32 color_node;
+        //ImU32 color_node_frame;
+        //ImU32 color_node_selected;
+        //ImU32 color_node_active;
+        //ImU32 color_node_frame_selected;
+        //ImU32 color_node_frame_active;
+        //ImU32 color_node_hovered;
+        //ImU32 color_node_frame_hovered;
+        //float node_rounding;
         ImVec2 node_window_padding;
-        ImU32 color_node_input_slots;
-        ImU32 color_node_input_slots_border;
-        ImU32 color_node_output_slots;
-        ImU32 color_node_output_slots_border;
+        //ImU32 color_node_input_slots;
+        //ImU32 color_node_input_slots_border;
+        //ImU32 color_node_output_slots;
+        //ImU32 color_node_output_slots_border;
         float node_slots_radius;
-        int node_slots_num_segments;
+        //int node_slots_num_segments;
         ImU32 color_link;
         float link_line_width;
-        float link_control_point_distance;
-        int link_num_segments;  // in AddBezierCurve(...)
-        ImVec4 color_node_title;
-        ImU32 color_node_title_background;
-        float color_node_title_background_gradient;
-        ImVec4 color_node_input_slots_names;
-        ImVec4 color_node_output_slots_names;        
-        ImU32 color_mouse_rectangular_selection;
-        ImU32 color_mouse_rectangular_selection_frame;
+        //float link_control_point_distance;
+        //int link_num_segments;  // in AddBezierCurve(...)
+        //ImVec4 color_node_title;
+        //ImU32 color_node_title_background;
+        //float color_node_title_background_gradient;
+        //ImVec4 color_node_input_slots_names;
+        //ImVec4 color_node_output_slots_names;        
+        //ImU32 color_mouse_rectangular_selection;
+        //ImU32 color_mouse_rectangular_selection_frame;
         Style() {
-            color_background =          ImColor(60,60,70,200);
+            //color_background =          ImColor(60,60,70,200);
             color_grid =                ImColor(200,200,200,40);
             grid_line_width =           1.f;
             grid_size =                 64.f;
-
-            color_node =                ImColor(60,60,60);
-            color_node_frame =          ImColor(100,100,100);
-            color_node_selected =       ImColor(75,75,85);
-            color_node_active =         ImColor(85,85,65);
-            color_node_frame_selected = ImColor(115,115,115);
-            color_node_frame_active =   ImColor(125,125,105);
-            color_node_hovered =        ImColor(85,85,85);
-            color_node_frame_hovered =  ImColor(125,125,125);
-            node_rounding =             4.f;
+            //
+            //color_node =                ImColor(60,60,60);
+            //color_node_frame =          ImColor(100,100,100);
+            //color_node_selected =       ImColor(75,75,85);
+            //color_node_active =         ImColor(85,85,65);
+            //color_node_frame_selected = ImColor(115,115,115);
+            //color_node_frame_active =   ImColor(125,125,105);
+            //color_node_hovered =        ImColor(85,85,85);
+            //color_node_frame_hovered =  ImColor(125,125,125);
+            //node_rounding =             4.f;
             node_window_padding =       ImVec2(8.f,8.f);
-
-            color_node_input_slots =    ImColor(150,150,150,150);
-            color_node_output_slots =   ImColor(150,150,150,150);
+            //
+            //color_node_input_slots =    ImColor(150,150,150,150);
+            //color_node_output_slots =   ImColor(150,150,150,150);
             node_slots_radius =         5.f;
-
+            //
             color_link =                ImColor(200,200,100);
             link_line_width =           3.f;
-            link_control_point_distance = 50.f;
-            link_num_segments =         0;
-
-            color_node_title = ImGui::GetStyle().Colors[ImGuiCol_Text];
-            color_node_title_background = 0;//ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive]);
-            color_node_title_background_gradient = 0.f;   // in [0,0.5f] used only if available (performance is better when 0)
-            color_node_input_slots_names = ImGui::GetStyle().Colors[ImGuiCol_Text];color_node_input_slots_names.w=0.75f;
-            color_node_output_slots_names = ImGui::GetStyle().Colors[ImGuiCol_Text];color_node_output_slots_names.w=0.75f;
-
-            color_mouse_rectangular_selection =         ImColor(255,0,0,45);
-            color_mouse_rectangular_selection_frame =   ImColor(45,0,0,175);
-
-            color_node_input_slots_border = color_node_output_slots_border = ImColor(60,60,60,0);
-            node_slots_num_segments = 12;
+            //link_control_point_distance = 50.f;
+            //link_num_segments =         0;
+            //
+            //color_node_title = ImGui::GetStyle().Colors[ImGuiCol_Text];
+            //color_node_title_background = 0;//ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive]);
+            //color_node_title_background_gradient = 0.f;   // in [0,0.5f] used only if available (performance is better when 0)
+            //color_node_input_slots_names = ImGui::GetStyle().Colors[ImGuiCol_Text];color_node_input_slots_names.w=0.75f;
+            //color_node_output_slots_names = ImGui::GetStyle().Colors[ImGuiCol_Text];color_node_output_slots_names.w=0.75f;
+            //
+            //color_mouse_rectangular_selection =         ImColor(255,0,0,45);
+            //color_mouse_rectangular_selection_frame =   ImColor(45,0,0,175);
+            //
+            //color_node_input_slots_border = color_node_output_slots_border = ImColor(60,60,60,0);
+            //node_slots_num_segments = 12;
         }
     }; // struct Style
 
     struct Node; // Forward
+    struct ReadingNode;
+    struct DisplayNode;
 
     struct Link
     {
@@ -144,11 +155,19 @@ private:
     {
         enum class Type { INVALID, READING, DISPLAY };
 
-        Node(): num_inputs(0), num_outputs(-1), type(Type::INVALID) {}
+        Node(): num_inputs(0), num_outputs(-1), type(Type::INVALID), pos(100.f, 100.f), size(150.f, 100.f) {}
+
+        ReadingNode* ToReading() { assert(type == Type::READING); if (type == Type::READING) { return static_cast<ReadingNode*>(this); } else { return nullptr; } }
+        DisplayNode* ToDisplay() { assert(type == Type::DISPLAY); if (type == Type::DISPLAY) { return static_cast<DisplayNode*>(this); } else { return nullptr; } }
 
         size_t num_inputs;
         size_t num_outputs;
         Type type;
+        ImVec2 pos;
+        ImVec2 size;
+
+        inline ImVec2 GetInputSlotPos(size_t slot_idx)  { return ImVec2(pos.x,          pos.y + (size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_inputs+1)))); }
+        inline ImVec2 GetOutputSlotPos(size_t slot_idx) { return ImVec2(pos.x + size.x, pos.y + (size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_outputs+1)))); }
     };
 
     struct ReadingNode: public Node
@@ -161,6 +180,14 @@ private:
         Link link_y;
         Link link_z;
     };
+
+    struct DisplayNode: public Node
+    {
+        DisplayNode() { num_inputs = 1; num_outputs = 1; type = Type::DISPLAY; }
+
+        Link link_out;
+    };
+
 public:
     void Draw()
     {
@@ -177,6 +204,41 @@ public:
         ImGui::End();
     }
 private:
+
+    inline bool IsInside(ImRect& rect, ImVec2& point) { return ((point.x > rect.Min.x) && (point.y > rect.Min.y)) && ((point.x < rect.Max.x) && (point.y < rect.Max.y)); }
+
+    void DrawLink(Node* src_node, Link& link, size_t src_index)
+    {
+        // TODO: Channels
+        if (link.node == nullptr)
+            return; // Not connected
+
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        ImVec2 offset = ImGui::GetCursorScreenPos() - m_scroll;
+        ImVec2 p1 = offset + src_node->GetOutputSlotPos(src_index);
+        ImVec2 p2 = offset + link.node->GetInputSlotPos(link.input_index);
+        ImRect window = ImGui::GetCurrentWindow()->Rect();
+
+        if (this->IsInside(window, p1) || this->IsInside(window, p2)) // very basic clipping
+        {
+            draw_list->AddBezierCurve(p1, p1+ImVec2(+50,0), p2+ImVec2(-50,0), p2, m_style.color_link, m_style.link_line_width);
+        }
+    }
+
+    void DrawGrid()
+    {
+        // TODO: channels!
+        const ImVec2 win_pos = ImGui::GetCursorScreenPos();
+        const ImVec2 offset = ImGui::GetCursorScreenPos() - m_scroll;
+        const ImVec2 canvasSize = ImGui::GetWindowSize();
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+        for (float x = fmodf(offset.x,m_style.grid_size); x < canvasSize.x; x += m_style.grid_size)
+            draw_list->AddLine(ImVec2(x,0.0f)+win_pos, ImVec2(x,canvasSize.y)+win_pos, m_style.color_grid, m_style.grid_line_width);
+        for (float y = fmodf(offset.y,m_style.grid_size); y < canvasSize.y; y += m_style.grid_size)
+            draw_list->AddLine(ImVec2(0.0f,y)+win_pos, ImVec2(canvasSize.x,y)+win_pos, m_style.color_grid, m_style.grid_line_width);
+    }
+
     void DrawNodeGraphPane()
     {
         const bool draw_border = false;
@@ -184,40 +246,34 @@ private:
         if (!ImGui::BeginChild("scroll-region", ImVec2(0,0), draw_border, flags))
             return; // Nothing more to do.
 
-        const ImGuiIO& io = ImGui::GetIO();
-
-        // Copypaste from reference
-        const float NODE_SLOT_RADIUS = m_style.node_slots_radius;
-        const float NODE_SLOT_RADIUS_SQUARED = (NODE_SLOT_RADIUS*NODE_SLOT_RADIUS);
-        const ImVec2& NODE_WINDOW_PADDING = m_style.node_window_padding;
-        const float MOUSE_DELTA_SQUARED = io.MouseDelta.x*io.MouseDelta.x+io.MouseDelta.y*io.MouseDelta.y;
-        const float MOUSE_DELTA_SQUARED_THRESHOLD = NODE_SLOT_RADIUS_SQUARED * 0.05f;    // We don't detect "mouse release" events while dragging links onto slots. Instead we check that our mouse delta is small enough. Otherwise we couldn't hover other slots while dragging links.
-
         const float baseNodeWidth = 120.f; // same as reference, but hardcoded
         float currentNodeWidth = baseNodeWidth;
         ImGui::PushItemWidth(currentNodeWidth);
 
-        ImDrawList* draw_list = ImGui::GetWindowDrawList();
-        draw_list->ChannelsSplit(5);
+        this->DrawGrid();
 
-        // more copypaste
-        ImVec2 canvasSize = ImGui::GetWindowSize();
-        ImVec2 win_pos = ImGui::GetCursorScreenPos();
-        ImVec2 effectiveScrolling = m_scroll - (canvasSize * 0.5f);
-        ImVec2 offset = ImGui::GetCursorScreenPos() - effectiveScrolling;
-        ImVec2 offset2 = ImGui::GetCursorPos() - effectiveScrolling;//scrolling;
-
-        // copypaste: Display grid
-        if (true)
+        for (Node* node: m_nodes)
         {
-            const ImU32& GRID_COLOR = m_style.color_grid;
-            const float& GRID_SZ =  m_style.grid_size;
-            const float grid_Line_width = m_style.grid_line_width;
-            for (float x = fmodf(offset2.x,GRID_SZ); x < canvasSize.x; x += GRID_SZ)
-                draw_list->AddLine(ImVec2(x,0.0f)+win_pos, ImVec2(x,canvasSize.y)+win_pos, GRID_COLOR,grid_Line_width);
-            for (float y = fmodf(offset2.y,GRID_SZ); y < canvasSize.y; y += GRID_SZ)
-                draw_list->AddLine(ImVec2(0.0f,y)+win_pos, ImVec2(canvasSize.x,y)+win_pos, GRID_COLOR,grid_Line_width);
+            switch (node->type)
+            {
+            case Node::Type::READING:
+                this->DrawLink(node, node->ToReading()->link_x, 0);
+                this->DrawLink(node, node->ToReading()->link_y, 1);
+                this->DrawLink(node, node->ToReading()->link_z, 2);
+                break;
+            case Node::Type::DISPLAY:
+                // No outputs to draw here!
+                break;
+            default:;
+            }
         }
+
+        // Scrolling - clone of Ocornut
+        if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemActive() && ImGui::IsMouseDragging(2, 0.0f))
+        {
+            m_scroll = m_scroll - ImGui::GetIO().MouseDelta;
+        }
+
 
         ImGui::EndChild();
     }
