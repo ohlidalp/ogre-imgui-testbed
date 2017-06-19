@@ -28,15 +28,206 @@ NODE EDITORS FOUND ON THE INTERNET
 
 #include "ImguiManager.h"
 
-// --------------------- the node editor of choice -------------------------- //
+// --------------------- the reference node editor  -------------------------- //
 // Quick intro: https://github.com/ocornut/imgui/issues/306#issuecomment-151167133
 // Source code: https://github.com/Flix01/imgui/tree/2015-10-Addons/addons/imguinodegrapheditor
 
 #define NO_IMGUIFILESYSTEM
 #include "imguinodegrapheditor.h"
 
-// --------------------- END node editor of choice -------------------------- //
-                                  
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include <imgui_internal.h>
+
+// --------------------- END reference node editor  -------------------------- //
+
+class NodeGraphTool
+{
+    // Node types
+    //  READING - reports XYZ position of node in world space
+    //            Inputs: none
+    //            Outputs(3): X position, Y position, Z position
+
+public:
+    NodeGraphTool():
+        m_scroll(0.0f, 0.0f)
+    {
+
+
+        // test dummies
+        m_nodes.push_back(new ReadingNode());
+    }
+private:
+    struct Vec3 { float x, y, z; };
+
+    struct Style { // Copypaste from https://github.com/Flix01/imgui/tree/2015-10-Addons/addons/imguinodegrapheditor
+        ImVec4 color_background;
+        ImU32 color_grid;
+        float grid_line_width,grid_size;
+        ImU32 color_node;
+        ImU32 color_node_frame;
+        ImU32 color_node_selected;
+        ImU32 color_node_active;
+        ImU32 color_node_frame_selected;
+        ImU32 color_node_frame_active;
+        ImU32 color_node_hovered;
+        ImU32 color_node_frame_hovered;
+        float node_rounding;
+        ImVec2 node_window_padding;
+        ImU32 color_node_input_slots;
+        ImU32 color_node_input_slots_border;
+        ImU32 color_node_output_slots;
+        ImU32 color_node_output_slots_border;
+        float node_slots_radius;
+        int node_slots_num_segments;
+        ImU32 color_link;
+        float link_line_width;
+        float link_control_point_distance;
+        int link_num_segments;  // in AddBezierCurve(...)
+        ImVec4 color_node_title;
+        ImU32 color_node_title_background;
+        float color_node_title_background_gradient;
+        ImVec4 color_node_input_slots_names;
+        ImVec4 color_node_output_slots_names;        
+        ImU32 color_mouse_rectangular_selection;
+        ImU32 color_mouse_rectangular_selection_frame;
+        Style() {
+            color_background =          ImColor(60,60,70,200);
+            color_grid =                ImColor(200,200,200,40);
+            grid_line_width =           1.f;
+            grid_size =                 64.f;
+
+            color_node =                ImColor(60,60,60);
+            color_node_frame =          ImColor(100,100,100);
+            color_node_selected =       ImColor(75,75,85);
+            color_node_active =         ImColor(85,85,65);
+            color_node_frame_selected = ImColor(115,115,115);
+            color_node_frame_active =   ImColor(125,125,105);
+            color_node_hovered =        ImColor(85,85,85);
+            color_node_frame_hovered =  ImColor(125,125,125);
+            node_rounding =             4.f;
+            node_window_padding =       ImVec2(8.f,8.f);
+
+            color_node_input_slots =    ImColor(150,150,150,150);
+            color_node_output_slots =   ImColor(150,150,150,150);
+            node_slots_radius =         5.f;
+
+            color_link =                ImColor(200,200,100);
+            link_line_width =           3.f;
+            link_control_point_distance = 50.f;
+            link_num_segments =         0;
+
+            color_node_title = ImGui::GetStyle().Colors[ImGuiCol_Text];
+            color_node_title_background = 0;//ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive]);
+            color_node_title_background_gradient = 0.f;   // in [0,0.5f] used only if available (performance is better when 0)
+            color_node_input_slots_names = ImGui::GetStyle().Colors[ImGuiCol_Text];color_node_input_slots_names.w=0.75f;
+            color_node_output_slots_names = ImGui::GetStyle().Colors[ImGuiCol_Text];color_node_output_slots_names.w=0.75f;
+
+            color_mouse_rectangular_selection =         ImColor(255,0,0,45);
+            color_mouse_rectangular_selection_frame =   ImColor(45,0,0,175);
+
+            color_node_input_slots_border = color_node_output_slots_border = ImColor(60,60,60,0);
+            node_slots_num_segments = 12;
+        }
+    }; // struct Style
+
+    struct Node; // Forward
+
+    struct Link
+    {
+        Link(): node(nullptr), input_index(0) {}
+
+        Node* node;
+        size_t input_index; // only applies when connected
+    };
+
+    struct Node
+    {
+        enum class Type { INVALID, READING, DISPLAY };
+
+        Node(): num_inputs(0), num_outputs(-1), type(Type::INVALID) {}
+
+        size_t num_inputs;
+        size_t num_outputs;
+        Type type;
+    };
+
+    struct ReadingNode: public Node
+    {
+        ReadingNode() { num_inputs = 0; num_outputs = 3; type = Type::READING; }
+
+        int node_id; // -1 means 'none'
+        Vec3 buffer[2000]; // 1 second worth of data
+        Link link_x;
+        Link link_y;
+        Link link_z;
+    };
+public:
+    void Draw()
+    {
+        // Create a window
+        if (!ImGui::Begin("ELSACO NodeGraph"))
+            return; // No window -> nothing to do.
+
+        ImGui::Text("(dummy) bla bla");
+        ImGui::Text("foo bar baz");
+
+        this->DrawNodeGraphPane();
+
+        // Finalize the window
+        ImGui::End();
+    }
+private:
+    void DrawNodeGraphPane()
+    {
+        const bool draw_border = false;
+        const int flags = ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollWithMouse;
+        if (!ImGui::BeginChild("scroll-region", ImVec2(0,0), draw_border, flags))
+            return; // Nothing more to do.
+
+        const ImGuiIO& io = ImGui::GetIO();
+
+        // Copypaste from reference
+        const float NODE_SLOT_RADIUS = m_style.node_slots_radius;
+        const float NODE_SLOT_RADIUS_SQUARED = (NODE_SLOT_RADIUS*NODE_SLOT_RADIUS);
+        const ImVec2& NODE_WINDOW_PADDING = m_style.node_window_padding;
+        const float MOUSE_DELTA_SQUARED = io.MouseDelta.x*io.MouseDelta.x+io.MouseDelta.y*io.MouseDelta.y;
+        const float MOUSE_DELTA_SQUARED_THRESHOLD = NODE_SLOT_RADIUS_SQUARED * 0.05f;    // We don't detect "mouse release" events while dragging links onto slots. Instead we check that our mouse delta is small enough. Otherwise we couldn't hover other slots while dragging links.
+
+        const float baseNodeWidth = 120.f; // same as reference, but hardcoded
+        float currentNodeWidth = baseNodeWidth;
+        ImGui::PushItemWidth(currentNodeWidth);
+
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        draw_list->ChannelsSplit(5);
+
+        // more copypaste
+        ImVec2 canvasSize = ImGui::GetWindowSize();
+        ImVec2 win_pos = ImGui::GetCursorScreenPos();
+        ImVec2 effectiveScrolling = m_scroll - (canvasSize * 0.5f);
+        ImVec2 offset = ImGui::GetCursorScreenPos() - effectiveScrolling;
+        ImVec2 offset2 = ImGui::GetCursorPos() - effectiveScrolling;//scrolling;
+
+        // copypaste: Display grid
+        if (true)
+        {
+            const ImU32& GRID_COLOR = m_style.color_grid;
+            const float& GRID_SZ =  m_style.grid_size;
+            const float grid_Line_width = m_style.grid_line_width;
+            for (float x = fmodf(offset2.x,GRID_SZ); x < canvasSize.x; x += GRID_SZ)
+                draw_list->AddLine(ImVec2(x,0.0f)+win_pos, ImVec2(x,canvasSize.y)+win_pos, GRID_COLOR,grid_Line_width);
+            for (float y = fmodf(offset2.y,GRID_SZ); y < canvasSize.y; y += GRID_SZ)
+                draw_list->AddLine(ImVec2(0.0f,y)+win_pos, ImVec2(canvasSize.x,y)+win_pos, GRID_COLOR,grid_Line_width);
+        }
+
+        ImGui::EndChild();
+    }
+
+    std::vector<Node*> m_nodes;
+    Style m_style;
+    ImVec2 m_scroll;
+};
+
+// #################################################### END CUSTOM NODE EDITOR ############################################################# //
 
 #ifdef _DEBUG
     static const std::string mPluginsCfg = "plugins_d.cfg";
@@ -55,30 +246,18 @@ class DemoApp: public Ogre::FrameListener, public OIS::KeyListener, public OIS::
 public:
     void DrawGui()
     {
+        static bool show_nodegraph = false;
+
         if (ImGui::BeginMainMenuBar())
         {
-            if (ImGui::BeginMenu("(dummy)File"))
-            {
-                ImGui::MenuItem("(dummy)Open");
-                ImGui::MenuItem("(dummy)Save");
 
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("(dummy)Nodes"))
-            {
-                ImGui::MenuItem("(dummy)Add source");
-                ImGui::MenuItem("(dummy)Add sink");
-
-                ImGui::EndMenu();
-            }
 
             ImVec2 pos = ImGui::GetCursorPos();
-            ImGui::Checkbox("Show test window", &m_gui_state.test_window_visible);
-
-            pos.x += 200.f;
-            ImGui::SetCursorPos(pos);
-            ImGui::Checkbox("Show nodes window", &m_gui_state.nodes_window_visible);
+            ImGui::Checkbox("Test", &m_gui_state.test_window_visible);
+            ImGui::SameLine();
+            ImGui::Checkbox("Nodegraph ref", &m_gui_state.nodes_window_visible);
+            ImGui::SameLine();
+            ImGui::Checkbox("Nodegraph WIP", &show_nodegraph);
 
             ImGui::EndMainMenuBar();
         }
@@ -97,6 +276,9 @@ public:
 
             }
         }
+
+        if (show_nodegraph)
+            m_nodegraph.Draw();
     }
 
     void Go()
@@ -280,6 +462,7 @@ private:
     OIS::Keyboard*              mKeyboard    ;
 
     GuiState                    m_gui_state;
+    NodeGraphTool               m_nodegraph;
 };
 
 
