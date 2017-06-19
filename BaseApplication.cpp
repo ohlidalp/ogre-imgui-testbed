@@ -50,7 +50,8 @@ class NodeGraphTool
 public:
     NodeGraphTool():
         m_scroll(0.0f, 0.0f),
-        m_hovered_node(nullptr)
+        m_hovered_node(nullptr),
+        m_last_scaled_node(nullptr)
     {
 
         // test dummies
@@ -83,9 +84,9 @@ private:
         ImU32 color_node_frame_hovered;
         float node_rounding;
         ImVec2 node_window_padding;
-        //ImU32 color_node_input_slots;
+        ImU32 color_input_slot;
         //ImU32 color_node_input_slots_border;
-        //ImU32 color_node_output_slots;
+        ImU32 color_output_slot;
         //ImU32 color_node_output_slots_border;
         float node_slots_radius;
         //int node_slots_num_segments;
@@ -117,8 +118,8 @@ private:
             node_rounding =             4.f;
             node_window_padding =       ImVec2(8.f,8.f);
             //
-            //color_node_input_slots =    ImColor(150,150,150,150);
-            //color_node_output_slots =   ImColor(150,150,150,150);
+            color_input_slot =    ImColor(150,150,150,150);
+            color_output_slot =   ImColor(150,150,150,150);
             node_slots_radius =         5.f;
             //
             color_link =                ImColor(200,200,100);
@@ -260,6 +261,7 @@ private:
         ImGui::PushItemWidth(currentNodeWidth);
         ImDrawList* drawlist = ImGui::GetWindowDrawList();
         drawlist->ChannelsSplit(3); // 0 = background (grid, curves); 1 = node rectangle/sockets; 2 = node content
+        ImVec2 offset = this->GetOffset();
 
         this->DrawGrid();
 
@@ -270,14 +272,14 @@ private:
             case Node::Type::READING:
             {
                 ReadingNode* rnode = node->ToReading();
+                ImGui::PushID(node->id);
                 this->DrawLink(node, rnode->link_x, 0);
                 this->DrawLink(node, rnode->link_y, 1);
                 this->DrawLink(node, rnode->link_z, 2);
 
                 // Draw node content.
                 drawlist->ChannelsSetCurrent(2);
-                ImGui::PushID(node->id);
-                ImVec2 node_rect_min = this->GetOffset() + node->pos;
+                ImVec2 node_rect_min = offset + node->pos;
                 ImGui::SetCursorScreenPos(node_rect_min + m_style.node_window_padding);
                 bool old_any_active = ImGui::IsAnyItemActive();
                 ImGui::BeginGroup(); // Locks horizontal position
@@ -289,6 +291,7 @@ private:
                 {
                     ImGui::Text("SoftBody positon (Inactive)");
                 }
+                ImGui::Text("Outputs: X Y Z");
                 ImGui::InputInt("SB Node ID", &rnode->softbody_node_id);
                 ImGui::EndGroup();
                 bool node_widgets_active = (!old_any_active && ImGui::IsAnyItemActive());
@@ -313,12 +316,71 @@ private:
                 drawlist->AddRectFilled(node_rect_min, node_rect_max, bg_color, m_style.node_rounding);
                 drawlist->AddRect(node_rect_min, node_rect_max, border_color, m_style.node_rounding);
 
+                // Draw slots: 0 inputs, 3 outputs (XYZ)
+                drawlist->AddCircleFilled(offset + node->GetOutputSlotPos(0), m_style.node_slots_radius, m_style.color_output_slot);
+                drawlist->AddCircleFilled(offset + node->GetOutputSlotPos(1), m_style.node_slots_radius, m_style.color_output_slot);
+                drawlist->AddCircleFilled(offset + node->GetOutputSlotPos(2), m_style.node_slots_radius, m_style.color_output_slot);
+
                 m_hovered_node = nullptr;
                 break;
             }
             case Node::Type::DISPLAY:
-                // No outputs to draw here!
-                break;
+            {
+                DisplayNode* dnode = node->ToDisplay();
+                ImGui::PushID(node->id);
+
+                // Scalable node!
+                ImVec2 node_rect_min = offset + node->pos;
+                ImVec2 node_rect_max = node_rect_min + node->size + (m_style.node_window_padding * 2.f);
+                // Handle mouse dragging
+                ImGui::SetCursorScreenPos(node_rect_min);
+                ImGui::InvisibleButton("node", node->size);
+                if (ImGui::IsItemHovered())
+                {
+                    m_hovered_node = node;
+                }
+                bool node_moving_active = ImGui::IsItemActive();
+                if (node_moving_active && ImGui::IsMouseDragging(0))
+                {
+                    node->pos += ImGui::GetIO().MouseDelta;
+                }
+                // Draw outline
+                ImU32 bg_color = (node == m_hovered_node) ? m_style.color_node_hovered : m_style.color_node;
+                ImU32 border_color = (node == m_hovered_node) ? m_style.color_node_frame_hovered : m_style.color_node_frame;
+                drawlist->AddRectFilled(node_rect_min, node_rect_max, bg_color, m_style.node_rounding);
+                drawlist->AddRect(node_rect_min, node_rect_max, border_color, m_style.node_rounding);
+
+                // Draw content
+                ImGui::SetCursorScreenPos(node_rect_min + m_style.node_window_padding);
+                ImGui::BeginGroup(); // Locks horizontal position
+                const char* title = "Display";
+                ImGui::Text(title);
+                float data[] = {1.f, 2,5,6,9,4,3,8,5,1,7,6};
+                ImVec2 plot_size((node->size.x - 15.f), (node->size.y - ImGui::CalcTextSize("Display").y)); // x: leave space for the scaler
+                ImGui::PlotLines(".", data, 12, 0, nullptr, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(), plot_size);
+                // ... the scale anchor
+                ImVec2 scaler_size(20.f, 20.f);
+                ImGui::SetCursorScreenPos(node_rect_max - m_style.node_window_padding - scaler_size);
+                ImGui::Button("#", scaler_size);
+                // Note: cursor easily escapes from the scaler when dragging, we need to track it...
+                if (ImGui::IsMouseDragging(0))
+                {
+                    if (ImGui::IsItemHovered() || m_last_scaled_node == node)
+                    {
+                        node->size += ImGui::GetIO().MouseDelta;
+                        if (ImGui::IsItemHovered())
+                        {
+                            m_last_scaled_node = node;
+                        }
+                    }
+                }
+                else
+                {
+                    m_last_scaled_node = nullptr;
+                }
+
+                ImGui::EndGroup();
+            }
             default:;
             }
         }
@@ -337,6 +399,7 @@ private:
     Style m_style;
     ImVec2 m_scroll;
     Node* m_hovered_node;
+    Node* m_last_scaled_node;
     Node m_fake_mouse_node; // Used while dragging spline's end point
     Link m_fake_mouse_link; // Used while dragging spline's start point
 };
