@@ -49,7 +49,8 @@ class NodeGraphTool
 
 public:
     NodeGraphTool():
-        m_scroll(0.0f, 0.0f)
+        m_scroll(0.0f, 0.0f),
+        m_hovered_node(nullptr)
     {
 
         // test dummies
@@ -72,15 +73,15 @@ private:
         ImU32 color_grid;
         float grid_line_width;
         float grid_size;
-        //ImU32 color_node;
-        //ImU32 color_node_frame;
+        ImU32 color_node;
+        ImU32 color_node_frame;
         //ImU32 color_node_selected;
-        //ImU32 color_node_active;
+        ImU32 color_node_active;
         //ImU32 color_node_frame_selected;
-        //ImU32 color_node_frame_active;
-        //ImU32 color_node_hovered;
-        //ImU32 color_node_frame_hovered;
-        //float node_rounding;
+        ImU32 color_node_frame_active;
+        ImU32 color_node_hovered;
+        ImU32 color_node_frame_hovered;
+        float node_rounding;
         ImVec2 node_window_padding;
         //ImU32 color_node_input_slots;
         //ImU32 color_node_input_slots_border;
@@ -105,15 +106,15 @@ private:
             grid_line_width =           1.f;
             grid_size =                 64.f;
             //
-            //color_node =                ImColor(60,60,60);
-            //color_node_frame =          ImColor(100,100,100);
+            color_node =                ImColor(30,30,35);
+            color_node_frame =          ImColor(100,100,100);
             //color_node_selected =       ImColor(75,75,85);
-            //color_node_active =         ImColor(85,85,65);
+            //color_node_active =         ImColor(45,45,49);
             //color_node_frame_selected = ImColor(115,115,115);
-            //color_node_frame_active =   ImColor(125,125,105);
-            //color_node_hovered =        ImColor(85,85,85);
-            //color_node_frame_hovered =  ImColor(125,125,125);
-            //node_rounding =             4.f;
+            color_node_frame_active =   ImColor(100,100,100);
+            color_node_hovered =        ImColor(45,45,49);
+            color_node_frame_hovered =  ImColor(125,125,125);
+            node_rounding =             4.f;
             node_window_padding =       ImVec2(8.f,8.f);
             //
             //color_node_input_slots =    ImColor(150,150,150,150);
@@ -155,7 +156,12 @@ private:
     {
         enum class Type { INVALID, READING, DISPLAY };
 
-        Node(): num_inputs(0), num_outputs(-1), type(Type::INVALID), pos(100.f, 100.f), size(150.f, 100.f) {}
+        Node(): num_inputs(0), num_outputs(-1), type(Type::INVALID), pos(100.f, 100.f), size(150.f, 100.f)
+        {
+            static int new_id = 1;
+            id = new_id;
+            ++new_id;
+        }
 
         ReadingNode* ToReading() { assert(type == Type::READING); if (type == Type::READING) { return static_cast<ReadingNode*>(this); } else { return nullptr; } }
         DisplayNode* ToDisplay() { assert(type == Type::DISPLAY); if (type == Type::DISPLAY) { return static_cast<DisplayNode*>(this); } else { return nullptr; } }
@@ -165,6 +171,7 @@ private:
         Type type;
         ImVec2 pos;
         ImVec2 size;
+        int id;
 
         inline ImVec2 GetInputSlotPos(size_t slot_idx)  { return ImVec2(pos.x,          pos.y + (size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_inputs+1)))); }
         inline ImVec2 GetOutputSlotPos(size_t slot_idx) { return ImVec2(pos.x + size.x, pos.y + (size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_outputs+1)))); }
@@ -174,7 +181,7 @@ private:
     {
         ReadingNode() { num_inputs = 0; num_outputs = 3; type = Type::READING; }
 
-        int node_id; // -1 means 'none'
+        int softbody_node_id; // -1 means 'none'
         Vec3 buffer[2000]; // 1 second worth of data
         Link link_x;
         Link link_y;
@@ -206,6 +213,7 @@ public:
 private:
 
     inline bool IsInside(ImRect& rect, ImVec2& point) { return ((point.x > rect.Min.x) && (point.y > rect.Min.y)) && ((point.x < rect.Max.x) && (point.y < rect.Max.y)); }
+    inline ImVec2 GetOffset() { return  ImGui::GetCursorScreenPos() - m_scroll; }
 
     void DrawLink(Node* src_node, Link& link, size_t src_index)
     {
@@ -214,7 +222,8 @@ private:
             return; // Not connected
 
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
-        ImVec2 offset = ImGui::GetCursorScreenPos() - m_scroll;
+        draw_list->ChannelsSetCurrent(0); // background + curves
+        ImVec2 offset =this->GetOffset();
         ImVec2 p1 = offset + src_node->GetOutputSlotPos(src_index);
         ImVec2 p2 = offset + link.node->GetInputSlotPos(link.input_index);
         ImRect window = ImGui::GetCurrentWindow()->Rect();
@@ -227,11 +236,11 @@ private:
 
     void DrawGrid()
     {
-        // TODO: channels!
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        draw_list->ChannelsSetCurrent(0); // background + curves
         const ImVec2 win_pos = ImGui::GetCursorScreenPos();
         const ImVec2 offset = ImGui::GetCursorScreenPos() - m_scroll;
         const ImVec2 canvasSize = ImGui::GetWindowSize();
-        ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
         for (float x = fmodf(offset.x,m_style.grid_size); x < canvasSize.x; x += m_style.grid_size)
             draw_list->AddLine(ImVec2(x,0.0f)+win_pos, ImVec2(x,canvasSize.y)+win_pos, m_style.color_grid, m_style.grid_line_width);
@@ -249,6 +258,8 @@ private:
         const float baseNodeWidth = 120.f; // same as reference, but hardcoded
         float currentNodeWidth = baseNodeWidth;
         ImGui::PushItemWidth(currentNodeWidth);
+        ImDrawList* drawlist = ImGui::GetWindowDrawList();
+        drawlist->ChannelsSplit(3); // 0 = background (grid, curves); 1 = node rectangle/sockets; 2 = node content
 
         this->DrawGrid();
 
@@ -257,10 +268,54 @@ private:
             switch (node->type)
             {
             case Node::Type::READING:
-                this->DrawLink(node, node->ToReading()->link_x, 0);
-                this->DrawLink(node, node->ToReading()->link_y, 1);
-                this->DrawLink(node, node->ToReading()->link_z, 2);
+            {
+                ReadingNode* rnode = node->ToReading();
+                this->DrawLink(node, rnode->link_x, 0);
+                this->DrawLink(node, rnode->link_y, 1);
+                this->DrawLink(node, rnode->link_z, 2);
+
+                // Draw node content.
+                drawlist->ChannelsSetCurrent(2);
+                ImGui::PushID(node->id);
+                ImVec2 node_rect_min = this->GetOffset() + node->pos;
+                ImGui::SetCursorScreenPos(node_rect_min + m_style.node_window_padding);
+                bool old_any_active = ImGui::IsAnyItemActive();
+                ImGui::BeginGroup(); // Locks horizontal position
+                if (rnode->softbody_node_id >= 0)
+                {
+                    ImGui::Text("SoftBody positon (Working)", rnode->softbody_node_id);
+                }
+                else
+                {
+                    ImGui::Text("SoftBody positon (Inactive)");
+                }
+                ImGui::InputInt("SB Node ID", &rnode->softbody_node_id);
+                ImGui::EndGroup();
+                bool node_widgets_active = (!old_any_active && ImGui::IsAnyItemActive());
+                node->size = ImGui::GetItemRectSize() + m_style.node_window_padding + m_style.node_window_padding;
+                ImVec2 node_rect_max = node_rect_min + node->size;
+
+                // Draw node rect
+                drawlist->ChannelsSetCurrent(1);
+                ImGui::SetCursorScreenPos(node_rect_min);
+                ImGui::InvisibleButton("node", node->size);
+                if (ImGui::IsItemHovered())
+                {
+                    m_hovered_node = node;
+                }
+                bool node_moving_active = ImGui::IsItemActive();
+                if (node_moving_active && ImGui::IsMouseDragging(0))
+                {
+                    node->pos += ImGui::GetIO().MouseDelta;
+                }
+                ImU32 bg_color = (node == m_hovered_node) ? m_style.color_node_hovered : m_style.color_node;
+                ImU32 border_color = (node == m_hovered_node) ? m_style.color_node_frame_hovered : m_style.color_node_frame;
+                drawlist->AddRectFilled(node_rect_min, node_rect_max, bg_color, m_style.node_rounding);
+                drawlist->AddRect(node_rect_min, node_rect_max, border_color, m_style.node_rounding);
+
+                m_hovered_node = nullptr;
                 break;
+            }
             case Node::Type::DISPLAY:
                 // No outputs to draw here!
                 break;
@@ -274,13 +329,16 @@ private:
             m_scroll = m_scroll - ImGui::GetIO().MouseDelta;
         }
 
-
         ImGui::EndChild();
+        drawlist->ChannelsMerge();
     }
 
     std::vector<Node*> m_nodes;
     Style m_style;
     ImVec2 m_scroll;
+    Node* m_hovered_node;
+    Node m_fake_mouse_node; // Used while dragging spline's end point
+    Link m_fake_mouse_link; // Used while dragging spline's start point
 };
 
 // #################################################### END CUSTOM NODE EDITOR ############################################################# //
