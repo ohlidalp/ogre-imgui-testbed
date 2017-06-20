@@ -48,7 +48,10 @@ public:
         m_hovered_node(nullptr),
         m_last_scaled_node(nullptr),
         m_link_mouse_src(nullptr),
-        m_link_mouse_dst(nullptr)
+        m_link_mouse_dst(nullptr),
+        m_hovered_slot_node(nullptr),
+        m_hovered_slot_input(-1),
+        m_hovered_slot_output(-1)
     {
         m_fake_mouse_node.num_inputs = 1;
         m_fake_mouse_node.num_outputs = 1;
@@ -216,9 +219,10 @@ public:
             return; // No window -> nothing to do.
 
         ImGui::Text("MouseDrag - src: 0x%p, dst: 0x%p | mousenode - X:%.1f, Y:%.1f", m_link_mouse_src, m_link_mouse_dst, m_fake_mouse_node.pos.x, m_fake_mouse_node.pos.y);
-        ImGui::Text("--------------------------------------------");
+        ImGui::Text("SlotHover - node: 0x%p, input: %d, output: %d", m_hovered_slot_node, m_hovered_slot_input, m_hovered_slot_output);
 
         m_scroll_offset = ImGui::GetCursorScreenPos() - m_scroll;
+        m_is_any_slot_hovered = false;
 
         this->DrawNodeGraphPane();
 
@@ -317,6 +321,12 @@ private:
         ImU32 color = (input) ? m_style.color_input_slot : m_style.color_output_slot;
         if (this->IsSlotHovered(slot_center_pos))
         {
+            m_is_any_slot_hovered = true;
+            m_hovered_slot_node = node;
+            if (input)
+                m_hovered_slot_input = static_cast<int>(index);
+            else
+                m_hovered_slot_output = static_cast<int>(index);
             color = (input) ? m_style.color_input_slot_hover : m_style.color_output_slot_hover;
             if (ImGui::IsMouseDragging(0) && !this->IsLinkDragInProgress())
             {
@@ -380,14 +390,30 @@ private:
         {
             if (m_link_mouse_src != nullptr)
             {
-                m_link_mouse_src->node_dst = nullptr;
-                m_link_mouse_src->node_src = nullptr;
+                if (m_hovered_slot_node != nullptr && m_hovered_slot_output != -1)
+                {
+                    m_link_mouse_src->node_src = m_hovered_slot_node;
+                    m_link_mouse_src->slot_src = static_cast<size_t>(m_hovered_slot_output);
+                }
+                else
+                {
+                    m_link_mouse_src->node_dst = nullptr; // Make 'dead' link -> rendering will skip it
+                    m_link_mouse_src->node_src = nullptr;
+                }
                 m_link_mouse_src = nullptr;
             }
             else if (m_link_mouse_dst != nullptr)
             {
-                m_link_mouse_dst->node_dst = nullptr;
-                m_link_mouse_dst->node_src = nullptr;
+                if (m_hovered_slot_node != nullptr && m_hovered_slot_input != -1)
+                {
+                    m_link_mouse_dst->node_dst = m_hovered_slot_node;
+                    m_link_mouse_dst->slot_dst = static_cast<size_t>(m_hovered_slot_input);
+                }
+                else
+                {
+                    m_link_mouse_dst->node_dst = nullptr; // Make 'dead' link -> rendering will skip it
+                    m_link_mouse_dst->node_src = nullptr;
+                }
                 m_link_mouse_dst = nullptr;
             }
         }
@@ -524,6 +550,14 @@ private:
             }
         }
 
+        // Slot hover cleanup
+        if (!m_is_any_slot_hovered)
+        {
+            m_hovered_slot_node = nullptr;
+            m_hovered_slot_input = -1;
+            m_hovered_slot_output = -1;
+        }
+
         // Scrolling
         if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemActive() && ImGui::IsMouseDragging(2, 0.0f))
         {
@@ -541,6 +575,10 @@ private:
     ImVec2 m_scroll_offset;
     ImVec2 m_nodegraph_mouse_pos;
     Node* m_hovered_node;
+    Node* m_hovered_slot_node;
+    int m_hovered_slot_input; // -1 = none
+    int m_hovered_slot_output; // -1 = none
+    bool m_is_any_slot_hovered;
     Node* m_last_scaled_node;
     Node m_fake_mouse_node;
     Link* m_link_mouse_src;
