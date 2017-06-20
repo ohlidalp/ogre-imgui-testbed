@@ -42,17 +42,17 @@ NODE EDITORS FOUND ON THE INTERNET
 
 class NodeGraphTool
 {
-    // Node types
-    //  READING - reports XYZ position of node in world space
-    //            Inputs: none
-    //            Outputs(3): X position, Y position, Z position
-
 public:
     NodeGraphTool():
         m_scroll(0.0f, 0.0f),
         m_hovered_node(nullptr),
-        m_last_scaled_node(nullptr)
+        m_last_scaled_node(nullptr),
+        m_link_mouse_src(nullptr),
+        m_link_mouse_dst(nullptr)
     {
+        m_fake_mouse_node.num_inputs = 1;
+        m_fake_mouse_node.num_outputs = 1;
+        m_fake_mouse_node.size = ImVec2(1,1);
 
         // test dummies
         m_nodes.push_back(new ReadingNode());
@@ -60,11 +60,12 @@ public:
         m_nodes.push_back(new DisplayNode());
 
         m_nodes[1]->pos += ImVec2(300.f, -10.f);
-        m_nodes[1]->pos += ImVec2(250.f, 133.f);
+        m_nodes[2]->pos += ImVec2(250.f, 133.f);
 
         // Links
-        m_nodes[0]->ToReading()->link_x.node = m_nodes[1]; // socket index 0 = default
-        m_nodes[0]->ToReading()->link_z.node = m_nodes[2]; // socket index 0 = default
+        m_links.emplace_back(m_nodes[0], m_nodes[1], 0, 0); // X output -> graph input
+        m_links.emplace_back(m_nodes[0], m_nodes[2], 2, 0); // Z output -> graph input
+
     }
 private:
     struct Vec3 { float x, y, z; };
@@ -85,13 +86,16 @@ private:
         float node_rounding;
         ImVec2 node_window_padding;
         ImU32 color_input_slot;
+        ImU32 color_input_slot_hover;
         //ImU32 color_node_input_slots_border;
         ImU32 color_output_slot;
+        ImU32 color_output_slot_hover;
         //ImU32 color_node_output_slots_border;
         float node_slots_radius;
         //int node_slots_num_segments;
         ImU32 color_link;
         float link_line_width;
+        ImVec2 slot_hoverbox_extent;
         //float link_control_point_distance;
         //int link_num_segments;  // in AddBezierCurve(...)
         //ImVec4 color_node_title;
@@ -117,9 +121,12 @@ private:
             color_node_frame_hovered =  ImColor(125,125,125);
             node_rounding =             4.f;
             node_window_padding =       ImVec2(8.f,8.f);
+            slot_hoverbox_extent        = ImVec2(15.f, 10.f);
             //
             color_input_slot =    ImColor(150,150,150,150);
             color_output_slot =   ImColor(150,150,150,150);
+            color_input_slot_hover =    ImColor(144,155,222,245);
+            color_output_slot_hover =   ImColor(144,155,222,245);
             node_slots_radius =         5.f;
             //
             color_link =                ImColor(200,200,100);
@@ -147,10 +154,14 @@ private:
 
     struct Link
     {
-        Link(): node(nullptr), input_index(0) {}
+        Link(): node_src(nullptr), node_dst(nullptr), slot_src(0), slot_dst(0) {}
 
-        Node* node;
-        size_t input_index; // only applies when connected
+        Link(Node* src_n, Node* dst_n, size_t src_s, size_t dst_s): node_src(src_n), node_dst(dst_n), slot_src(src_s), slot_dst(dst_s) {}
+
+        Node* node_src;
+        Node* node_dst;
+        size_t slot_src;
+        size_t slot_dst;
     };
 
     struct Node
@@ -178,33 +189,36 @@ private:
         inline ImVec2 GetOutputSlotPos(size_t slot_idx) { return ImVec2(pos.x + size.x, pos.y + (size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_outputs+1)))); }
     };
 
+    /// reports XYZ position of node in world space
+    /// Inputs: none
+    /// Outputs(3): X position, Y position, Z position
     struct ReadingNode: public Node
     {
         ReadingNode() { num_inputs = 0; num_outputs = 3; type = Type::READING; }
 
         int softbody_node_id; // -1 means 'none'
         Vec3 buffer[2000]; // 1 second worth of data
-        Link link_x;
-        Link link_y;
-        Link link_z;
     };
 
+    /// Displays a graph
+    /// Inputs(1): value
+    /// Outputs(1): value (pass-through)
     struct DisplayNode: public Node
     {
         DisplayNode() { num_inputs = 1; num_outputs = 1; type = Type::DISPLAY; }
-
-        Link link_out;
     };
 
 public:
     void Draw()
     {
         // Create a window
-        if (!ImGui::Begin("ELSACO NodeGraph"))
+        if (!ImGui::Begin("RigsOfRods NodeGraph"))
             return; // No window -> nothing to do.
 
-        ImGui::Text("(dummy) bla bla");
-        ImGui::Text("foo bar baz");
+        ImGui::Text("MouseDrag - src: %p, dst: %p | mousenode - X:%.1f, Y:%.1f", m_link_mouse_src, m_link_mouse_dst, m_fake_mouse_node.pos.x, m_fake_mouse_node.pos.y);
+        ImGui::Text("--------------------------------------------");
+
+        m_scroll_offset = ImGui::GetCursorScreenPos() - m_scroll;
 
         this->DrawNodeGraphPane();
 
@@ -214,19 +228,15 @@ public:
 private:
 
     inline bool IsInside(ImRect& rect, ImVec2& point) { return ((point.x > rect.Min.x) && (point.y > rect.Min.y)) && ((point.x < rect.Max.x) && (point.y < rect.Max.y)); }
-    inline ImVec2 GetOffset() { return  ImGui::GetCursorScreenPos() - m_scroll; }
+    inline bool IsLinkDragInProgress() { return (m_link_mouse_src != nullptr) || (m_link_mouse_dst != nullptr); }
 
-    void DrawLink(Node* src_node, Link& link, size_t src_index)
+    void DrawLink(Link& link)
     {
-        // TODO: Channels
-        if (link.node == nullptr)
-            return; // Not connected
-
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
         draw_list->ChannelsSetCurrent(0); // background + curves
-        ImVec2 offset =this->GetOffset();
-        ImVec2 p1 = offset + src_node->GetOutputSlotPos(src_index);
-        ImVec2 p2 = offset + link.node->GetInputSlotPos(link.input_index);
+        ImVec2 offset =m_scroll_offset;
+        ImVec2 p1 = offset + link.node_src->GetOutputSlotPos(link.slot_src);
+        ImVec2 p2 = offset + link.node_dst->GetInputSlotPos(link.slot_dst);
         ImRect window = ImGui::GetCurrentWindow()->Rect();
 
         if (this->IsInside(window, p1) || this->IsInside(window, p2)) // very basic clipping
@@ -249,6 +259,92 @@ private:
             draw_list->AddLine(ImVec2(0.0f,y)+win_pos, ImVec2(canvasSize.x,y)+win_pos, m_style.color_grid, m_style.grid_line_width);
     }
 
+    Link* FindLinkByDestination(Node* node, size_t slot)
+    {
+        for (Link& link: m_links)
+        {
+            if (link.node_dst == node && link.slot_dst == slot)
+                return &link;
+        }
+        return nullptr;
+    }
+
+    Link* FindLinkBySource(Node* node, size_t slot)
+    {
+        for (Link& link: m_links)
+        {
+            if (link.node_src == node && link.slot_src == slot)
+                return &link;
+        }
+        return nullptr;
+    }
+
+    Link* AddLink(Node* src, Node* dst, size_t src_slot, size_t dst_slot) ///< creates new link or fetches existing unused one
+    {
+        for (Link& link: m_links)
+        {
+            if (link.node_dst == nullptr || link.node_src == nullptr)
+            {
+                link.node_src = src;
+                link.node_dst = dst;
+                link.slot_src = src_slot;
+                link.slot_dst = dst_slot;
+                return &link;
+            }
+        }
+        m_links.emplace_back(src, dst, src_slot, dst_slot);
+        return &m_links.back();
+    }
+
+    inline void DrawInputSlot(Node* node, const size_t index) { this->DrawSlotUni(node, index, true); }
+    inline void DrawOutputSlot(Node* node, const size_t index) { this->DrawSlotUni(node, index, false); }
+
+    void DrawSlotUni(Node* node, const size_t index, const bool input)
+    {
+        ImDrawList* drawlist = ImGui::GetWindowDrawList();
+        drawlist->ChannelsSetCurrent(1);
+        ImVec2 slot_center_pos = m_scroll_offset + ((input) ? node->GetInputSlotPos(index) : node->GetOutputSlotPos(index));
+        ImGui::SetCursorScreenPos(slot_center_pos - m_style.slot_hoverbox_extent);
+        ImU32 color = (input) ? m_style.color_input_slot : m_style.color_output_slot;
+        ImGui::InvisibleButton("slot_hover", (m_style.slot_hoverbox_extent * 2));
+        if (ImGui::IsItemHovered())
+        {
+            color = (input) ? m_style.color_input_slot_hover : m_style.color_output_slot_hover;
+            if (ImGui::IsMouseDragging(0) && !this->IsLinkDragInProgress())
+            {
+                // Start link drag!
+                Link* link = (input) ? this->FindLinkByDestination(node, index) : this->FindLinkBySource(node, index);
+                if (link)
+                {
+                    // drag existing link
+                    if (input)
+                    {
+                        link->node_dst = &m_fake_mouse_node;
+                        m_link_mouse_dst = link;
+                    }
+                    else
+                    {
+                        link->node_src = &m_fake_mouse_node;
+                        m_link_mouse_src = link;
+                    }
+                }
+                else
+                {
+                    // Create a new link
+                    if (input)
+                    {
+                        m_link_mouse_src = this->AddLink(&m_fake_mouse_node, node, 0, index);
+                    }
+                    else
+                    {
+                        m_link_mouse_dst = this->AddLink(node, &m_fake_mouse_node, index, 0);
+                    }
+                }
+            }
+        }
+        drawlist->AddCircleFilled(slot_center_pos, m_style.node_slots_radius, color);
+    }
+
     void DrawNodeGraphPane()
     {
         const bool draw_border = false;
@@ -260,10 +356,44 @@ private:
         float currentNodeWidth = baseNodeWidth;
         ImGui::PushItemWidth(currentNodeWidth);
         ImDrawList* drawlist = ImGui::GetWindowDrawList();
-        drawlist->ChannelsSplit(3); // 0 = background (grid, curves); 1 = node rectangle/sockets; 2 = node content
-        ImVec2 offset = this->GetOffset();
+        drawlist->ChannelsSplit(3); // 0 = background (grid, curves); 1 = node rectangle/slots; 2 = node content
 
+        // Update mouse drag
+        const ImVec2 nodepane_screen_pos = ImGui::GetCursorScreenPos();
+        ImVec2 mouse_nodeplane_pos = (ImGui::GetIO().MousePos - nodepane_screen_pos);
+        if (ImGui::IsMouseDragging(0))
+        {
+            if (m_link_mouse_src != nullptr)
+                m_fake_mouse_node.pos = mouse_nodeplane_pos;
+            else if (m_link_mouse_dst != nullptr)
+                m_fake_mouse_node.pos = mouse_nodeplane_pos;
+        }
+        else
+        {
+            if (m_link_mouse_src != nullptr)
+            {
+                m_link_mouse_src->node_dst = nullptr;
+                m_link_mouse_src->node_src = nullptr;
+                m_link_mouse_src = nullptr;
+            }
+            else if (m_link_mouse_dst != nullptr)
+            {
+                m_link_mouse_dst->node_dst = nullptr;
+                m_link_mouse_dst->node_src = nullptr;
+                m_link_mouse_dst = nullptr;
+            }
+        }
+
+        // Draw grid
         this->DrawGrid();
+
+        // Draw links
+        drawlist->ChannelsSetCurrent(0);
+        for (Link& link: m_links)
+        {
+            if (link.node_src!= nullptr && link.node_dst != nullptr) // Skip disconnected links
+                this->DrawLink(link);
+        }
 
         for (Node* node: m_nodes)
         {
@@ -273,13 +403,10 @@ private:
             {
                 ReadingNode* rnode = node->ToReading();
                 ImGui::PushID(node->id);
-                this->DrawLink(node, rnode->link_x, 0);
-                this->DrawLink(node, rnode->link_y, 1);
-                this->DrawLink(node, rnode->link_z, 2);
 
                 // Draw node content.
                 drawlist->ChannelsSetCurrent(2);
-                ImVec2 node_rect_min = offset + node->pos;
+                ImVec2 node_rect_min = m_scroll_offset + node->pos;
                 ImGui::SetCursorScreenPos(node_rect_min + m_style.node_window_padding);
                 bool old_any_active = ImGui::IsAnyItemActive();
                 ImGui::BeginGroup(); // Locks horizontal position
@@ -317,9 +444,9 @@ private:
                 drawlist->AddRect(node_rect_min, node_rect_max, border_color, m_style.node_rounding);
 
                 // Draw slots: 0 inputs, 3 outputs (XYZ)
-                drawlist->AddCircleFilled(offset + node->GetOutputSlotPos(0), m_style.node_slots_radius, m_style.color_output_slot);
-                drawlist->AddCircleFilled(offset + node->GetOutputSlotPos(1), m_style.node_slots_radius, m_style.color_output_slot);
-                drawlist->AddCircleFilled(offset + node->GetOutputSlotPos(2), m_style.node_slots_radius, m_style.color_output_slot);
+                this->DrawOutputSlot(node, 0);
+                this->DrawOutputSlot(node, 1);
+                this->DrawOutputSlot(node, 2);
 
                 m_hovered_node = nullptr;
                 break;
@@ -330,7 +457,7 @@ private:
                 ImGui::PushID(node->id);
 
                 // Scalable node!
-                ImVec2 node_rect_min = offset + node->pos;
+                ImVec2 node_rect_min = m_scroll_offset + node->pos;
                 ImVec2 node_rect_max = node_rect_min + node->size + (m_style.node_window_padding * 2.f);
                 // Handle mouse dragging
                 ImGui::SetCursorScreenPos(node_rect_min);
@@ -379,13 +506,17 @@ private:
                     m_last_scaled_node = nullptr;
                 }
 
+                // Draw slots 1 input, 1 output (pass-thru)
+                this->DrawInputSlot(node, 0);
+                this->DrawOutputSlot(node, 0);
+
                 ImGui::EndGroup();
             }
             default:;
             }
         }
 
-        // Scrolling - clone of Ocornut
+        // Scrolling
         if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemActive() && ImGui::IsMouseDragging(2, 0.0f))
         {
             m_scroll = m_scroll - ImGui::GetIO().MouseDelta;
@@ -396,12 +527,15 @@ private:
     }
 
     std::vector<Node*> m_nodes;
+    std::vector<Link> m_links;
     Style m_style;
     ImVec2 m_scroll;
+    ImVec2 m_scroll_offset;
     Node* m_hovered_node;
     Node* m_last_scaled_node;
-    Node m_fake_mouse_node; // Used while dragging spline's end point
-    Link m_fake_mouse_link; // Used while dragging spline's start point
+    Node m_fake_mouse_node;
+    Link* m_link_mouse_src;
+    Link* m_link_mouse_dst;
 };
 
 // #################################################### END CUSTOM NODE EDITOR ############################################################# //
