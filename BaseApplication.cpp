@@ -215,7 +215,7 @@ public:
         if (!ImGui::Begin("RigsOfRods NodeGraph"))
             return; // No window -> nothing to do.
 
-        ImGui::Text("MouseDrag - src: %p, dst: %p | mousenode - X:%.1f, Y:%.1f", m_link_mouse_src, m_link_mouse_dst, m_fake_mouse_node.pos.x, m_fake_mouse_node.pos.y);
+        ImGui::Text("MouseDrag - src: 0x%p, dst: 0x%p | mousenode - X:%.1f, Y:%.1f", m_link_mouse_src, m_link_mouse_dst, m_fake_mouse_node.pos.x, m_fake_mouse_node.pos.y);
         ImGui::Text("--------------------------------------------");
 
         m_scroll_offset = ImGui::GetCursorScreenPos() - m_scroll;
@@ -241,7 +241,8 @@ private:
 
         if (this->IsInside(window, p1) || this->IsInside(window, p2)) // very basic clipping
         {
-            draw_list->AddBezierCurve(p1, p1+ImVec2(+50,0), p2+ImVec2(-50,0), p2, m_style.color_link, m_style.link_line_width);
+            float bezier_pt_dist = fmin(50.f, fmin(fabs(p1.x - p2.x)*0.75f, fabs(p1.y - p2.y)*0.75f)); // Maximum: 50; minimum: 75% of shorter-axis distance between p1 and p2
+            draw_list->AddBezierCurve(p1, p1+ImVec2(+bezier_pt_dist,0), p2+ImVec2(-bezier_pt_dist,0), p2, m_style.color_link, m_style.link_line_width);
         }
     }
 
@@ -299,15 +300,22 @@ private:
     inline void DrawInputSlot(Node* node, const size_t index) { this->DrawSlotUni(node, index, true); }
     inline void DrawOutputSlot(Node* node, const size_t index) { this->DrawSlotUni(node, index, false); }
 
+    bool IsSlotHovered(ImVec2 slot_center)
+    {
+        ImVec2 slot_rect_min = slot_center - m_style.slot_hoverbox_extent;
+        ImVec2 slot_rect_max = slot_center + m_style.slot_hoverbox_extent;
+        return ((m_nodegraph_mouse_pos.x >= slot_rect_min.x) && (m_nodegraph_mouse_pos.y >= slot_rect_min.y) &&
+                (m_nodegraph_mouse_pos.x <= slot_rect_max.x) && (m_nodegraph_mouse_pos.y <= slot_rect_max.y));
+    }
+
     void DrawSlotUni(Node* node, const size_t index, const bool input)
     {
         ImDrawList* drawlist = ImGui::GetWindowDrawList();
         drawlist->ChannelsSetCurrent(1);
-        ImVec2 slot_center_pos = m_scroll_offset + ((input) ? node->GetInputSlotPos(index) : node->GetOutputSlotPos(index));
-        ImGui::SetCursorScreenPos(slot_center_pos - m_style.slot_hoverbox_extent);
+        ImVec2 slot_center_pos =  ((input) ? node->GetInputSlotPos(index) : node->GetOutputSlotPos(index));
+        ImGui::SetCursorScreenPos((slot_center_pos + m_scroll_offset) - m_style.slot_hoverbox_extent);
         ImU32 color = (input) ? m_style.color_input_slot : m_style.color_output_slot;
-        ImGui::InvisibleButton("slot_hover", (m_style.slot_hoverbox_extent * 2));
-        if (ImGui::IsItemHovered())
+        if (this->IsSlotHovered(slot_center_pos))
         {
             color = (input) ? m_style.color_input_slot_hover : m_style.color_output_slot_hover;
             if (ImGui::IsMouseDragging(0) && !this->IsLinkDragInProgress())
@@ -342,7 +350,7 @@ private:
                 }
             }
         }
-        drawlist->AddCircleFilled(slot_center_pos, m_style.node_slots_radius, color);
+        drawlist->AddCircleFilled(slot_center_pos+m_scroll_offset, m_style.node_slots_radius, color);
     }
 
     void DrawNodeGraphPane()
@@ -360,13 +368,13 @@ private:
 
         // Update mouse drag
         const ImVec2 nodepane_screen_pos = ImGui::GetCursorScreenPos();
-        ImVec2 mouse_nodeplane_pos = (ImGui::GetIO().MousePos - nodepane_screen_pos);
+        m_nodegraph_mouse_pos = (ImGui::GetIO().MousePos - nodepane_screen_pos);
         if (ImGui::IsMouseDragging(0))
         {
             if (m_link_mouse_src != nullptr)
-                m_fake_mouse_node.pos = mouse_nodeplane_pos;
+                m_fake_mouse_node.pos = m_nodegraph_mouse_pos;
             else if (m_link_mouse_dst != nullptr)
-                m_fake_mouse_node.pos = mouse_nodeplane_pos;
+                m_fake_mouse_node.pos = m_nodegraph_mouse_pos;
         }
         else
         {
@@ -531,6 +539,7 @@ private:
     Style m_style;
     ImVec2 m_scroll;
     ImVec2 m_scroll_offset;
+    ImVec2 m_nodegraph_mouse_pos;
     Node* m_hovered_node;
     Node* m_last_scaled_node;
     Node m_fake_mouse_node;
