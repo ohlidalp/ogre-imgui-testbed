@@ -31,34 +31,36 @@ NODE EDITORS FOUND ON THE INTERNET
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui_internal.h>
 
+static float G_truck_node_x[100] = {0}; // dummy 100-node truck
+
 class NodeGraphTool
 {
 public:
     NodeGraphTool():
         m_scroll(0.0f, 0.0f),
-        m_hovered_node(nullptr),
         m_last_scaled_node(nullptr),
         m_link_mouse_src(nullptr),
         m_link_mouse_dst(nullptr),
         m_hovered_slot_node(nullptr),
         m_hovered_slot_input(-1),
-        m_hovered_slot_output(-1)
+        m_hovered_slot_output(-1),
+        m_num_ticks(0)
     {
         m_fake_mouse_node.num_inputs = 1;
         m_fake_mouse_node.num_outputs = 1;
         m_fake_mouse_node.size = ImVec2(1,1);
 
-        // test dummies
-        m_nodes.push_back(new ReadingNode());
-        m_nodes.push_back(new DisplayNode());
-        m_nodes.push_back(new DisplayNode());
+        // test nodes
+        m_reading_nodes.push_back(new ReadingNode());
+        m_reading_nodes.push_back(new ReadingNode());
+        m_reading_nodes.push_back(new ReadingNode());
 
-        m_nodes[1]->pos += ImVec2(300.f, -10.f);
-        m_nodes[2]->pos += ImVec2(250.f, 133.f);
+        m_reading_nodes[1]->pos += ImVec2(300.f, -10.f);
+        m_reading_nodes[2]->pos += ImVec2(250.f, 133.f);
 
         // Links
-        m_links.emplace_back(m_nodes[0], m_nodes[1], 0, 0); // X output -> graph input
-        m_links.emplace_back(m_nodes[0], m_nodes[2], 2, 0); // Z output -> graph input
+   //     m_links.emplace_back(m_nodes[0], m_nodes[1], 0, 0); // X output -> graph input
+   //     m_links.emplace_back(m_nodes[0], m_nodes[2], 2, 0); // Z output -> graph input
 
     }
 private:
@@ -188,10 +190,22 @@ private:
     /// Outputs(3): X position, Y position, Z position
     struct ReadingNode: public Node
     {
-        ReadingNode() { num_inputs = 0; num_outputs = 3; type = Type::READING; }
+        ReadingNode()
+        {
+            num_inputs = 0;
+            num_outputs = 3;
+            type = Type::READING;
+            softbody_node_id = -1;
+            data_offset = 0;
+            memset(data_buffer, 0, sizeof(data_buffer));
+            size = ImVec2(250.f, 85.f);
+        }
 
         int softbody_node_id; // -1 means 'none'
-        Vec3 buffer[2000]; // 1 second worth of data
+        Vec3 data_buffer[2000]; // 1 second worth of data
+        int data_offset;
+
+        inline void PushData(Vec3 entry) { data_buffer[data_offset] = entry; data_offset = (data_offset+1)%2000; }
     };
 
     /// Displays a graph
@@ -220,6 +234,22 @@ public:
         // Finalize the window
         ImGui::End();
     }
+
+    void PhysicsTick()
+    {
+        for (ReadingNode* rn: m_reading_nodes)
+        {
+            if (rn->softbody_node_id >= 0)
+            {
+                Vec3 data;
+                data.x = G_truck_node_x[rn->softbody_node_id];
+                data.y = G_truck_node_x[rn->softbody_node_id];
+                data.z = G_truck_node_x[rn->softbody_node_id];
+                rn->PushData(data);
+            }
+        }
+        ++m_num_ticks;
+    }
 private:
 
     inline bool IsInside(ImRect& rect, ImVec2& point) { return ((point.x > rect.Min.x) && (point.y > rect.Min.y)) && ((point.x < rect.Max.x) && (point.y < rect.Max.y)); }
@@ -230,7 +260,7 @@ private:
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
         draw_list->ChannelsSetCurrent(0); // background + curves
         ImVec2 offset =m_scroll_offset;
-        ImVec2 p1 = offset + link.node_src->GetOutputSlotPos(link.slot_src);
+        ImVec2 p1 = offset + link.node_src->GetOutputSlotPos(link.slot_src) + (m_style.node_window_padding * 2.f);
         ImVec2 p2 = offset + link.node_dst->GetInputSlotPos(link.slot_dst);
         ImRect window = ImGui::GetCurrentWindow()->Rect();
 
@@ -295,19 +325,24 @@ private:
     inline void DrawInputSlot(Node* node, const size_t index) { this->DrawSlotUni(node, index, true); }
     inline void DrawOutputSlot(Node* node, const size_t index) { this->DrawSlotUni(node, index, false); }
 
-    bool IsSlotHovered(ImVec2 slot_center)
+    inline bool IsSlotHovered(ImVec2 slot_center) const
     {
         ImVec2 slot_rect_min = slot_center - m_style.slot_hoverbox_extent;
         ImVec2 slot_rect_max = slot_center + m_style.slot_hoverbox_extent;
-        return ((m_nodegraph_mouse_pos.x >= slot_rect_min.x) && (m_nodegraph_mouse_pos.y >= slot_rect_min.y) &&
-                (m_nodegraph_mouse_pos.x <= slot_rect_max.x) && (m_nodegraph_mouse_pos.y <= slot_rect_max.y));
+        return this->IsRectHovered(slot_rect_min, slot_rect_max);
+    }
+
+    inline bool IsRectHovered(ImVec2 min, ImVec2 max) const
+    {
+        return ((m_nodegraph_mouse_pos.x >= min.x) && (m_nodegraph_mouse_pos.y >= min.y) &&
+                (m_nodegraph_mouse_pos.x <= max.x) && (m_nodegraph_mouse_pos.y <= max.y));
     }
 
     void DrawSlotUni(Node* node, const size_t index, const bool input)
     {
         ImDrawList* drawlist = ImGui::GetWindowDrawList();
         drawlist->ChannelsSetCurrent(1);
-        ImVec2 slot_center_pos =  ((input) ? node->GetInputSlotPos(index) : node->GetOutputSlotPos(index));
+        ImVec2 slot_center_pos =  ((input) ? node->GetInputSlotPos(index) : (node->GetOutputSlotPos(index) + (m_style.node_window_padding * 2.f)));
         ImGui::SetCursorScreenPos((slot_center_pos + m_scroll_offset) - m_style.slot_hoverbox_extent);
         ImU32 color = (input) ? m_style.color_input_slot : m_style.color_output_slot;
         if (this->IsSlotHovered(slot_center_pos))
@@ -420,7 +455,73 @@ private:
                 this->DrawLink(link);
         }
 
-        for (Node* node: m_nodes)
+        for (ReadingNode* node: m_reading_nodes)
+        {
+                ImGui::PushID(node->id);
+                // Scalable node!
+                ImVec2 node_rect_min = m_scroll_offset + node->pos;
+                ImVec2 node_rect_max = node_rect_min + node->size + (m_style.node_window_padding * 2.f);
+
+                // Draw content
+                drawlist->ChannelsSetCurrent(2);
+                ImGui::SetCursorScreenPos(node_rect_min + m_style.node_window_padding);
+                ImGui::BeginGroup(); // Locks horizontal position
+                ImVec2 cursor_start = ImGui::GetCursorPos();
+                ImGui::InputInt("SoftBody Node ID", &node->softbody_node_id);
+                ImVec2 cursor_plot = ImGui::GetCursorPos();
+                ImVec2 plot_size((node->size.x), (node->size.y - (cursor_plot.y - cursor_start.y)));
+                const char* plot_title = (node->softbody_node_id < 0) ? "~~ Inactive ~~" : "";
+                const float* plot_data_ptr = &node->data_buffer[0].x;
+                ImGui::PlotLines("", plot_data_ptr, 2000, node->data_offset, plot_title, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(), plot_size, sizeof(Vec3));
+                // ... the scale anchor
+         //       ImVec2 scaler_size(30.f, 30.f);
+         //       ImGui::SetCursorScreenPos(node_rect_max - m_style.node_window_padding - scaler_size);
+         //       ImGui::Button("#", scaler_size);
+         //       // Note: cursor easily escapes from the scaler when dragging, we need to track it...
+         //       if (ImGui::IsMouseDragging(0))
+         //       {
+         //           if (ImGui::IsItemHovered() || m_last_scaled_node == node)
+         //           {
+         //               node->size += ImGui::GetIO().MouseDelta;
+         //               if (ImGui::IsItemHovered())
+         //               {
+         //                   m_last_scaled_node = node;
+         //               }
+         //           }
+         //       }
+         //       else
+         //       {
+         //           m_last_scaled_node = nullptr;
+         //       }
+                ImGui::EndGroup();
+
+                // Handle mouse dragging
+                ImGui::SetCursorScreenPos(node_rect_min);
+                ImGui::InvisibleButton("node", node->size + m_style.node_window_padding + m_style.node_window_padding);
+                    // NOTE: Using 'InvisibleButton' enables dragging by node body but not by contained widgets
+                    // NOTE: This MUST be done AFTER widgets are drawn, otherwise their input is blocked by the invis. button
+                bool is_hovered = ImGui::IsItemHovered();
+                bool node_moving_active = ImGui::IsItemActive();
+                if (node_moving_active && ImGui::IsMouseDragging(0))
+                {
+                    node->pos += ImGui::GetIO().MouseDelta;
+                }
+                // Draw outline
+                drawlist->ChannelsSetCurrent(1);
+                ImU32 bg_color = (is_hovered) ? m_style.color_node_hovered : m_style.color_node;
+                ImU32 border_color = (is_hovered) ? m_style.color_node_frame_hovered : m_style.color_node_frame;
+                drawlist->AddRectFilled(node_rect_min, node_rect_max, bg_color, m_style.node_rounding);
+                drawlist->AddRect(node_rect_min, node_rect_max, border_color, m_style.node_rounding);
+
+                // Draw slots: 0 inputs, 3 outputs (XYZ)
+                this->DrawOutputSlot(node, 0);
+                this->DrawOutputSlot(node, 1);
+                this->DrawOutputSlot(node, 2);
+
+                ImGui::PopID();
+        }
+
+    /*    for (Node* node: m_nodes)
         {
             switch (node->type)
             {
@@ -539,7 +640,7 @@ private:
             }
             default:;
             }
-        }
+        }*/
 
         // Slot hover cleanup
         if (!m_is_any_slot_hovered)
@@ -559,21 +660,21 @@ private:
         drawlist->ChannelsMerge();
     }
 
-    std::vector<Node*> m_nodes;
+    std::vector<ReadingNode*> m_reading_nodes;
     std::vector<Link> m_links;
-    Style m_style;
-    ImVec2 m_scroll;
-    ImVec2 m_scroll_offset;
-    ImVec2 m_nodegraph_mouse_pos;
-    Node* m_hovered_node;
-    Node* m_hovered_slot_node;
-    int m_hovered_slot_input; // -1 = none
-    int m_hovered_slot_output; // -1 = none
-    bool m_is_any_slot_hovered;
-    Node* m_last_scaled_node;
-    Node m_fake_mouse_node;
-    Link* m_link_mouse_src;
-    Link* m_link_mouse_dst;
+    Style    m_style;
+    ImVec2   m_scroll;
+    ImVec2   m_scroll_offset;
+    ImVec2   m_nodegraph_mouse_pos;
+    Node*    m_hovered_slot_node;
+    int      m_hovered_slot_input;  // -1 = none
+    int      m_hovered_slot_output; // -1 = none
+    bool     m_is_any_slot_hovered;
+    Node*    m_last_scaled_node;
+    Node     m_fake_mouse_node;     ///< Used while dragging link with mouse
+    Link*    m_link_mouse_src;      ///< Link being mouse-dragged by it's input end.
+    Link*    m_link_mouse_dst;      ///< Link being mouse-dragged by it's output end.
+    int      m_num_ticks;
 };
 
 // #################################################### END CUSTOM NODE EDITOR ############################################################# //
@@ -591,6 +692,7 @@ public:
     {
         static bool show_nodegraph = false;
         static bool show_test = false;
+        static bool show_plot_test = false;
 
         if (ImGui::BeginMainMenuBar())
         {
@@ -598,6 +700,8 @@ public:
             ImGui::Checkbox("Test", &show_test);
             ImGui::SameLine();
             ImGui::Checkbox("Nodegraph", &show_nodegraph);
+            ImGui::SameLine();
+            ImGui::Checkbox("Plot test", &show_plot_test);
 
             ImGui::EndMainMenuBar();
         }
@@ -609,6 +713,16 @@ public:
 
         if (show_nodegraph)
             m_nodegraph.Draw();
+
+        if (show_plot_test)
+        {
+            float data[] = {0,2,1,4,3,5,4,6,7,5,8,6,9,7,10,8,11,9};
+            ImGui::Begin("graph test");
+            ImGui::PlotLines("offset0", data, IM_ARRAYSIZE(data), 0, "", 0, 12, ImVec2(0, 50));
+            ImGui::PlotLines("offset5", data, IM_ARRAYSIZE(data), 5, "", 0, 12, ImVec2(0, 50));
+            ImGui::PlotLines("offset10", data, IM_ARRAYSIZE(data), 10, "", 0, 12, ImVec2(0, 50));
+            ImGui::End();
+        }
     }
 
     void Go()
@@ -681,6 +795,8 @@ public:
         mMouse->setEventCallback(this);
         mKeyboard->setEventCallback(this);
 
+        srand (time(NULL));
+
         mRoot->startRendering();
 
         this->Shutdown();
@@ -703,8 +819,41 @@ private:
         mWindow->getViewport(0)->getActualDimensions(left, top, width, height); // output params
         Ogre::ImguiManager::getSingleton().newFrame(evt.timeSinceLastFrame, Ogre::Rect(left, top, width, height));
 
+        // generate input data
+        static int jitter_max = 0;
+        static float last_time = ImGui::GetTime();
+        static float time_to_jitter_update = 2.f;
+
+        while (last_time < ImGui::GetTime())
+        {
+            static float base_phase = 0.f;
+            // Update the dummy truck
+            for (int i = 0; i < IM_ARRAYSIZE(G_truck_node_x); ++i)
+            {
+                float phase = base_phase + static_cast<float>(i) * 0.001;
+                G_truck_node_x[i] = cosf(phase); // clean input
+                G_truck_node_x[i] + static_cast<float>(rand() % jitter_max); // add jitter
+            }
+            base_phase += 0.001f;
+
+            // Push data to nodegraph
+            m_nodegraph.PhysicsTick();
+
+            // update time
+            last_time += (1.f / 2000.f);
+            time_to_jitter_update -= (1.f / 2000.f);
+        }
+
+        if (time_to_jitter_update < 0.f)
+        {
+            jitter_max = (rand() % 20);
+            time_to_jitter_update = static_cast<float>(rand() % 4) + 1.f;
+        }
+
         // ===== Draw IMGUI  ====
         this->DrawGui();
+
+
 
         return true;
     }
