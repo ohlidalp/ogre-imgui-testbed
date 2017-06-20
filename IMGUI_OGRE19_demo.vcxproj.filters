@@ -46,6 +46,9 @@
     <ClInclude Include="lib\DearIMGUI_OGRE\ImguiRenderable.h">
       <Filter>lib/DearIMGUI-OGRE</Filter>
     </ClInclude>
+    <ClInclude Include="NodeGraphTool.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="lib\DearIMGUI\imgui.cpp">
@@ -67,6 +70,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="stdafx.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="NodeGraphTool.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
