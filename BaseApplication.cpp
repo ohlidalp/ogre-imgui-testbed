@@ -28,17 +28,8 @@ NODE EDITORS FOUND ON THE INTERNET
 
 #include "ImguiManager.h"
 
-// --------------------- the reference node editor  -------------------------- //
-// Quick intro: https://github.com/ocornut/imgui/issues/306#issuecomment-151167133
-// Source code: https://github.com/Flix01/imgui/tree/2015-10-Addons/addons/imguinodegrapheditor
-
-#define NO_IMGUIFILESYSTEM
-#include "imguinodegrapheditor.h"
-
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui_internal.h>
-
-// --------------------- END reference node editor  -------------------------- //
 
 class NodeGraphTool
 {
@@ -593,46 +584,27 @@ private:
     static const std::string mPluginsCfg = "plugins.cfg";
 #endif
 
-struct GuiState
-{
-    bool test_window_visible;
-    bool nodes_window_visible;
-};
-
 class DemoApp: public Ogre::FrameListener, public OIS::KeyListener, public OIS::MouseListener,  public Ogre::WindowEventListener
 {
 public:
     void DrawGui()
     {
         static bool show_nodegraph = false;
+        static bool show_test = false;
 
         if (ImGui::BeginMainMenuBar())
         {
-
-
             ImVec2 pos = ImGui::GetCursorPos();
-            ImGui::Checkbox("Test", &m_gui_state.test_window_visible);
+            ImGui::Checkbox("Test", &show_test);
             ImGui::SameLine();
-            ImGui::Checkbox("Nodegraph ref", &m_gui_state.nodes_window_visible);
-            ImGui::SameLine();
-            ImGui::Checkbox("Nodegraph WIP", &show_nodegraph);
+            ImGui::Checkbox("Nodegraph", &show_nodegraph);
 
             ImGui::EndMainMenuBar();
         }
 
-        if (m_gui_state.test_window_visible)
+        if (show_test)
         {
-            ImGui::ShowTestWindow(&m_gui_state.test_window_visible);
-        }
-
-        if (m_gui_state.nodes_window_visible)
-        {
-            ImGui::SetNextWindowSize(ImVec2(700,600), ImGuiSetCond_FirstUseEver);
-            if (ImGui::Begin("Example: Custom Node Graph", NULL))
-            {
-                ImGui::TestNodeGraphEditor();   // see its code for further info
-
-            }
+            ImGui::ShowTestWindow(&show_test);
         }
 
         if (show_nodegraph)
@@ -641,7 +613,6 @@ public:
 
     void Go()
     {
-        memset(&m_gui_state, 0, sizeof(GuiState));
 
         mRoot = new Ogre::Root(mPluginsCfg);
 
@@ -819,7 +790,6 @@ private:
     OIS::Mouse*                 mMouse       ;
     OIS::Keyboard*              mKeyboard    ;
 
-    GuiState                    m_gui_state;
     NodeGraphTool               m_nodegraph;
 };
 

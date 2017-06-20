@@ -154,7 +154,6 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="imguinodegrapheditor.h" />
     <ClInclude Include="lib\DearIMGUI\imconfig.h" />
     <ClInclude Include="lib\DearIMGUI\imgui.h" />
     <ClInclude Include="lib\DearIMGUI\imgui_internal.h" />
@@ -168,7 +167,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BaseApplication.cpp" />
-    <ClCompile Include="imguinodegrapheditor.cpp" />
     <ClCompile Include="lib\DearIMGUI\imgui.cpp" />
     <ClCompile Include="lib\DearIMGUI\imgui_demo.cpp" />
     <ClCompile Include="lib\DearIMGUI\imgui_draw.cpp" />
