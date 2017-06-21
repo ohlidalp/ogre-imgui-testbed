@@ -60,7 +60,7 @@ public:
 private:
 
     struct Node; // Forward
-    struct SourceNode;
+    struct ReadingNode;
     struct DisplayNode;
 
     struct Link
@@ -73,14 +73,14 @@ private:
         Node* node_dst;
         size_t slot_src;
         size_t slot_dst;
-        bool processed;
     };
 
     struct Node
     {
-        enum class Type { INVALID, SOURCE, TRANSFORM };
+        enum class Type { INVALID, SOURCE, TRANSFORM, DISPLAY };
+        static const size_t BUF_SIZE = 2000; // Physics tick is 2Khz
 
-        Node(): num_inputs(0), num_outputs(-1), pos(100.f, 100.f), size(150.f, 100.f), type(Type::INVALID)
+        Node(): num_inputs(0), num_outputs(-1), pos(100.f, 100.f), type(Type::INVALID)
         {
             static int new_id = 1;
             id = new_id;
@@ -90,32 +90,34 @@ private:
         size_t num_inputs;
         size_t num_outputs;
         ImVec2 pos;
-        ImVec2 size;
+        ImVec2 draw_rect_min; // Updated by `DrawNodeBegin()`
+        ImVec2 calc_size;
+        ImVec2 user_size;
         int id;
         Type type;
 
-        inline ImVec2 GetInputSlotPos(size_t slot_idx)  { return ImVec2(pos.x,          pos.y + (size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_inputs+1)))); }
-        inline ImVec2 GetOutputSlotPos(size_t slot_idx) { return ImVec2(pos.x + size.x, pos.y + (size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_outputs+1)))); }
+        inline ImVec2 GetInputSlotPos(size_t slot_idx)  { return ImVec2(pos.x,                pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_inputs+1)))); }
+        inline ImVec2 GetOutputSlotPos(size_t slot_idx) { return ImVec2(pos.x + calc_size.x, pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_outputs+1)))); }
     };
 
     /// reports XYZ position of node in world space
     /// Inputs: none
     /// Outputs(3): X position, Y position, Z position
-    struct SourceNode: public Node
+    struct ReadingNode: public Node
     {
-        SourceNode()
+        ReadingNode(ImVec2 _pos)
         {
             num_inputs = 0;
             num_outputs = 3;
             softbody_node_id = -1;
             data_offset = 0;
             memset(data_buffer, 0, sizeof(data_buffer));
-            size = ImVec2(250.f, 85.f);
             type = Type::SOURCE;
+            pos = _pos;
         }
 
         int softbody_node_id; // -1 means 'none'
-        Vec3 data_buffer[2000]; // 1 second worth of data
+        Vec3 data_buffer[BUF_SIZE]; // 1 second worth of data
         int data_offset;
 
         inline void PushData(Vec3 entry) { data_buffer[data_offset] = entry; data_offset = (data_offset+1)%2000; }
@@ -123,21 +125,35 @@ private:
 
     struct TransformNode: public Node
     {
-        TransformNode()
+        TransformNode(ImVec2 _pos)
         {
             num_inputs = 1;
             num_outputs = 1;
             data_offset = 0;
             memset(data_buffer, 0, sizeof(data_buffer));
-            result_ready = false;
-            result_val = 0.f;
+            done = false;
             type = Type::TRANSFORM;
+            pos = _pos;
         }
 
         Vec3 data_buffer[2000];
         int data_offset;
-        bool result_ready;
-        float result_val;
+        bool done;
+    };
+
+    struct DisplayNode: public Node
+    {
+        DisplayNode(ImVec2 _pos)
+        {
+            pos = _pos;
+            num_outputs = 0;
+            num_inputs = 1;
+            type = Type::DISPLAY;
+            source_node = nullptr;
+            user_size = ImVec2(250.f, 85.f);
+        }
+
+        Node* source_node;
     };
 
     inline bool     IsInside (ImVec2 min, ImVec2 max, ImVec2 point) const                { return ((point.x > min.x) && (point.y > min.y)) && ((point.x < max.x) && (point.y < max.y)); }
@@ -152,6 +168,8 @@ private:
     void            DrawNodeGraphPane ();
     void            DrawGrid ();
     void            DrawLink (Link& link);
+    void            DrawNodeBegin(Node* node);
+    void            DrawNodeFinalize(Node* node);
 
     inline bool IsSlotHovered(ImVec2 center_pos) const
     {
@@ -160,8 +178,10 @@ private:
         return this->IsInside(min, max, m_nodegraph_mouse_pos);
     }
 
-    std::vector<SourceNode*> m_reading_nodes;
-    std::vector<Link> m_links;
+    std::vector<ReadingNode*>   m_read_nodes;
+    std::vector<TransformNode*> m_xform_nodes;
+    std::vector<DisplayNode*>   m_disp_nodes;
+    std::vector<Link>           m_links;
     Style    m_style;
     ImVec2   m_scroll;
     ImVec2   m_scroll_offset;
