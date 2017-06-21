@@ -3,10 +3,19 @@
 
 #include "ImguiManager.h"
 
-#define IMGUI_DEFINE_MATH_OPERATORS
-#include <imgui_internal.h>
+    // ############# testing dummy #############
+struct FakeTruck
+{
+    static const size_t NUM_NODES = 100;
 
-extern float G_truck_node_x[100];
+    FakeTruck() { memset(nodes_x, 0, sizeof(nodes_x)); }
+
+    float nodes_x[NUM_NODES];
+};
+
+extern FakeTruck G_fake_truck;
+    // ############# END dummy #############
+
 
 namespace RoR {
 
@@ -106,8 +115,9 @@ private:
         inline void PushData(Vec3 entry) { data_buffer[data_offset] = entry; data_offset = (data_offset+1)%2000; }
     };
 
-    inline bool     IsInside (ImRect& rect, ImVec2& point) const                         { return ((point.x > rect.Min.x) && (point.y > rect.Min.y)) && ((point.x < rect.Max.x) && (point.y < rect.Max.y)); }
+    inline bool     IsInside (ImVec2 min, ImVec2 max, ImVec2 point) const                { return ((point.x > min.x) && (point.y > min.y)) && ((point.x < max.x) && (point.y < max.y)); }
     inline bool     IsLinkDragInProgress () const                                        { return (m_link_mouse_src != nullptr) || (m_link_mouse_dst != nullptr); }
+    inline bool     IsRectHovered(ImVec2 min, ImVec2 max) const                          { return this->IsInside(min, max, m_nodegraph_mouse_pos); }
     inline void     DrawInputSlot (Node* node, const size_t index)                       { this->DrawSlotUni(node, index, true); }
     inline void     DrawOutputSlot (Node* node, const size_t index)                      { this->DrawSlotUni(node, index, false); }
     void            DrawSlotUni (Node* node, const size_t index, const bool input);
@@ -120,13 +130,9 @@ private:
 
     inline bool IsSlotHovered(ImVec2 center_pos) const
     {
-        return this->IsRectHovered(center_pos - m_style.slot_hoverbox_extent, center_pos + m_style.slot_hoverbox_extent);
-    }
-
-    inline bool IsRectHovered(ImVec2 min, ImVec2 max) const
-    {
-        return ((m_nodegraph_mouse_pos.x >= min.x) && (m_nodegraph_mouse_pos.y >= min.y) &&
-                (m_nodegraph_mouse_pos.x <= max.x) && (m_nodegraph_mouse_pos.y <= max.y));
+        ImVec2 min = center_pos - m_style.slot_hoverbox_extent;
+        ImVec2 max = center_pos + m_style.slot_hoverbox_extent;
+        return this->IsInside(min, max, m_nodegraph_mouse_pos);
     }
 
     std::vector<ReadingNode*> m_reading_nodes;

@@ -30,10 +30,6 @@ NODE EDITORS FOUND ON THE INTERNET
 
 #include "NodeGraphTool.h"
 
-float G_truck_node_x[100] = {0}; // dummy 100-node truck
-
-
-
 #ifdef _DEBUG
     static const std::string mPluginsCfg = "plugins_d.cfg";
 #else
@@ -140,7 +136,7 @@ public:
         mMouse->setEventCallback(this);
         mKeyboard->setEventCallback(this);
 
-        srand (time(NULL));
+        srand (static_cast<unsigned>(time(NULL)));
 
         mRoot->startRendering();
 
@@ -165,21 +161,20 @@ private:
         Ogre::ImguiManager::getSingleton().newFrame(evt.timeSinceLastFrame, Ogre::Rect(left, top, width, height));
 
         // generate input data
-        static int jitter_max = 0;
+        static int jitter_max = 1; // value = 1/10
         static float last_time = ImGui::GetTime();
         static float time_to_jitter_update = 2.f;
 
         while (last_time < ImGui::GetTime())
         {
-            static float base_phase = 0.f;
             // Update the dummy truck
-            for (int i = 0; i < RoR_ARRAYSIZE(G_truck_node_x); ++i)
+            for (size_t i = 0; i < G_fake_truck.NUM_NODES; ++i)
             {
-                float phase = base_phase + static_cast<float>(i) * 0.001;
-                G_truck_node_x[i] = cosf(phase); // clean input
-                G_truck_node_x[i] + static_cast<float>(rand() % jitter_max); // add jitter
+                float phase = ((last_time) + (static_cast<float>(i)/static_cast<float>(G_fake_truck.NUM_NODES))) * 3.14;
+                G_fake_truck.nodes_x[i] = cosf(phase); // clean input
+                float jitter_val = static_cast<float>(rand() % jitter_max) * 0.1f;
+                G_fake_truck.nodes_x[i] += (jitter_val - (jitter_val)/2.f); // add jitter
             }
-            base_phase += 0.001f;
 
             // Push data to nodegraph
             m_nodegraph.PhysicsTick();
@@ -191,14 +186,12 @@ private:
 
         if (time_to_jitter_update < 0.f)
         {
-            jitter_max = (rand() % 20);
+            jitter_max = (rand() % 50) + 1;
             time_to_jitter_update = static_cast<float>(rand() % 4) + 1.f;
         }
 
         // ===== Draw IMGUI  ====
         this->DrawGui();
-
-
 
         return true;
     }

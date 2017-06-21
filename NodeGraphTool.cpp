@@ -1,6 +1,8 @@
 #include "NodeGraphTool.h"
 
-extern float G_truck_node_x[100];
+#include <imgui_internal.h> // For ImRect
+
+FakeTruck G_fake_truck; // declared extern in "NodeGraphTool.h"
 
 RoR::NodeGraphTool::NodeGraphTool():
         m_scroll(0.0f, 0.0f),
@@ -42,27 +44,24 @@ RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkByDestination(Node* node, 
 
 RoR::NodeGraphTool::Style::Style()
 {
-    color_grid =                ImColor(200,200,200,40);
-    grid_line_width =           1.f;
-    grid_size =                 64.f;
-    //
-    color_node =                ImColor(30,30,35);
-    color_node_frame =          ImColor(100,100,100);
-    color_node_frame_active =   ImColor(100,100,100);
-    color_node_hovered =        ImColor(45,45,49);
-    color_node_frame_hovered =  ImColor(125,125,125);
-    node_rounding =             4.f;
-    node_window_padding =       ImVec2(8.f,8.f);
-    slot_hoverbox_extent        = ImVec2(15.f, 10.f);
-    //
-    color_input_slot =    ImColor(150,150,150,150);
-    color_output_slot =   ImColor(150,150,150,150);
-    color_input_slot_hover =    ImColor(144,155,222,245);
-    color_output_slot_hover =   ImColor(144,155,222,245);
-    node_slots_radius =         5.f;
-    //
-    color_link =                ImColor(200,200,100);
-    link_line_width =           3.f;
+    color_grid                = ImColor(200,200,200,40);
+    grid_line_width           = 1.f;
+    grid_size                 = 64.f;
+    color_node                = ImColor(30,30,35);
+    color_node_frame          = ImColor(100,100,100);
+    color_node_frame_active   = ImColor(100,100,100);
+    color_node_hovered        = ImColor(45,45,49);
+    color_node_frame_hovered  = ImColor(125,125,125);
+    node_rounding             = 4.f;
+    node_window_padding       = ImVec2(8.f,8.f);
+    slot_hoverbox_extent      = ImVec2(15.f, 10.f);
+    color_input_slot          = ImColor(150,150,150,150);
+    color_output_slot         = ImColor(150,150,150,150);
+    color_input_slot_hover    = ImColor(144,155,222,245);
+    color_output_slot_hover   = ImColor(144,155,222,245);
+    node_slots_radius         = 5.f;
+    color_link                = ImColor(200,200,100);
+    link_line_width           = 3.f;
 }
 
 RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkBySource(Node* node, size_t slot)
@@ -100,9 +99,9 @@ void RoR::NodeGraphTool::PhysicsTick()
         if (rn->softbody_node_id >= 0)
         {
             Vec3 data;
-            data.x = G_truck_node_x[rn->softbody_node_id];
-            data.y = G_truck_node_x[rn->softbody_node_id];
-            data.z = G_truck_node_x[rn->softbody_node_id];
+            data.x = G_fake_truck.nodes_x[rn->softbody_node_id];
+            data.y = G_fake_truck.nodes_x[rn->softbody_node_id];
+            data.z = G_fake_truck.nodes_x[rn->softbody_node_id];
             rn->PushData(data);
         }
     }
@@ -132,7 +131,7 @@ void RoR::NodeGraphTool::DrawLink(Link& link)
     ImVec2 p2 = offset + link.node_dst->GetInputSlotPos(link.slot_dst);
     ImRect window = ImGui::GetCurrentWindow()->Rect();
 
-    if (this->IsInside(window, p1) || this->IsInside(window, p2)) // very basic clipping
+    if (this->IsInside(window.Min, window.Max, p1) || this->IsInside(window.Min, window.Max, p1)) // very basic clipping
     {
         float bezier_pt_dist = fmin(50.f, fmin(fabs(p1.x - p2.x)*0.75f, fabs(p1.y - p2.y)*0.75f)); // Maximum: 50; minimum: 75% of shorter-axis distance between p1 and p2
         draw_list->AddBezierCurve(p1, p1+ImVec2(+bezier_pt_dist,0), p2+ImVec2(-bezier_pt_dist,0), p2, m_style.color_link, m_style.link_line_width);
@@ -290,7 +289,9 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             ImVec2 plot_size((node->size.x), (node->size.y - (cursor_plot.y - cursor_start.y)));
             const char* plot_title = (node->softbody_node_id < 0) ? "~~ Inactive ~~" : "";
             const float* plot_data_ptr = &node->data_buffer[0].x;
-            ImGui::PlotLines("", plot_data_ptr, 2000, node->data_offset, plot_title, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(), plot_size, sizeof(Vec3));
+            const float PLOT_MIN = -1.7f;//std::numeric_limits<float>::min();
+            const float PLOT_MAX = +1.7f; //std::numeric_limits<float>::max();
+            ImGui::PlotLines("", plot_data_ptr, 2000, node->data_offset, plot_title, PLOT_MIN, PLOT_MAX, plot_size, sizeof(Vec3));
             // FIXME ... the scale anchor
         //       ImVec2 scaler_size(30.f, 30.f);
         //       ImGui::SetCursorScreenPos(node_rect_max - m_style.node_window_padding - scaler_size);
