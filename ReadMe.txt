@@ -15,3 +15,8 @@ files StdAfx.h, StdAfx.cpp
     These files are used to build a precompiled header (PCH) file
     named IMGUI_OGRE19_demo.pch and a precompiled types file named StdAfx.obj.
 
+## 'node-editor' branch
+
+Uses SigPack library: http://sigpack.sourceforge.net/ - header-only, bundled with the sources.
+Requires: Armadillo - http://arma.sourceforge.net/
+

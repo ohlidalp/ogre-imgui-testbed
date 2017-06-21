@@ -2,6 +2,8 @@
 
 #include <imgui_internal.h> // For ImRect
 
+#include "sigpack/sigpack.h" // *Bundled*
+
 FakeTruck G_fake_truck; // declared extern in "NodeGraphTool.h"
 
 RoR::NodeGraphTool::NodeGraphTool():
@@ -19,9 +21,9 @@ RoR::NodeGraphTool::NodeGraphTool():
     m_fake_mouse_node.size = ImVec2(1,1);
 
     // test nodes
-    m_reading_nodes.push_back(new ReadingNode());
-    m_reading_nodes.push_back(new ReadingNode());
-    m_reading_nodes.push_back(new ReadingNode());
+    m_reading_nodes.push_back(new SourceNode());
+    m_reading_nodes.push_back(new SourceNode());
+    m_reading_nodes.push_back(new SourceNode());
 
     m_reading_nodes[1]->pos += ImVec2(300.f, -10.f);
     m_reading_nodes[2]->pos += ImVec2(250.f, 133.f);
@@ -94,7 +96,7 @@ void RoR::NodeGraphTool::Draw()
 
 void RoR::NodeGraphTool::PhysicsTick()
 {
-    for (ReadingNode* rn: m_reading_nodes)
+    for (SourceNode* rn: m_reading_nodes)
     {
         if (rn->softbody_node_id >= 0)
         {
@@ -272,7 +274,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             this->DrawLink(link);
     }
 
-    for (ReadingNode* node: m_reading_nodes)
+    for (SourceNode* node: m_reading_nodes)
     {
             ImGui::PushID(node->id);
             // Scalable node!
@@ -356,4 +358,71 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
 
     ImGui::EndChild();
     drawlist->ChannelsMerge();
+}
+
+void RoR::NodeGraphTool::CalcGraph()
+{
+    // Reset link states
+    for (Link& link: m_links)
+    {
+        link.processed = false;
+    }
+
+    bool has_unprocessed = false;
+    do
+    {
+        for (Link& link: m_links)
+        {
+            if (link.processed)
+                continue;
+
+            // Ty to process
+            float val;
+            if (link.node_src->type == Node::Type::SOURCE)
+            {
+                SourceNode* src_node = static_cast<SourceNode*>(link.node_src);
+                // get data from past tick
+                int buf_pos = src_node->data_offset - (m_num_ticks - 1);
+                if (buf_pos < 0)
+                {
+                    buf_pos = 2000 + buf_pos;
+                }
+                val = src_node->data_buffer[buf_pos].x; // temporary = using only X
+            }
+            else if (link.node_src->type == Node::Type::TRANSFORM)
+            {
+                TransformNode* tf_node = static_cast<TransformNode*>(link.node_src);
+                if (!tf_node->result_ready)
+                {
+                    has_unprocessed = false;
+                    continue;
+                }
+                val = tf_node->result_val;
+            }
+
+            // Process the DST node
+            if (link.node_dst->type == Node::Type::TRANSFORM) // there will be more...
+            {
+                
+            }
+        }
+    }
+    while (has_unprocessed);
+
+
+    for (;;)
+    {
+        bool repeat = false;
+        for (Link& link: m_links)
+        {
+            switch (link.node_dst->type)
+            {
+            case Node::Type::TRANSFORM:
+            {
+                switch (link.node_src->type);
+                break;
+            }
+            }
+        }
+    }
 }

@@ -55,11 +55,12 @@ public:
 
     void Draw();
     void PhysicsTick();
+    void CalcGraph();
 
 private:
 
     struct Node; // Forward
-    struct ReadingNode;
+    struct SourceNode;
     struct DisplayNode;
 
     struct Link
@@ -72,11 +73,14 @@ private:
         Node* node_dst;
         size_t slot_src;
         size_t slot_dst;
+        bool processed;
     };
 
     struct Node
     {
-        Node(): num_inputs(0), num_outputs(-1), pos(100.f, 100.f), size(150.f, 100.f)
+        enum class Type { INVALID, SOURCE, TRANSFORM };
+
+        Node(): num_inputs(0), num_outputs(-1), pos(100.f, 100.f), size(150.f, 100.f), type(Type::INVALID)
         {
             static int new_id = 1;
             id = new_id;
@@ -88,6 +92,7 @@ private:
         ImVec2 pos;
         ImVec2 size;
         int id;
+        Type type;
 
         inline ImVec2 GetInputSlotPos(size_t slot_idx)  { return ImVec2(pos.x,          pos.y + (size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_inputs+1)))); }
         inline ImVec2 GetOutputSlotPos(size_t slot_idx) { return ImVec2(pos.x + size.x, pos.y + (size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_outputs+1)))); }
@@ -96,9 +101,9 @@ private:
     /// reports XYZ position of node in world space
     /// Inputs: none
     /// Outputs(3): X position, Y position, Z position
-    struct ReadingNode: public Node
+    struct SourceNode: public Node
     {
-        ReadingNode()
+        SourceNode()
         {
             num_inputs = 0;
             num_outputs = 3;
@@ -106,6 +111,7 @@ private:
             data_offset = 0;
             memset(data_buffer, 0, sizeof(data_buffer));
             size = ImVec2(250.f, 85.f);
+            type = Type::SOURCE;
         }
 
         int softbody_node_id; // -1 means 'none'
@@ -113,6 +119,25 @@ private:
         int data_offset;
 
         inline void PushData(Vec3 entry) { data_buffer[data_offset] = entry; data_offset = (data_offset+1)%2000; }
+    };
+
+    struct TransformNode: public Node
+    {
+        TransformNode()
+        {
+            num_inputs = 1;
+            num_outputs = 1;
+            data_offset = 0;
+            memset(data_buffer, 0, sizeof(data_buffer));
+            result_ready = false;
+            result_val = 0.f;
+            type = Type::TRANSFORM;
+        }
+
+        Vec3 data_buffer[2000];
+        int data_offset;
+        bool result_ready;
+        float result_val;
     };
 
     inline bool     IsInside (ImVec2 min, ImVec2 max, ImVec2 point) const                { return ((point.x > min.x) && (point.y > min.y)) && ((point.x < max.x) && (point.y < max.y)); }
@@ -135,7 +160,7 @@ private:
         return this->IsInside(min, max, m_nodegraph_mouse_pos);
     }
 
-    std::vector<ReadingNode*> m_reading_nodes;
+    std::vector<SourceNode*> m_reading_nodes;
     std::vector<Link> m_links;
     Style    m_style;
     ImVec2   m_scroll;

@@ -1,15 +1,4 @@
 
-/*
-NOTES
-=====
-
-NODE EDITORS FOUND ON THE INTERNET
-    * https://github.com/ocornut/imgui/issues/306#issuecomment-134657997 -- Demo by Omar Cornut. Nodelinks not editable :(
-    * https://github.com/ocornut/imgui/issues/306#issuecomment-151167133 -- Looks very good. Editable nodelinks. Has online emscripten demo.
-    * https://www.youtube.com/watch?v=m6eteEPQ0Lg -- Fully editable, looks interesting.
-
-*/
-
 #include "stdafx.h" // Precompiled
 
 #include <OgreCamera.h>
