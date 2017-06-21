@@ -129,7 +129,7 @@ void RoR::NodeGraphTool::DrawLink(Link& link)
 void RoR::NodeGraphTool::DrawSlotUni(Node* node, const size_t index, const bool input)
 {
     ImDrawList* drawlist = ImGui::GetWindowDrawList();
-    drawlist->ChannelsSetCurrent(1);
+    drawlist->ChannelsSetCurrent(2);
     ImVec2 slot_center_pos =  ((input) ? node->GetInputSlotPos(index) : (node->GetOutputSlotPos(index)));
     ImGui::SetCursorScreenPos((slot_center_pos + m_scroll_offset) - m_style.slot_hoverbox_extent);
     ImU32 color = (input) ? m_style.color_input_slot : m_style.color_output_slot;
@@ -221,20 +221,24 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
 {
     ImGui::EndGroup();
     node->calc_size = ImGui::GetItemRectSize() + (m_style.node_window_padding * 2.f);
+    ImDrawList* drawlist = ImGui::GetWindowDrawList();
 
     // Handle mouse dragging
-    ImGui::SetCursorScreenPos(node->draw_rect_min);
-    ImGui::InvisibleButton("node", node->calc_size);
-        // NOTE: Using 'InvisibleButton' enables dragging by node body but not by contained widgets
-        // NOTE: This MUST be done AFTER widgets are drawn, otherwise their input is blocked by the invis. button
-    bool is_hovered = ImGui::IsItemHovered();
-    bool node_moving_active = ImGui::IsItemActive();
-    if (node_moving_active && ImGui::IsMouseDragging(0))
+    bool is_hovered = false;
+    if (!m_is_any_slot_hovered)
     {
-        node->pos += ImGui::GetIO().MouseDelta;
+        ImGui::SetCursorScreenPos(node->draw_rect_min);
+        ImGui::InvisibleButton("node", node->calc_size);
+            // NOTE: Using 'InvisibleButton' enables dragging by node body but not by contained widgets
+            // NOTE: This MUST be done AFTER widgets are drawn, otherwise their input is blocked by the invis. button
+        is_hovered = ImGui::IsItemHovered();
+        bool node_moving_active = ImGui::IsItemActive();
+        if (node_moving_active && ImGui::IsMouseDragging(0))
+        {
+            node->pos += ImGui::GetIO().MouseDelta;
+        }
     }
     // Draw outline
-    ImDrawList* drawlist = ImGui::GetWindowDrawList();
     drawlist->ChannelsSetCurrent(1);
     ImU32 bg_color = (is_hovered) ? m_style.color_node_hovered : m_style.color_node;
     ImU32 border_color = (is_hovered) ? m_style.color_node_frame_hovered : m_style.color_node_frame;
@@ -268,14 +272,11 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
     // Update mouse drag
     const ImVec2 nodepane_screen_pos = ImGui::GetCursorScreenPos();
     m_nodegraph_mouse_pos = (ImGui::GetIO().MousePos - nodepane_screen_pos);
-    if (ImGui::IsMouseDragging(0))
+    if (ImGui::IsMouseDragging(0) && ((m_link_mouse_dst != nullptr) || (m_link_mouse_src != nullptr)))
     {
-        if (m_link_mouse_src != nullptr)
-            m_fake_mouse_node.pos = m_nodegraph_mouse_pos;
-        else if (m_link_mouse_dst != nullptr)
-            m_fake_mouse_node.pos = m_nodegraph_mouse_pos;
+        m_fake_mouse_node.pos = m_nodegraph_mouse_pos;
     }
-    else
+    else // drag ended
     {
         if (m_link_mouse_src != nullptr)
         {

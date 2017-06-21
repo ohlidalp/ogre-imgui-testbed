@@ -171,7 +171,7 @@ private:
     void            DrawNodeBegin(Node* node);
     void            DrawNodeFinalize(Node* node);
 
-    inline bool IsSlotHovered(ImVec2 center_pos) const
+    inline bool IsSlotHovered(ImVec2 center_pos) const /// Slots can't use the "InvisibleButton" technique because it won't work when dragging.
     {
         ImVec2 min = center_pos - m_style.slot_hoverbox_extent;
         ImVec2 max = center_pos + m_style.slot_hoverbox_extent;
