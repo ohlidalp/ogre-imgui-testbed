@@ -149,27 +149,16 @@ void RoR::NodeGraphTool::DrawSlotUni(Node* node, const size_t index, const bool 
             if (link)
             {
                 // drag existing link
+                this->NodeLinkChanged(link->node_src, link->node_dst, nullptr); // Link removed
                 if (input)
                 {
                     link->node_dst = &m_fake_mouse_node;
                     m_link_mouse_dst = link;
-                    // HACK: replace with "NodeLinkChanged(N1, n2, bool connected)" callback function
-                    if (node->type == Node::Type::DISPLAY)
-                    {
-                        static_cast<DisplayNode*>(node)->source_node = nullptr;
-                    }
-                    // END HACK
                 }
                 else
                 {
                     link->node_src = &m_fake_mouse_node;
                     m_link_mouse_src = link;
-                    // HACK: replace with "NodeLinkChanged(N1, n2, bool connected)" callback function
-                    if (link->node_dst->type == Node::Type::DISPLAY)
-                    {
-                        static_cast<DisplayNode*>(link->node_dst)->source_node = nullptr;
-                    }
-                    // END HACK
                 }
             }
             else
@@ -221,7 +210,12 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
 {
     ImGui::EndGroup();
     node->calc_size = ImGui::GetItemRectSize() + (m_style.node_window_padding * 2.f);
-    ImDrawList* drawlist = ImGui::GetWindowDrawList();
+
+    // Draw slots: 0 inputs, 3 outputs (XYZ)
+    for (size_t i = 0; i<node->num_inputs; ++i)
+        this->DrawInputSlot(node, i);
+    for (size_t i = 0; i<node->num_outputs; ++i)
+        this->DrawOutputSlot(node, i);
 
     // Handle mouse dragging
     bool is_hovered = false;
@@ -239,6 +233,7 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
         }
     }
     // Draw outline
+    ImDrawList* drawlist = ImGui::GetWindowDrawList();
     drawlist->ChannelsSetCurrent(1);
     ImU32 bg_color = (is_hovered) ? m_style.color_node_hovered : m_style.color_node;
     ImU32 border_color = (is_hovered) ? m_style.color_node_frame_hovered : m_style.color_node_frame;
@@ -246,14 +241,15 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
     drawlist->AddRectFilled(node->draw_rect_min, draw_rect_max, bg_color, m_style.node_rounding);
     drawlist->AddRect(node->draw_rect_min, draw_rect_max, border_color, m_style.node_rounding);
 
-    // Draw slots: 0 inputs, 3 outputs (XYZ)
-    drawlist->ChannelsSetCurrent(2);
-    for (size_t i = 0; i<node->num_inputs; ++i)
-        this->DrawInputSlot(node, i);
-    for (size_t i = 0; i<node->num_outputs; ++i)
-        this->DrawOutputSlot(node, i);
-
     ImGui::PopID();
+}
+
+void RoR::NodeGraphTool::NodeLinkChanged(Node* src, Node* dst, Link* link) // link = pointer to added link, or NULL if link was removed.
+{
+    if (dst->type == Node::Type::DISPLAY)
+    {
+        static_cast<DisplayNode*>(dst)->source_node = (link != nullptr) ? src : nullptr;
+    }
 }
 
 void RoR::NodeGraphTool::DrawNodeGraphPane()
@@ -272,7 +268,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
     // Update mouse drag
     const ImVec2 nodepane_screen_pos = ImGui::GetCursorScreenPos();
     m_nodegraph_mouse_pos = (ImGui::GetIO().MousePos - nodepane_screen_pos);
-    if (ImGui::IsMouseDragging(0) && ((m_link_mouse_dst != nullptr) || (m_link_mouse_src != nullptr)))
+    if (ImGui::IsMouseDragging(0) && this->IsLinkDragInProgress())
     {
         m_fake_mouse_node.pos = m_nodegraph_mouse_pos;
     }
@@ -284,6 +280,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             {
                 m_link_mouse_src->node_src = m_hovered_slot_node;
                 m_link_mouse_src->slot_src = static_cast<size_t>(m_hovered_slot_output);
+                this->NodeLinkChanged(m_link_mouse_src->node_src, m_link_mouse_src->node_dst, m_link_mouse_src); // Link added
             }
             else
             {
@@ -298,13 +295,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             {
                 m_link_mouse_dst->node_dst = m_hovered_slot_node;
                 m_link_mouse_dst->slot_dst = static_cast<size_t>(m_hovered_slot_input);
-                // HACK: replace with "NodeLinkChanged(N1, n2, bool connected)" callback function
-                if (m_hovered_slot_node->type == Node::Type::DISPLAY)
-                {
-                    DisplayNode* d_node = static_cast<DisplayNode*>(m_hovered_slot_node);
-                    d_node->source_node = m_link_mouse_dst->node_src;
-                }
-                // END HACK
+                this->NodeLinkChanged(m_link_mouse_dst->node_src, m_link_mouse_dst->node_dst, m_link_mouse_dst); // Link added
             }
             else
             {
@@ -322,7 +313,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
     drawlist->ChannelsSetCurrent(0);
     for (Link& link: m_links)
     {
-        if (link.node_src!= nullptr && link.node_dst != nullptr) // Skip disconnected links
+        if (link.node_src != nullptr && link.node_dst != nullptr) // Skip disconnected links
             this->DrawLink(link);
     }
 
@@ -344,7 +335,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         this->DrawNodeFinalize(node);
     }
 
-    static const float DUMMY_PLOT[] = {0,0,0,1,-1,1,0,0,0};
+    static const float DUMMY_PLOT[] = {0,0,0,0,0};
 
     for (DisplayNode* node: m_disp_nodes)
     {
@@ -358,7 +349,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         if ((node->source_node != nullptr) && (node->source_node->type == Node::Type::SOURCE))
         {
             ReadingNode* rd_node = static_cast<ReadingNode*>(node->source_node);
-            data_ptr = &rd_node->data_buffer[rd_node->data_offset].x;
+            data_ptr = &rd_node->data_buffer[0].x;
             data_offset = rd_node->data_offset;
             stride = sizeof(Vec3);
             title = "";

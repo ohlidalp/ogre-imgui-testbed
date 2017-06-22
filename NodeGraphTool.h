@@ -80,7 +80,7 @@ private:
         enum class Type { INVALID, SOURCE, TRANSFORM, DISPLAY };
         static const size_t BUF_SIZE = 2000; // Physics tick is 2Khz
 
-        Node(): num_inputs(0), num_outputs(-1), pos(100.f, 100.f), type(Type::INVALID)
+        Node(): num_inputs(0), num_outputs(0), pos(100.f, 100.f), type(Type::INVALID)
         {
             static int new_id = 1;
             id = new_id;
@@ -170,6 +170,7 @@ private:
     void            DrawLink (Link& link);
     void            DrawNodeBegin(Node* node);
     void            DrawNodeFinalize(Node* node);
+    void            NodeLinkChanged(Node* n1, Node* n2, Link* link);                      ///< link = pointer to added link, or NULL if link was removed.
 
     inline bool IsSlotHovered(ImVec2 center_pos) const /// Slots can't use the "InvisibleButton" technique because it won't work when dragging.
     {
