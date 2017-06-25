@@ -3,7 +3,11 @@
 
 #include "ImguiManager.h"
 
-#define MAX_LINKS_IN 16
+#include <angelscript.h>
+
+#include <list>
+#include <string>
+#include <vector>
 
     // ############# testing dummy #############
 struct FakeTruck
@@ -28,6 +32,8 @@ struct Vec3 { float x, y, z; };
 class NodeGraphTool
 {
 public:
+    static const int MAX_SLOTS = 8;
+
     struct Style
     {
         ImU32 color_grid;
@@ -75,7 +81,7 @@ public:
 
     struct Node
     {
-        enum class Type { INVALID, GENERATOR, TRANSFORM, DISPLAY };
+        enum class Type { INVALID, GENERATOR, TRANSFORM, SCRIPT, DISPLAY };
         static const int BUF_SIZE = 2000; // Physics tick is 2Khz
 
         Node(): num_inputs(0), num_outputs(0), pos(100.f, 100.f), type(Type::INVALID), data_offset(0)
@@ -96,7 +102,7 @@ public:
         int id;
         Type type;
         bool done; // Are data ready in this processing step?
-        Link* links_in[MAX_LINKS_IN];
+        Link* links_in[MAX_SLOTS];
         float data_buffer[Node::BUF_SIZE];
         int data_offset;
 
@@ -146,6 +152,25 @@ public:
         float elapsed;
     };
 
+    struct ScriptNode: public Node
+    {
+        ScriptNode(NodeGraphTool* _nodegraph, ImVec2 _pos);
+        void InitScripting();
+        void Apply();
+        void  Exec();
+        // Script functions
+        float Read(int slot, int offset);
+        void  Write(float val);
+
+        char code_buf[1000];
+        NodeGraphTool* nodegraph;
+        asIScriptContext* script_context;
+        asIScriptEngine*  script_engine;
+        asIScriptFunction* script_func;
+        char node_name[10];
+        bool enabled; // Disables itself on script error
+    };
+
     struct TransformNode: public Node
     {
         enum class Method
@@ -167,7 +192,6 @@ public:
             done = false;
         }
 
-        
         char input_field[100];
         Method method;
         bool done;
@@ -204,6 +228,9 @@ private:
     void            DrawNodeBegin(Node* node);
     void            DrawNodeFinalize(Node* node);
     void            NodeLinkChanged(Link* link, bool added);
+    void            ScriptMessageCallback(const asSMessageInfo *msg, void *param);
+    void            AddMessage(const char* fmt, ...);
+
 
     inline bool IsSlotHovered(ImVec2 center_pos) const /// Slots can't use the "InvisibleButton" technique because it won't work when dragging.
     {
@@ -216,7 +243,9 @@ private:
     std::vector<TransformNode*> m_xform_nodes;
     std::vector<DisplayNode*>   m_disp_nodes;
     std::vector<GeneratorNode*> m_gen_nodes;
+    std::vector<ScriptNode*>    m_script_nodes;
     std::vector<Link*>          m_links;
+    std::list<std::string>      m_messages;
     Style    m_style;
     ImVec2   m_scroll;
     ImVec2   m_scroll_offset;

@@ -15,8 +15,6 @@ RoR::NodeGraphTool::NodeGraphTool():
         m_hovered_slot_input(-1),
         m_hovered_slot_output(-1)
 {
-
-
 }
 
 RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkByDestination(Node* node, const int slot)
@@ -69,6 +67,20 @@ void RoR::NodeGraphTool::Draw()
 
     ImGui::Text("MouseDrag - src: 0x%p, dst: 0x%p | mousenode - X:%.1f, Y:%.1f", m_link_mouse_src, m_link_mouse_dst, m_fake_mouse_node.pos.x, m_fake_mouse_node.pos.y);
     ImGui::Text("SlotHover - node: 0x%p, input: %d, output: %d", m_hovered_slot_node, m_hovered_slot_input, m_hovered_slot_output);
+    if (! m_messages.empty())
+    {
+        if (ImGui::CollapsingHeader("Messages"))
+        {
+            for (std::string& msg: m_messages)
+            {
+                ImGui::BulletText(msg.c_str());
+            }
+            if (ImGui::Button("Clear messages"))
+            {
+                m_messages.clear();
+            }
+        }
+    }
 
     m_scroll_offset = ImGui::GetCursorScreenPos() - m_scroll;
     m_is_any_slot_hovered = false;
@@ -250,8 +262,8 @@ void RoR::NodeGraphTool::DeleteLink(Link* link)
 void RoR::NodeGraphTool::DrawNodeGraphPane()
 {
     const bool draw_border = false;
-    const int flags = ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollWithMouse;
-    if (!ImGui::BeginChild("scroll-region", ImVec2(0,0), draw_border, flags))
+    const int window_flags = ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollWithMouse;
+    if (!ImGui::BeginChild("scroll-region", ImVec2(0,0), draw_border, window_flags))
         return; // Nothing more to do.
 
     const float baseNodeWidth = 120.f; // same as reference, but hardcoded
@@ -375,6 +387,21 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         this->DrawNodeFinalize(node);
     }
 
+    for (ScriptNode* node: m_script_nodes)
+    {
+        this->DrawNodeBegin(node);
+        const int flags = ImGuiInputTextFlags_AllowTabInput;
+        const ImVec2 size = node->user_size;
+        ImGui::Text((node->enabled)? "Enabled" : "Disabled");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Update"))
+        {
+            node->Apply();
+        }
+        ImGui::InputTextMultiline("##source", node->code_buf, IM_ARRAYSIZE(node->code_buf), size, flags);
+        this->DrawNodeFinalize(node);
+    }
+
     // Slot hover cleanup
     if (!m_is_any_slot_hovered)
     {
@@ -408,9 +435,10 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         {
             m_disp_nodes.push_back(new DisplayNode(scene_pos));
         }
-        if (ImGui::MenuItem("Transform"))
+        if (ImGui::MenuItem("Script"))
         {
-            m_xform_nodes.push_back(new TransformNode(scene_pos));
+            m_script_nodes.push_back(new ScriptNode(this, scene_pos));
+            m_script_nodes.back()->InitScripting();
         }
         ImGui::EndPopup();
     }
@@ -446,6 +474,10 @@ void RoR::NodeGraphTool::CalcGraph()
     {
         n->done = false;
     }
+    for (ScriptNode* n: m_script_nodes)
+    {
+        n->done = false;
+    }
 
     bool keep_working = false;
     do
@@ -474,7 +506,192 @@ void RoR::NodeGraphTool::CalcGraph()
             n->data_offset = node_src->data_offset;
             n->done = true;
         }
+
+        for (ScriptNode* n: m_script_nodes)
+        {
+            if (n->done)
+                continue; // Next, please
+
+            n->Exec();
+        }
     }
     while (keep_working);
-
 }
+
+void RoR::NodeGraphTool::ScriptMessageCallback(const asSMessageInfo *msg, void *param)
+{
+    const char *type = "ERR ";
+    if( msg->type == asMSGTYPE_WARNING ) 
+        type = "WARN";
+    else if( msg->type == asMSGTYPE_INFORMATION ) 
+        type = "INFO";
+
+    char buf[500];
+    snprintf(buf, 500, "%s (%d, %d) : %s : %s\n", msg->section, msg->row, msg->col, type, msg->message);
+    std::cout << buf; // TODO: show in nodegraph window!!
+}
+
+void RoR::NodeGraphTool::AddMessage(const char* format, ...)
+{
+    char buffer[2000] = {};
+
+    va_list args;
+    va_start(args, format);
+        vsprintf(buffer, format, args);
+    va_end(args);
+
+    m_messages.push_back(buffer);
+}
+
+// -------------------------------- Nodes -----------------------------------
+
+RoR::NodeGraphTool::ScriptNode::ScriptNode(NodeGraphTool* _nodegraph, ImVec2 _pos):
+    Node(), nodegraph(_nodegraph), script_func(nullptr), script_engine(nullptr), script_context(nullptr)
+{
+    num_outputs = 1;
+    num_inputs = 4;
+    memset(code_buf, 0, sizeof(code_buf));
+    done = false;
+    type = Type::SCRIPT;
+    pos = _pos;
+    user_size = ImVec2(200, 100);
+    snprintf(node_name, 10, "Node %d", id);
+    enabled = false;
+}
+
+void RoR::NodeGraphTool::ScriptNode::InitScripting()
+{
+    script_engine = asCreateScriptEngine(ANGELSCRIPT_VERSION);
+    if (script_engine == nullptr)
+    {
+        nodegraph->AddMessage("%s: failed to create scripting engine", node_name);
+        return;
+    }
+
+    int result = script_engine->SetMessageCallback(asMETHOD(NodeGraphTool, ScriptMessageCallback), this, asCALL_THISCALL);
+    if (result < 0)
+    {
+        nodegraph->AddMessage("%s: failed to register message callback function, res: %d", node_name, result);
+        return;
+    }
+
+    result = script_engine->RegisterGlobalFunction("void Write(float)", asMETHOD(RoR::NodeGraphTool::ScriptNode, Write), asCALL_THISCALL_ASGLOBAL, this);
+    if (result < 0)
+    {
+        nodegraph->AddMessage("%s: failed to register function `Write`, res: %d", node_name, result);
+        return;
+    }
+
+    result = script_engine->RegisterGlobalFunction("float Read(int, int)", asMETHOD(RoR::NodeGraphTool::ScriptNode, Read), asCALL_THISCALL_ASGLOBAL, this);
+    if (result < 0)
+    {
+        nodegraph->AddMessage("%s: failed to register function `Read`, res: %d", node_name, result);
+        return;
+    }
+}
+
+void RoR::NodeGraphTool::ScriptNode::Apply()
+{
+    asIScriptModule* module = script_engine->GetModule(nullptr, asGM_ALWAYS_CREATE);
+    if (module == nullptr)
+    {
+        nodegraph->AddMessage("%s: Failed to create module", node_name);
+        module->Discard();
+        return;
+    }
+
+    char sourcecode[1100];
+    snprintf(sourcecode, 1100, "void main() {\n%s\n}", code_buf);
+    int result = module->AddScriptSection("body", sourcecode, strlen(sourcecode));
+    if (result < 0)
+    {
+        nodegraph->AddMessage("%s: failed to `AddScriptSection()`, res: %d", node_name, result);
+        module->Discard();
+        return;
+    }
+
+    result = module->Build();
+    if (result < 0)
+    {
+        nodegraph->AddMessage("%s: failed to `Build()`, res: %d", node_name, result);
+        module->Discard();
+        return;
+    }
+
+    script_func = module->GetFunctionByDecl("void main()");
+    if (script_func == nullptr)
+    {
+        nodegraph->AddMessage("%s: failed to `GetFunctionByDecl()`", node_name);
+        module->Discard();
+        return;
+    }
+
+    script_context = script_engine->CreateContext();
+    if (script_context == nullptr)
+    {
+        nodegraph->AddMessage("%s: failed to `CreateContext()`", node_name);
+        module->Discard();
+        return;
+    }
+
+    enabled = true;
+}
+
+        // Script functions
+float RoR::NodeGraphTool::ScriptNode::Read(int slot, int offset)
+{
+    if (slot < 0 || slot > (num_inputs - 1) || links_in[slot] == nullptr)
+        return 0.f;
+
+    if (offset > 0 || offset < -(Node::BUF_SIZE - 1))
+        return 0.f;
+
+    Node* src_node = links_in[slot]->node_src;
+    int pos = (src_node->data_offset + offset);
+    pos = (pos < 0) ? (pos + Node::BUF_SIZE) : pos;
+    return src_node->data_buffer[pos];
+}
+
+void RoR::NodeGraphTool::ScriptNode::Write(float val)
+{
+    data_buffer[data_offset] = val;
+}
+
+void RoR::NodeGraphTool::ScriptNode::Exec()
+{
+    if (! enabled)
+        return;
+
+    bool ready = true; // If completely disconnected, we're good to go. Otherwise, all inputs must be ready.
+    for (int i=0; i<num_inputs; ++i)
+    {
+        if ((links_in[i] != nullptr) && (! links_in[i]->node_src->done))
+            ready = false;
+    }
+
+    if (! ready)
+        return;
+
+    int prep_result = script_context->Prepare(script_func);
+    if (prep_result < 0)
+    {
+        nodegraph->AddMessage("%s: failed to `Prepare()`, res: %d", node_name, prep_result);
+        script_engine->ReturnContext(script_context);
+        script_context = nullptr;
+        enabled = false;
+        return;
+    }
+
+    int exec_result = script_context->Execute();
+    if (exec_result != asEXECUTION_FINISHED)
+    {
+        nodegraph->AddMessage("%s: failed to `Execute()`, res: %d", node_name, exec_result);
+        script_engine->ReturnContext(script_context);
+        script_context = nullptr;
+        enabled = false;
+    }
+
+    data_offset = (data_offset+1)%Node::BUF_SIZE;
+    done = true;
+}
+
