@@ -13,8 +13,7 @@ RoR::NodeGraphTool::NodeGraphTool():
         m_link_mouse_dst(nullptr),
         m_hovered_slot_node(nullptr),
         m_hovered_slot_input(-1),
-        m_hovered_slot_output(-1),
-        m_num_ticks(0)
+        m_hovered_slot_output(-1)
 {
 
 
@@ -88,7 +87,7 @@ void RoR::NodeGraphTool::PhysicsTick()
         gen_node->data_offset = (gen_node->data_offset + 1) % Node::BUF_SIZE;
         gen_node->data_buffer[gen_node->data_offset] = cosf((gen_node->elapsed / 2.f) * 3.14f * gen_node->frequency) * gen_node->amplitude;
     }
-    ++m_num_ticks;
+    this->CalcGraph();
 }
 
 void RoR::NodeGraphTool::DrawGrid()
@@ -473,6 +472,7 @@ void RoR::NodeGraphTool::CalcGraph()
             // Get data
             memcpy(n->data_buffer, node_src->data_buffer, 2000*sizeof(float));
             n->data_offset = node_src->data_offset;
+            n->done = true;
         }
     }
     while (keep_working);

@@ -137,6 +137,7 @@ public:
             num_inputs = 0;
             num_outputs = 1;
             pos = _pos;
+            done = true; // Always ready
         }
 
         float frequency; // Hz
@@ -228,7 +229,6 @@ private:
     Node     m_fake_mouse_node;     ///< Used while dragging link with mouse
     Link*    m_link_mouse_src;      ///< Link being mouse-dragged by it's input end.
     Link*    m_link_mouse_dst;      ///< Link being mouse-dragged by it's output end.
-    int      m_num_ticks;
 };
 
 } // namespace RoR
