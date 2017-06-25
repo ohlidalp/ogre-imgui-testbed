@@ -3,6 +3,8 @@
 
 #include "ImguiManager.h"
 
+#define MAX_LINKS_IN 16
+
     // ############# testing dummy #############
 struct FakeTruck
 {
@@ -57,34 +59,33 @@ public:
     void PhysicsTick();
     void CalcGraph();
 
-private:
-
     struct Node; // Forward
     struct ReadingNode;
     struct DisplayNode;
 
     struct Link
     {
-        Link(): node_src(nullptr), node_dst(nullptr), slot_src(0), slot_dst(0) {}
+        Link(): node_src(nullptr), node_dst(nullptr), slot_src(-1), slot_dst(-1) {}
 
-        Link(Node* src_n, Node* dst_n, size_t src_s, size_t dst_s): node_src(src_n), node_dst(dst_n), slot_src(src_s), slot_dst(dst_s) {}
+        Link(Node* src_n, Node* dst_n, int src_s, int dst_s): node_src(src_n), node_dst(dst_n), slot_src(src_s), slot_dst(dst_s) {}
 
         Node* node_src;
         Node* node_dst;
-        size_t slot_src;
-        size_t slot_dst;
+        int slot_src;
+        int slot_dst;
     };
 
     struct Node
     {
         enum class Type { INVALID, SOURCE, TRANSFORM, DISPLAY };
-        static const size_t BUF_SIZE = 2000; // Physics tick is 2Khz
+        static const int BUF_SIZE = 2000; // Physics tick is 2Khz
 
         Node(): num_inputs(0), num_outputs(0), pos(100.f, 100.f), type(Type::INVALID)
         {
             static int new_id = 1;
             id = new_id;
             ++new_id;
+            memset(links_in, 0, sizeof(links_in));
         }
 
         size_t num_inputs;
@@ -95,6 +96,8 @@ private:
         ImVec2 user_size;
         int id;
         Type type;
+        bool done; // Are data ready in this processing step?
+        Link* links_in[MAX_LINKS_IN];
 
         inline ImVec2 GetInputSlotPos(size_t slot_idx)  { return ImVec2(pos.x,                pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_inputs+1)))); }
         inline ImVec2 GetOutputSlotPos(size_t slot_idx) { return ImVec2(pos.x + calc_size.x, pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_outputs+1)))); }
@@ -105,7 +108,7 @@ private:
     /// Outputs(3): X position, Y position, Z position
     struct ReadingNode: public Node
     {
-        ReadingNode(ImVec2 _pos)
+        ReadingNode(ImVec2 _pos):Node()
         {
             num_inputs = 0;
             num_outputs = 3;
@@ -114,6 +117,7 @@ private:
             memset(data_buffer, 0, sizeof(data_buffer));
             type = Type::SOURCE;
             pos = _pos;
+            done = true;
         }
 
         int softbody_node_id; // -1 means 'none'
@@ -125,36 +129,46 @@ private:
 
     struct TransformNode: public Node
     {
-        TransformNode(ImVec2 _pos)
+        enum class Method
+        {
+            NONE, // Pass-through
+            FIR_DIRECT,
+            FIR_ADAPTIVE
+        };
+
+        TransformNode(ImVec2 _pos):Node()
         {
             num_inputs = 1;
             num_outputs = 1;
-            data_offset = 0;
             memset(data_buffer, 0, sizeof(data_buffer));
             done = false;
             type = Type::TRANSFORM;
             pos = _pos;
+            method = Method::NONE;
+            memset(input_field, 0, sizeof(input_field));
+            done = false;
         }
 
-        Vec3 data_buffer[2000];
-        int data_offset;
+        float data_buffer[2000]; // Data offset is always '0' here
+        char input_field[100];
+        Method method;
         bool done;
     };
 
     struct DisplayNode: public Node
     {
-        DisplayNode(ImVec2 _pos)
+        DisplayNode(ImVec2 _pos):Node()
         {
             pos = _pos;
             num_outputs = 0;
             num_inputs = 1;
             type = Type::DISPLAY;
-            source_node = nullptr;
             user_size = ImVec2(250.f, 85.f);
+            done = false; // Irrelevant for this node type - no outputs
         }
-
-        Node* source_node;
     };
+
+private:
 
     inline bool     IsInside (ImVec2 min, ImVec2 max, ImVec2 point) const                { return ((point.x > min.x) && (point.y > min.y)) && ((point.x < max.x) && (point.y < max.y)); }
     inline bool     IsLinkDragInProgress () const                                        { return (m_link_mouse_src != nullptr) || (m_link_mouse_dst != nullptr); }
@@ -170,7 +184,7 @@ private:
     void            DrawLink (Link& link);
     void            DrawNodeBegin(Node* node);
     void            DrawNodeFinalize(Node* node);
-    void            NodeLinkChanged(Node* n1, Node* n2, Link* link);                      ///< link = pointer to added link, or NULL if link was removed.
+    void            NodeLinkChanged(Link* link, bool added);
 
     inline bool IsSlotHovered(ImVec2 center_pos) const /// Slots can't use the "InvisibleButton" technique because it won't work when dragging.
     {

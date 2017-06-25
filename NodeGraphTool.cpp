@@ -2,7 +2,7 @@
 
 #include <imgui_internal.h> // For ImRect
 
-//#include "sigpack/sigpack.h" // *Bundled*
+#include "sigpack/sigpack.h" // *Bundled*
 
 FakeTruck G_fake_truck; // declared extern in "NodeGraphTool.h"
 
@@ -149,7 +149,7 @@ void RoR::NodeGraphTool::DrawSlotUni(Node* node, const size_t index, const bool 
             if (link)
             {
                 // drag existing link
-                this->NodeLinkChanged(link->node_src, link->node_dst, nullptr); // Link removed
+                this->NodeLinkChanged(link, false); // Link removed
                 if (input)
                 {
                     link->node_dst = &m_fake_mouse_node;
@@ -244,12 +244,9 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
     ImGui::PopID();
 }
 
-void RoR::NodeGraphTool::NodeLinkChanged(Node* src, Node* dst, Link* link) // link = pointer to added link, or NULL if link was removed.
+void RoR::NodeGraphTool::NodeLinkChanged(Link* link, bool added)
 {
-    if (dst->type == Node::Type::DISPLAY)
-    {
-        static_cast<DisplayNode*>(dst)->source_node = (link != nullptr) ? src : nullptr;
-    }
+    link->node_dst->links_in[link->slot_dst] = (added) ? link : nullptr;
 }
 
 void RoR::NodeGraphTool::DrawNodeGraphPane()
@@ -280,7 +277,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             {
                 m_link_mouse_src->node_src = m_hovered_slot_node;
                 m_link_mouse_src->slot_src = static_cast<size_t>(m_hovered_slot_output);
-                this->NodeLinkChanged(m_link_mouse_src->node_src, m_link_mouse_src->node_dst, m_link_mouse_src); // Link added
+                this->NodeLinkChanged(m_link_mouse_src, true); // Link added
             }
             else
             {
@@ -295,7 +292,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             {
                 m_link_mouse_dst->node_dst = m_hovered_slot_node;
                 m_link_mouse_dst->slot_dst = static_cast<size_t>(m_hovered_slot_input);
-                this->NodeLinkChanged(m_link_mouse_dst->node_src, m_link_mouse_dst->node_dst, m_link_mouse_dst); // Link added
+                this->NodeLinkChanged(m_link_mouse_dst, true); // Link added
             }
             else
             {
@@ -346,9 +343,9 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         int data_offset = 0;
         int stride = sizeof(float);
         const char* title = "~~disconnected~~";
-        if ((node->source_node != nullptr) && (node->source_node->type == Node::Type::SOURCE))
+        if ((node->links_in[0] != nullptr) && (node->links_in[0]->node_src->type == Node::Type::SOURCE))
         {
-            ReadingNode* rd_node = static_cast<ReadingNode*>(node->source_node);
+            ReadingNode* rd_node = static_cast<ReadingNode*>(node->links_in[0]->node_src);
             data_ptr = &rd_node->data_buffer[0].x;
             data_offset = rd_node->data_offset;
             stride = sizeof(Vec3);
@@ -358,6 +355,25 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         const float PLOT_MIN = -1.7f;//std::numeric_limits<float>::min();
         const float PLOT_MAX = +1.7f; //std::numeric_limits<float>::max();
         ImGui::PlotLines("", data_ptr, data_length, data_offset, title, PLOT_MIN, PLOT_MAX, node->user_size, stride);
+
+        this->DrawNodeFinalize(node);
+    }
+
+    for (TransformNode* node: m_xform_nodes)
+    {
+        this->DrawNodeBegin(node);
+
+        int method_id = static_cast<int>(node->method);
+        const char* mode_options[] = { "~ None ~", "FIR - direct", "FIR - adaptive" };
+        if (ImGui::Combo("Method", &method_id, mode_options, 3))
+        {
+            node->method = static_cast<TransformNode::Method>(method_id);
+        }
+
+        if (node->method == TransformNode::Method::FIR_DIRECT)
+        {
+            ImGui::InputText("Coefs", node->input_field, sizeof(node->input_field));
+        }
 
         this->DrawNodeFinalize(node);
     }
@@ -413,6 +429,19 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
     drawlist->ChannelsMerge();
 }
 
+/* TODO
+void Sigpack_FIR_Direct(RoR::NodeGraphTool::TransformNode* node, float* src_data)
+{
+    sp::FIR_filt<float, float, float> G;
+    arma::fvec b = node->input_field;
+    G.set_coeffs(b);
+
+    arma::fvec input_vec(2000);
+    for (int i = 0; i < 2000; ++i)
+        input_vec(i) = node->data_buffer[i];
+
+}*/
+
 void RoR::NodeGraphTool::CalcGraph()
 {
     // Reset states
@@ -426,7 +455,63 @@ void RoR::NodeGraphTool::CalcGraph()
     {
         for (TransformNode* n: m_xform_nodes)
         {
-            
+            if (n->done)
+                continue; // Next, please
+
+            if (n->links_in[0] == nullptr)
+            {
+                n->done = true; // Nothing to transform here
+                continue;
+            }
+
+            Node* node_src = n->links_in[0]->node_src;
+            int slot_src = n->links_in[0]->slot_src;
+            if (! node_src->done)
+            {
+                keep_working = true;
+                continue; // Not ready for processing yet
+            }
+
+            if (node_src->type == Node::Type::TRANSFORM)
+            {
+                TransformNode* src_xform_node = static_cast<TransformNode*>(node_src);
+                // Get data
+                memcpy(n->data_buffer, src_xform_node->data_buffer, 2000*sizeof(float));
+
+                // Process now!
+                if (n->method == TransformNode::Method::NONE) // pass-thru
+                {
+                    // nothing to do
+                }
+            }
+            else if (node_src->type == Node::Type::SOURCE)
+            {
+                ReadingNode* src_node = static_cast<ReadingNode*>(node_src);
+                if (n->method == TransformNode::Method::NONE) // pass-thru
+                {
+                    switch (slot_src)
+                    {
+                    case 0:
+                        for (int i=0; i<Node::BUF_SIZE; ++i)
+                        {
+                            n->data_buffer[i] = src_node->data_buffer[(src_node->data_offset + i) % Node::BUF_SIZE].x; // Copy X
+                        }
+                        break;
+                    case 1:
+                        for (int i=0; i<Node::BUF_SIZE; ++i)
+                        {
+                            n->data_buffer[i] = src_node->data_buffer[(src_node->data_offset + i) % Node::BUF_SIZE].y; // Copy X
+                        }
+                        break;
+                    case 2:
+                        for (int i=0; i<Node::BUF_SIZE; ++i)
+                        {
+                            n->data_buffer[i] = src_node->data_buffer[(src_node->data_offset + i) % Node::BUF_SIZE].z; // Copy X
+                        }
+                        break;
+                    }
+                }
+            }
         }
     }
     while (keep_working);
