@@ -190,15 +190,16 @@ private:
     inline bool     IsInside (ImVec2 min, ImVec2 max, ImVec2 point) const                { return ((point.x > min.x) && (point.y > min.y)) && ((point.x < max.x) && (point.y < max.y)); }
     inline bool     IsLinkDragInProgress () const                                        { return (m_link_mouse_src != nullptr) || (m_link_mouse_dst != nullptr); }
     inline bool     IsRectHovered(ImVec2 min, ImVec2 max) const                          { return this->IsInside(min, max, m_nodegraph_mouse_pos); }
-    inline void     DrawInputSlot (Node* node, const size_t index)                       { this->DrawSlotUni(node, index, true); }
-    inline void     DrawOutputSlot (Node* node, const size_t index)                      { this->DrawSlotUni(node, index, false); }
-    void            DrawSlotUni (Node* node, const size_t index, const bool input);
-    Link*           AddLink (Node* src, Node* dst, size_t src_slot, size_t dst_slot);     ///< creates new link or fetches existing unused one
-    Link*           FindLinkByDestination (Node* node, size_t slot);
-    Link*           FindLinkBySource (Node* node, size_t slot);
+    inline void     DrawInputSlot (Node* node, const int index)                          { this->DrawSlotUni(node, index, true); }
+    inline void     DrawOutputSlot (Node* node, const int index)                         { this->DrawSlotUni(node, index, false); }
+    void            DrawSlotUni (Node* node, const int index, const bool input);
+    Link*           AddLink (Node* src, Node* dst, int src_slot, int dst_slot);     ///< creates new link or fetches existing unused one
+    Link*           FindLinkByDestination (Node* node, const int slot);
+    Link*           FindLinkBySource (Node* node, const int slot);
     void            DrawNodeGraphPane ();
     void            DrawGrid ();
-    void            DrawLink (Link& link);
+    void            DrawLink(Link* link);
+    void            DeleteLink(Link* link);
     void            DrawNodeBegin(Node* node);
     void            DrawNodeFinalize(Node* node);
     void            NodeLinkChanged(Link* link, bool added);
@@ -214,7 +215,7 @@ private:
     std::vector<TransformNode*> m_xform_nodes;
     std::vector<DisplayNode*>   m_disp_nodes;
     std::vector<GeneratorNode*> m_gen_nodes;
-    std::vector<Link>           m_links;
+    std::vector<Link*>          m_links;
     Style    m_style;
     ImVec2   m_scroll;
     ImVec2   m_scroll_offset;

@@ -20,12 +20,12 @@ RoR::NodeGraphTool::NodeGraphTool():
 
 }
 
-RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkByDestination(Node* node, size_t slot)
+RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkByDestination(Node* node, const int slot)
 {
-    for (Link& link: m_links)
+    for (Link* link: m_links)
     {
-        if (link.node_dst == node && link.slot_dst == slot)
-            return &link;
+        if (link->node_dst == node && link->slot_dst == slot)
+            return link;
     }
     return nullptr;
 }
@@ -52,12 +52,12 @@ RoR::NodeGraphTool::Style::Style()
     link_line_width           = 3.f;
 }
 
-RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkBySource(Node* node, size_t slot)
+RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkBySource(Node* node, const int slot)
 {
-    for (Link& link: m_links)
+    for (Link* link: m_links)
     {
-        if (link.node_src == node && link.slot_src == slot)
-            return &link;
+        if (link->node_src == node && link->slot_src == slot)
+            return link;
     }
     return nullptr;
 }
@@ -105,13 +105,13 @@ void RoR::NodeGraphTool::DrawGrid()
         draw_list->AddLine(ImVec2(0.0f,y)+win_pos, ImVec2(canvasSize.x,y)+win_pos, m_style.color_grid, m_style.grid_line_width);
 }
 
-void RoR::NodeGraphTool::DrawLink(Link& link)
+void RoR::NodeGraphTool::DrawLink(Link* link)
 {
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
     draw_list->ChannelsSetCurrent(0); // background + curves
     ImVec2 offset =m_scroll_offset;
-    ImVec2 p1 = offset + link.node_src->GetOutputSlotPos(link.slot_src);
-    ImVec2 p2 = offset + link.node_dst->GetInputSlotPos(link.slot_dst);
+    ImVec2 p1 = offset + link->node_src->GetOutputSlotPos(link->slot_src);
+    ImVec2 p2 = offset + link->node_dst->GetInputSlotPos(link->slot_dst);
     ImRect window = ImGui::GetCurrentWindow()->Rect();
 
     if (this->IsInside(window.Min, window.Max, p1) || this->IsInside(window.Min, window.Max, p1)) // very basic clipping
@@ -121,7 +121,7 @@ void RoR::NodeGraphTool::DrawLink(Link& link)
     }
 }
 
-void RoR::NodeGraphTool::DrawSlotUni(Node* node, const size_t index, const bool input)
+void RoR::NodeGraphTool::DrawSlotUni(Node* node, const int index, const bool input)
 {
     ImDrawList* drawlist = ImGui::GetWindowDrawList();
     drawlist->ChannelsSetCurrent(2);
@@ -173,21 +173,10 @@ void RoR::NodeGraphTool::DrawSlotUni(Node* node, const size_t index, const bool 
     drawlist->AddCircleFilled(slot_center_pos+m_scroll_offset, m_style.node_slots_radius, color);
 }
 
-RoR::NodeGraphTool::Link* RoR::NodeGraphTool::AddLink(Node* src, Node* dst, size_t src_slot, size_t dst_slot) ///< creates new link or fetches existing unused one
+RoR::NodeGraphTool::Link* RoR::NodeGraphTool::AddLink(Node* src, Node* dst, int src_slot, int dst_slot) ///< creates new link or fetches existing unused one
 {
-    for (Link& link: m_links)
-    {
-        if (link.node_dst == nullptr || link.node_src == nullptr)
-        {
-            link.node_src = src;
-            link.node_dst = dst;
-            link.slot_src = src_slot;
-            link.slot_dst = dst_slot;
-            return &link;
-        }
-    }
-    m_links.emplace_back(src, dst, src_slot, dst_slot);
-    return &m_links.back();
+    m_links.push_back(new Link(src, dst, src_slot, dst_slot));
+    return m_links.back();
 }
 
 void RoR::NodeGraphTool::DrawNodeBegin(Node* node)
@@ -244,6 +233,21 @@ void RoR::NodeGraphTool::NodeLinkChanged(Link* link, bool added)
     link->node_dst->links_in[link->slot_dst] = (added) ? link : nullptr;
 }
 
+void RoR::NodeGraphTool::DeleteLink(Link* link)
+{
+    auto itor = m_links.begin();
+    auto endi = m_links.end();
+    for (; itor != endi; ++itor)
+    {
+        if (link == *itor)
+        {
+            delete link;
+            m_links.erase(itor);
+            return;
+        }
+    }
+}
+
 void RoR::NodeGraphTool::DrawNodeGraphPane()
 {
     const bool draw_border = false;
@@ -276,8 +280,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             }
             else
             {
-                m_link_mouse_src->node_dst = nullptr; // Make 'dead' link -> rendering will skip it
-                m_link_mouse_src->node_src = nullptr;
+                this->DeleteLink(m_link_mouse_src);
             }
             m_link_mouse_src = nullptr;
         }
@@ -291,8 +294,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             }
             else
             {
-                m_link_mouse_dst->node_dst = nullptr; // Make 'dead' link -> rendering will skip it
-                m_link_mouse_dst->node_src = nullptr;
+                this->DeleteLink(m_link_mouse_dst);
             }
             m_link_mouse_dst = nullptr;
         }
@@ -303,10 +305,9 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
 
     // Draw links
     drawlist->ChannelsSetCurrent(0);
-    for (Link& link: m_links)
+    for (Link* link: m_links)
     {
-        if (link.node_src != nullptr && link.node_dst != nullptr) // Skip disconnected links
-            this->DrawLink(link);
+        this->DrawLink(link);
     }
 
     for (GeneratorNode* node: m_gen_nodes)
