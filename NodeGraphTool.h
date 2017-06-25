@@ -60,8 +60,6 @@ public:
     void CalcGraph();
 
     struct Node; // Forward
-    struct ReadingNode;
-    struct DisplayNode;
 
     struct Link
     {
@@ -77,15 +75,16 @@ public:
 
     struct Node
     {
-        enum class Type { INVALID, SOURCE, TRANSFORM, DISPLAY };
+        enum class Type { INVALID, GENERATOR, TRANSFORM, DISPLAY };
         static const int BUF_SIZE = 2000; // Physics tick is 2Khz
 
-        Node(): num_inputs(0), num_outputs(0), pos(100.f, 100.f), type(Type::INVALID)
+        Node(): num_inputs(0), num_outputs(0), pos(100.f, 100.f), type(Type::INVALID), data_offset(0)
         {
             static int new_id = 1;
             id = new_id;
             ++new_id;
             memset(links_in, 0, sizeof(links_in));
+            memset(data_buffer, 0, sizeof(float)*Node::BUF_SIZE);
         }
 
         size_t num_inputs;
@@ -98,11 +97,14 @@ public:
         Type type;
         bool done; // Are data ready in this processing step?
         Link* links_in[MAX_LINKS_IN];
+        float data_buffer[Node::BUF_SIZE];
+        int data_offset;
 
-        inline ImVec2 GetInputSlotPos(size_t slot_idx)  { return ImVec2(pos.x,                pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_inputs+1)))); }
+        inline ImVec2 GetInputSlotPos(size_t slot_idx)  { return ImVec2(pos.x,               pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_inputs+1)))); }
         inline ImVec2 GetOutputSlotPos(size_t slot_idx) { return ImVec2(pos.x + calc_size.x, pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_outputs+1)))); }
     };
 
+    /* ############## TODO ##############
     /// reports XYZ position of node in world space
     /// Inputs: none
     /// Outputs(3): X position, Y position, Z position
@@ -126,6 +128,22 @@ public:
 
         inline void PushData(Vec3 entry) { data_buffer[data_offset] = entry; data_offset = (data_offset+1)%2000; }
     };
+    */
+
+    struct GeneratorNode: public Node
+    {
+        GeneratorNode(ImVec2 _pos): Node(), amplitude(1.f), frequency(1.f), noise_max(0.f), elapsed(0.f)
+        {
+            num_inputs = 0;
+            num_outputs = 1;
+            pos = _pos;
+        }
+
+        float frequency; // Hz
+        float amplitude;
+        float noise_max;
+        float elapsed;
+    };
 
     struct TransformNode: public Node
     {
@@ -136,11 +154,10 @@ public:
             FIR_ADAPTIVE
         };
 
-        TransformNode(ImVec2 _pos):Node()
+        TransformNode(ImVec2 _pos):Node() // Data offset is always '0' here
         {
             num_inputs = 1;
             num_outputs = 1;
-            memset(data_buffer, 0, sizeof(data_buffer));
             done = false;
             type = Type::TRANSFORM;
             pos = _pos;
@@ -149,7 +166,7 @@ public:
             done = false;
         }
 
-        float data_buffer[2000]; // Data offset is always '0' here
+        
         char input_field[100];
         Method method;
         bool done;
@@ -193,9 +210,10 @@ private:
         return this->IsInside(min, max, m_nodegraph_mouse_pos);
     }
 
-    std::vector<ReadingNode*>   m_read_nodes;
+    //std::vector<ReadingNode*>   m_read_nodes;
     std::vector<TransformNode*> m_xform_nodes;
     std::vector<DisplayNode*>   m_disp_nodes;
+    std::vector<GeneratorNode*> m_gen_nodes;
     std::vector<Link>           m_links;
     Style    m_style;
     ImVec2   m_scroll;

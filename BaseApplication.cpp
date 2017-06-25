@@ -150,33 +150,14 @@ private:
         Ogre::ImguiManager::getSingleton().newFrame(evt.timeSinceLastFrame, Ogre::Rect(left, top, width, height));
 
         // generate input data
-        static int jitter_max = 1; // value = 1/10
         static float last_time = ImGui::GetTime();
-        static float time_to_jitter_update = 2.f;
-
         while (last_time < ImGui::GetTime())
         {
-            // Update the dummy truck
-            for (size_t i = 0; i < G_fake_truck.NUM_NODES; ++i)
-            {
-                float phase = ((last_time) + (static_cast<float>(i)/static_cast<float>(G_fake_truck.NUM_NODES))) * 3.14;
-                G_fake_truck.nodes_x[i] = cosf(phase); // clean input
-                float jitter_val = static_cast<float>(rand() % jitter_max) * 0.1f;
-                G_fake_truck.nodes_x[i] += (jitter_val - (jitter_val)/2.f); // add jitter
-            }
-
-            // Push data to nodegraph
+            // Update data
             m_nodegraph.PhysicsTick();
 
             // update time
             last_time += (1.f / 2000.f);
-            time_to_jitter_update -= (1.f / 2000.f);
-        }
-
-        if (time_to_jitter_update < 0.f)
-        {
-            jitter_max = (rand() % 50) + 1;
-            time_to_jitter_update = static_cast<float>(rand() % 4) + 1.f;
         }
 
         // ===== Draw IMGUI  ====

@@ -82,16 +82,11 @@ void RoR::NodeGraphTool::Draw()
 
 void RoR::NodeGraphTool::PhysicsTick()
 {
-    for (ReadingNode* rn: m_read_nodes)
+    for (GeneratorNode* gen_node: m_gen_nodes)
     {
-        if (rn->softbody_node_id >= 0)
-        {
-            Vec3 data;
-            data.x = G_fake_truck.nodes_x[rn->softbody_node_id];
-            data.y = G_fake_truck.nodes_x[rn->softbody_node_id];
-            data.z = G_fake_truck.nodes_x[rn->softbody_node_id];
-            rn->PushData(data);
-        }
+        gen_node->elapsed += 0.002f;
+        gen_node->data_offset = (gen_node->data_offset + 1) % Node::BUF_SIZE;
+        gen_node->data_buffer[gen_node->data_offset] = cosf((gen_node->elapsed / 2.f) * 3.14f * gen_node->frequency) * gen_node->amplitude;
     }
     ++m_num_ticks;
 }
@@ -314,19 +309,20 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             this->DrawLink(link);
     }
 
-    for (ReadingNode* node: m_read_nodes)
+    for (GeneratorNode* node: m_gen_nodes)
     {
         this->DrawNodeBegin(node);
 
-        ImGui::InputInt("SoftBody Node ID", &node->softbody_node_id);
-        if (node->softbody_node_id >= 0)
+        float freq = node->frequency;
+        if (ImGui::InputFloat("Freq", &freq))
         {
-            RoR::Vec3 value = node->data_buffer[node->data_offset];
-            ImGui::Text("Value: %7.2f %7.2f %7.2f", value.x, value.y, value.z);
+            node->frequency = freq;
         }
-        else
+
+        float ampl = node->amplitude;
+        if (ImGui::InputFloat("Ampl", &ampl))
         {
-            ImGui::Text("Value: ~~inactive~~");
+            node->amplitude = ampl;
         }
 
         this->DrawNodeFinalize(node);
@@ -343,14 +339,15 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         int data_offset = 0;
         int stride = sizeof(float);
         const char* title = "~~disconnected~~";
-        if ((node->links_in[0] != nullptr) && (node->links_in[0]->node_src->type == Node::Type::SOURCE))
+        if (node->links_in[0] != nullptr)
         {
-            ReadingNode* rd_node = static_cast<ReadingNode*>(node->links_in[0]->node_src);
-            data_ptr = &rd_node->data_buffer[0].x;
-            data_offset = rd_node->data_offset;
-            stride = sizeof(Vec3);
+            Node* node_src = node->links_in[0]->node_src;
+
+            data_ptr = node_src->data_buffer;
+            data_offset = node_src->data_offset;
+            stride = sizeof(float);
             title = "";
-            data_length = 2000;
+            data_length = Node::BUF_SIZE;
         }
         const float PLOT_MIN = -1.7f;//std::numeric_limits<float>::min();
         const float PLOT_MAX = +1.7f; //std::numeric_limits<float>::max();
@@ -403,9 +400,9 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
     {
         ImVec2 scene_pos = ImGui::GetMousePosOnOpeningCurrentPopup() - m_scroll_offset;
         ImGui::Text("New node:");
-        if (ImGui::MenuItem("Reading"))
+        if (ImGui::MenuItem("Generator"))
         {
-            m_read_nodes.push_back(new ReadingNode(scene_pos));
+            m_gen_nodes.push_back(new GeneratorNode(scene_pos));
         }
         if (ImGui::MenuItem("Display"))
         {
@@ -472,46 +469,9 @@ void RoR::NodeGraphTool::CalcGraph()
                 continue; // Not ready for processing yet
             }
 
-            if (node_src->type == Node::Type::TRANSFORM)
-            {
-                TransformNode* src_xform_node = static_cast<TransformNode*>(node_src);
-                // Get data
-                memcpy(n->data_buffer, src_xform_node->data_buffer, 2000*sizeof(float));
-
-                // Process now!
-                if (n->method == TransformNode::Method::NONE) // pass-thru
-                {
-                    // nothing to do
-                }
-            }
-            else if (node_src->type == Node::Type::SOURCE)
-            {
-                ReadingNode* src_node = static_cast<ReadingNode*>(node_src);
-                if (n->method == TransformNode::Method::NONE) // pass-thru
-                {
-                    switch (slot_src)
-                    {
-                    case 0:
-                        for (int i=0; i<Node::BUF_SIZE; ++i)
-                        {
-                            n->data_buffer[i] = src_node->data_buffer[(src_node->data_offset + i) % Node::BUF_SIZE].x; // Copy X
-                        }
-                        break;
-                    case 1:
-                        for (int i=0; i<Node::BUF_SIZE; ++i)
-                        {
-                            n->data_buffer[i] = src_node->data_buffer[(src_node->data_offset + i) % Node::BUF_SIZE].y; // Copy X
-                        }
-                        break;
-                    case 2:
-                        for (int i=0; i<Node::BUF_SIZE; ++i)
-                        {
-                            n->data_buffer[i] = src_node->data_buffer[(src_node->data_offset + i) % Node::BUF_SIZE].z; // Copy X
-                        }
-                        break;
-                    }
-                }
-            }
+            // Get data
+            memcpy(n->data_buffer, node_src->data_buffer, 2000*sizeof(float));
+            n->data_offset = node_src->data_offset;
         }
     }
     while (keep_working);
