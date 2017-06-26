@@ -230,6 +230,9 @@ private:
     void            NodeLinkChanged(Link* link, bool added);
     void            ScriptMessageCallback(const asSMessageInfo *msg, void *param);
     void            AddMessage(const char* fmt, ...);
+    void            SaveAsJson(const char* filepath);
+    void            LoadFromJson(const char* filepath);
+    void            NodeToJson(rapidjson::Value& j_data, Node* node);
 
 
     inline bool IsSlotHovered(ImVec2 center_pos) const /// Slots can't use the "InvisibleButton" technique because it won't work when dragging.
@@ -246,6 +249,9 @@ private:
     std::vector<ScriptNode*>    m_script_nodes;
     std::vector<Link*>          m_links;
     std::list<std::string>      m_messages;
+    char     m_filename[100];
+    char     m_motionsim_ip[40];
+    int      m_motionsim_port;
     Style    m_style;
     ImVec2   m_scroll;
     ImVec2   m_scroll_offset;
@@ -254,6 +260,7 @@ private:
     int      m_hovered_slot_input;  // -1 = none
     int      m_hovered_slot_output; // -1 = none
     bool     m_is_any_slot_hovered;
+    bool     m_show_filepath_input;
     Node*    m_last_scaled_node;
     Node     m_fake_mouse_node;     ///< Used while dragging link with mouse
     Link*    m_link_mouse_src;      ///< Link being mouse-dragged by it's input end.

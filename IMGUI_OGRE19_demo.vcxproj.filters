@@ -49,6 +49,9 @@
     <ClInclude Include="NodeGraphTool.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="FileSystem.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="lib\DearIMGUI\imgui.cpp">

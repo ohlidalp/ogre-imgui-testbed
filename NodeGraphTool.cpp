@@ -2,7 +2,10 @@
 
 #include <imgui_internal.h> // For ImRect
 
-#include "sigpack/sigpack.h" // *Bundled*
+// Bundled libs
+#include "rapidjson/rapidjson.h"
+#include "rapidjson/document.h"
+#include "sigpack/sigpack.h"
 
 FakeTruck G_fake_truck; // declared extern in "NodeGraphTool.h"
 
@@ -12,9 +15,13 @@ RoR::NodeGraphTool::NodeGraphTool():
         m_link_mouse_src(nullptr),
         m_link_mouse_dst(nullptr),
         m_hovered_slot_node(nullptr),
+        m_show_filepath_input(false),
         m_hovered_slot_input(-1),
         m_hovered_slot_output(-1)
 {
+    memset(m_filename, 0, sizeof(m_filename));
+    snprintf(m_motionsim_ip, IM_ARRAYSIZE(m_motionsim_ip), "localhost");
+    m_motionsim_port = 1234;
 }
 
 RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkByDestination(Node* node, const int slot)
@@ -65,8 +72,44 @@ void RoR::NodeGraphTool::Draw()
     if (!ImGui::Begin("RigsOfRods NodeGraph"))
         return; // No window -> nothing to do.
 
-    ImGui::Text("MouseDrag - src: 0x%p, dst: 0x%p | mousenode - X:%.1f, Y:%.1f", m_link_mouse_src, m_link_mouse_dst, m_fake_mouse_node.pos.x, m_fake_mouse_node.pos.y);
-    ImGui::Text("SlotHover - node: 0x%p, input: %d, output: %d", m_hovered_slot_node, m_hovered_slot_input, m_hovered_slot_output);
+    // Debug outputs
+    //ImGui::Text("MouseDrag - src: 0x%p, dst: 0x%p | mousenode - X:%.1f, Y:%.1f", m_link_mouse_src, m_link_mouse_dst, m_fake_mouse_node.pos.x, m_fake_mouse_node.pos.y);
+    //ImGui::Text("SlotHover - node: 0x%p, input: %d, output: %d", m_hovered_slot_node, m_hovered_slot_input, m_hovered_slot_output);
+    ImGui::SameLine();
+    ImGui::Button("Open file"); // TODO
+    ImGui::SameLine();
+    if (ImGui::Button("Save file"))
+    {
+        m_show_filepath_input = true;
+    }
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 50.f);
+    ImGui::PushItemWidth(150.f);
+    ImGui::InputText("IP", m_motionsim_ip, IM_ARRAYSIZE(m_motionsim_ip));
+    ImGui::SameLine();
+    ImGui::InputInt("Port", &m_motionsim_port);
+    ImGui::PopItemWidth();
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 50.f);
+    static bool transmit = false;
+    ImGui::Checkbox("Transmit", &transmit); // TODO: Enable/disable networking
+
+    if (m_show_filepath_input)
+    {
+        if (ImGui::Button("Cancel"))
+        {
+            m_show_filepath_input = false;
+        }
+        ImGui::SameLine();
+        ImGui::InputText("Filename", m_filename, IM_ARRAYSIZE(m_filename));
+        ImGui::SameLine();
+        if (ImGui::Button("Save now"))
+        {
+            // TOD -> json
+        }
+    }
+
+    // Scripting engine messages
     if (! m_messages.empty())
     {
         if (ImGui::CollapsingHeader("Messages"))
@@ -541,6 +584,48 @@ void RoR::NodeGraphTool::AddMessage(const char* format, ...)
     va_end(args);
 
     m_messages.push_back(buffer);
+}
+
+void RoR::NodeGraphTool::NodeToJson(rapidjson::Value& j_data, Node* node)
+{
+    
+}
+
+void RoR::NodeGraphTool::SaveAsJson(const char* filepath)
+{
+    rapidjson::Document doc(rapidjson::kObjectType);
+    auto& j_alloc = doc.GetAllocator();
+
+    // SAVE NODES
+
+    rapidjson::Value j_gen_nodes(rapidjson::kArrayType);
+    for (GeneratorNode* gen_node: m_gen_nodes)
+    {
+        rapidjson::Value j_data(rapidjson::kObjectType);
+        j_data.AddMember("amplitude", gen_node->amplitude, j_alloc);
+        j_data.AddMember("frequency", gen_node->frequency, j_alloc);
+        j_gen_nodes.PushBack(j_data, j_alloc);
+    }
+
+    rapidjson::Value j_xform_nodes(rapidjson::kArrayType);
+    for (TransformNode* xform_node: m_xform_nodes)
+    {
+        rapidjson::Value j_data(rapidjson::kObjectType);
+        j_data.AddMember("method", xform_node->method, j_alloc);
+        j_xform_nodes.PushBack(j_data, j_alloc);
+    }
+
+    rapidjson::Value j_disp_nodes(rapidjson::kArrayType);
+    for (DisplayNode* disp_node: m_disp_nodes)
+    {
+        rapidjson::Value j_data(rapidjson::kObjectType);
+        j_data.AddMember("method", xform_node->method, j_alloc);
+        j_disp_nodes.PushBack(j_data, j_alloc);
+    }
+}
+
+void RoR::NodeGraphTool::LoadFromJson(const char* filepath)
+{
 }
 
 // -------------------------------- Nodes -----------------------------------
