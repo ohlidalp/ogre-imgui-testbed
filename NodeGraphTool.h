@@ -3,6 +3,10 @@
 
 #include "ImguiManager.h"
 
+// Bundled
+#include "rapidjson/rapidjson.h"
+#include "rapidjson/document.h"
+// External
 #include <angelscript.h>
 
 #include <list>
@@ -210,7 +214,14 @@ public:
         }
     };
 
+    void            SaveAsJson();                                                        ///< Filename specified by `m_filename`
+    void            LoadFromJson();                                                      ///< Filename specified by `m_filename`
+    void            SetFilename(const char* const filename)                              { strncpy(m_filename, filename, sizeof(m_filename)); }
+    void            ClearAll();
+
 private:
+
+    enum class HeaderMode { NORMAL, SAVE_FILE, LOAD_FILE, CLEAR_ALL };
 
     inline bool     IsInside (ImVec2 min, ImVec2 max, ImVec2 point) const                { return ((point.x > min.x) && (point.y > min.y)) && ((point.x < max.x) && (point.y < max.y)); }
     inline bool     IsLinkDragInProgress () const                                        { return (m_link_mouse_src != nullptr) || (m_link_mouse_dst != nullptr); }
@@ -218,7 +229,7 @@ private:
     inline void     DrawInputSlot (Node* node, const int index)                          { this->DrawSlotUni(node, index, true); }
     inline void     DrawOutputSlot (Node* node, const int index)                         { this->DrawSlotUni(node, index, false); }
     void            DrawSlotUni (Node* node, const int index, const bool input);
-    Link*           AddLink (Node* src, Node* dst, int src_slot, int dst_slot);     ///< creates new link or fetches existing unused one
+    Link*           AddLink (Node* src, Node* dst, int src_slot, int dst_slot);          ///< creates new link or fetches existing unused one
     Link*           FindLinkByDestination (Node* node, const int slot);
     Link*           FindLinkBySource (Node* node, const int slot);
     void            DrawNodeGraphPane ();
@@ -228,11 +239,10 @@ private:
     void            DrawNodeBegin(Node* node);
     void            DrawNodeFinalize(Node* node);
     void            NodeLinkChanged(Link* link, bool added);
-    void            ScriptMessageCallback(const asSMessageInfo *msg, void *param);
     void            AddMessage(const char* fmt, ...);
-    void            SaveAsJson(const char* filepath);
-    void            LoadFromJson(const char* filepath);
     void            NodeToJson(rapidjson::Value& j_data, Node* node, rapidjson::Document& doc);
+    void            JsonToNode(Node* node, const rapidjson::Value& j_object);
+    void            ScriptMessageCallback(const asSMessageInfo *msg, void *param);
 
 
     inline bool IsSlotHovered(ImVec2 center_pos) const /// Slots can't use the "InvisibleButton" technique because it won't work when dragging.
@@ -249,22 +259,23 @@ private:
     std::vector<ScriptNode*>    m_script_nodes;
     std::vector<Link*>          m_links;
     std::list<std::string>      m_messages;
-    char     m_filename[100];
-    char     m_motionsim_ip[40];
-    int      m_motionsim_port;
-    Style    m_style;
-    ImVec2   m_scroll;
-    ImVec2   m_scroll_offset;
-    ImVec2   m_nodegraph_mouse_pos;
-    Node*    m_hovered_slot_node;
-    int      m_hovered_slot_input;  // -1 = none
-    int      m_hovered_slot_output; // -1 = none
-    bool     m_is_any_slot_hovered;
-    bool     m_show_filepath_input;
-    Node*    m_last_scaled_node;
-    Node     m_fake_mouse_node;     ///< Used while dragging link with mouse
-    Link*    m_link_mouse_src;      ///< Link being mouse-dragged by it's input end.
-    Link*    m_link_mouse_dst;      ///< Link being mouse-dragged by it's output end.
+    char       m_directory[300];
+    char       m_filename[100];
+    char       m_motionsim_ip[40];
+    int        m_motionsim_port;
+    Style      m_style;
+    ImVec2     m_scroll;
+    ImVec2     m_scroll_offset;
+    ImVec2     m_nodegraph_mouse_pos;
+    Node*      m_hovered_slot_node;
+    int        m_hovered_slot_input;  // -1 = none
+    int        m_hovered_slot_output; // -1 = none
+    bool       m_is_any_slot_hovered;
+    HeaderMode m_header_mode;
+    Node*      m_last_scaled_node;
+    Node       m_fake_mouse_node;     ///< Used while dragging link with mouse
+    Link*      m_link_mouse_src;      ///< Link being mouse-dragged by it's input end.
+    Link*      m_link_mouse_dst;      ///< Link being mouse-dragged by it's output end.
 };
 
 } // namespace RoR

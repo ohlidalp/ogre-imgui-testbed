@@ -5,7 +5,12 @@
 // Bundled libs
 #include "rapidjson/rapidjson.h"
 #include "rapidjson/document.h"
+#include "rapidjson/filewritestream.h"
+#include "rapidjson/filereadstream.h"
+#include "rapidjson/prettywriter.h"
 #include "sigpack/sigpack.h"
+
+#include <map>
 
 FakeTruck G_fake_truck; // declared extern in "NodeGraphTool.h"
 
@@ -15,7 +20,7 @@ RoR::NodeGraphTool::NodeGraphTool():
         m_link_mouse_src(nullptr),
         m_link_mouse_dst(nullptr),
         m_hovered_slot_node(nullptr),
-        m_show_filepath_input(false),
+        m_header_mode(HeaderMode::NORMAL),
         m_hovered_slot_input(-1),
         m_hovered_slot_output(-1)
 {
@@ -76,11 +81,19 @@ void RoR::NodeGraphTool::Draw()
     //ImGui::Text("MouseDrag - src: 0x%p, dst: 0x%p | mousenode - X:%.1f, Y:%.1f", m_link_mouse_src, m_link_mouse_dst, m_fake_mouse_node.pos.x, m_fake_mouse_node.pos.y);
     //ImGui::Text("SlotHover - node: 0x%p, input: %d, output: %d", m_hovered_slot_node, m_hovered_slot_input, m_hovered_slot_output);
     ImGui::SameLine();
-    ImGui::Button("Open file"); // TODO
+    if (ImGui::Button("Open file"))
+    {
+        m_header_mode = HeaderMode::LOAD_FILE;
+    }
     ImGui::SameLine();
     if (ImGui::Button("Save file"))
     {
-        m_show_filepath_input = true;
+        m_header_mode = HeaderMode::SAVE_FILE;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Clear all"))
+    {
+        m_header_mode = HeaderMode::CLEAR_ALL;
     }
     ImGui::SameLine();
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 50.f);
@@ -94,18 +107,38 @@ void RoR::NodeGraphTool::Draw()
     static bool transmit = false;
     ImGui::Checkbox("Transmit", &transmit); // TODO: Enable/disable networking
 
-    if (m_show_filepath_input)
+    if (m_header_mode != HeaderMode::NORMAL)
     {
         if (ImGui::Button("Cancel"))
         {
-            m_show_filepath_input = false;
+            m_header_mode = HeaderMode::NORMAL;
         }
-        ImGui::SameLine();
-        ImGui::InputText("Filename", m_filename, IM_ARRAYSIZE(m_filename));
-        ImGui::SameLine();
-        if (ImGui::Button("Save now"))
+        if ((m_header_mode == HeaderMode::CLEAR_ALL))
         {
-            // TOD -> json
+            ImGui::SameLine();
+            ImGui::Text("Really clear all?");
+            ImGui::SameLine();
+            if (ImGui::Button("Confirm"))
+            {
+                this->ClearAll();
+                m_header_mode = HeaderMode::NORMAL;
+            }
+        }
+        else
+        {
+            ImGui::SameLine();
+            ImGui::InputText("Filename", m_filename, IM_ARRAYSIZE(m_filename));
+            ImGui::SameLine();
+            if ((m_header_mode == HeaderMode::SAVE_FILE) && ImGui::Button("Save now"))
+            {
+                this->SaveAsJson();
+                m_header_mode = HeaderMode::NORMAL;
+            }
+            else if ((m_header_mode == HeaderMode::LOAD_FILE) && ImGui::Button("Load now"))
+            {
+                this->LoadFromJson();
+                m_header_mode = HeaderMode::NORMAL;
+            }
         }
     }
 
@@ -595,7 +628,14 @@ void RoR::NodeGraphTool::NodeToJson(rapidjson::Value& j_data, Node* node, rapidj
     j_data.AddMember("id",          node->id,          doc.GetAllocator());
 }
 
-void RoR::NodeGraphTool::SaveAsJson(const char* filepath)
+void RoR::NodeGraphTool::JsonToNode(Node* node, const rapidjson::Value& j_object)
+{
+    node->pos = ImVec2(j_object["pos_x"].GetFloat(), j_object["pos_y"].GetFloat());
+    node->user_size = ImVec2(j_object["user_size_x"].GetFloat(), j_object["user_size_y"].GetFloat());
+    node->id = j_object["id"].GetInt();
+}
+
+void RoR::NodeGraphTool::SaveAsJson()
 {
     rapidjson::Document doc(rapidjson::kObjectType);
     auto& j_alloc = doc.GetAllocator();
@@ -617,7 +657,7 @@ void RoR::NodeGraphTool::SaveAsJson(const char* filepath)
     {
         rapidjson::Value j_data(rapidjson::kObjectType);
         this->NodeToJson(j_data, xform_node, doc);
-        j_data.AddMember("method", xform_node->method, j_alloc);
+        j_data.AddMember("method_id", static_cast<int>(xform_node->method), j_alloc);
         j_xform_nodes.PushBack(j_data, j_alloc);
     }
 
@@ -645,45 +685,178 @@ void RoR::NodeGraphTool::SaveAsJson(const char* filepath)
     {
         rapidjson::Value j_data(rapidjson::kObjectType);
         j_data.AddMember("node_src_id",  link->node_src->id,  j_alloc);
-        j_data.AddMember("node_dst_id",  link->node_src->id,  j_alloc);
+        j_data.AddMember("node_dst_id",  link->node_dst->id,  j_alloc);
         j_data.AddMember("slot_src",     link->slot_src,      j_alloc);
         j_data.AddMember("slot_dst",     link->slot_dst,      j_alloc);
+        j_links.PushBack(j_data, j_alloc);
     }
+
+    // COMBINE
+
+    doc.AddMember("generator_nodes", j_gen_nodes,    j_alloc);
+    doc.AddMember("transform_nodes", j_xform_nodes,  j_alloc);
+    doc.AddMember("script_nodes",    j_script_nodes, j_alloc);
+    doc.AddMember("display_nodes",   j_disp_nodes,   j_alloc);
+    doc.AddMember("links",           j_links,        j_alloc);
 
     // SAVE FILE
 
     FILE* file = nullptr;
     errno_t fopen_result = 0;
 #ifdef _WIN32
-    static const char* fopen_name = "_wfopen_s()";
     // Binary mode recommended by RapidJSON tutorial: http://rapidjson.org/md_doc_stream.html#FileWriteStream
-    fopen_result = fopen_s(&file, out_path.asWStr_c_str(), "wb");
+    fopen_result = fopen_s(&file, m_filename, "wb");
 #else
-    static const char* fopen_name = "fopen_s()";
-    fopen_s(&file, out_path.asUTF8_c_str(), "w");
+    fopen_result = fopen_s(&file, m_filename, "w");
 #endif
     if ((fopen_result != 0) || (file == nullptr))
     {
         std::stringstream msg;
-        msg << "[RoR|RigEditor] Failed to save JSON project file (path: "<< out_path << ")";
+        msg << "[RoR|RigEditor] Failed to save JSON project file (path: "<< m_filename << ")";
         if (fopen_result != 0)
         {
-            msg<<" Tech details: function ["<<fopen_name<<"] returned ["<<fopen_result<<"]";
+            msg<<" Tech details: function [fopen_s()] returned ["<<fopen_result<<"]";
         }
-        LOG(msg.str());
-        return; // TODO: Notify the user!
+        this->AddMessage(msg.str().c_str());
+        return; 
     }
 
     char* buffer = new char[100000]; // 100kb
     rapidjson::FileWriteStream j_out_stream(file, buffer, sizeof(buffer));
     rapidjson::PrettyWriter<rapidjson::FileWriteStream> j_writer(j_out_stream);
-    m_json_doc.Accept(j_writer);
+    doc.Accept(j_writer);
     fclose(file);
     delete buffer;
 }
 
-void RoR::NodeGraphTool::LoadFromJson(const char* filepath)
+void RoR::NodeGraphTool::LoadFromJson()
 {
+    this->ClearAll();
+
+#ifdef _WIN32
+    // Binary mode recommended by RapidJSON tutorial: http://rapidjson.org/md_doc_stream.html#FileReadStream
+    FILE* fp = fopen(m_filename, "rb");
+#else
+    FILE* fp = fopen(m_filename, "r");
+#endif
+    if (fp == nullptr)
+    {
+        this->AddMessage("failed to open file '%s'", m_filename);
+        return;
+    }
+
+    char readBuffer[65536];
+    rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+    rapidjson::Document d;
+    d.ParseStream(is);
+    fclose(fp);
+
+    // IMPORT NODES
+    std::unordered_map<int, Node*> lookup;
+
+    const char* field = "generator_nodes";
+    if (d.HasMember(field) && d[field].IsArray())
+    {
+        auto& j_gen = d[field];
+        rapidjson::Value::ConstValueIterator itor = j_gen.Begin();
+        rapidjson::Value::ConstValueIterator endi = j_gen.End();
+        for (; itor != endi; ++itor)
+        {
+            GeneratorNode* node = new GeneratorNode(ImVec2());
+            this->JsonToNode(node, *itor);
+            node->amplitude = (*itor)["amplitude"].GetFloat();
+            node->frequency = (*itor)["frequency"].GetFloat();
+            m_gen_nodes.push_back(node);
+            lookup.insert(std::make_pair(node->id, node));
+        }
+    }
+    field = "display_nodes";
+    if (d.HasMember(field) && d[field].IsArray())
+    {
+        auto& j_array = d[field];
+        rapidjson::Value::ConstValueIterator itor = j_array.Begin();
+        rapidjson::Value::ConstValueIterator endi = j_array.End();
+        for (; itor != endi; ++itor)
+        {
+            DisplayNode* node = new DisplayNode(ImVec2());
+            this->JsonToNode(node, *itor);
+            m_disp_nodes.push_back(node);
+            lookup.insert(std::make_pair(node->id, node));
+        }
+    }
+    field = "transform_nodes";
+    if (d.HasMember(field) && d[field].IsArray())
+    {
+        auto& j_array = d[field];
+        rapidjson::Value::ConstValueIterator itor = j_array.Begin();
+        rapidjson::Value::ConstValueIterator endi = j_array.End();
+        for (; itor != endi; ++itor)
+        {
+            TransformNode* node = new TransformNode(ImVec2());
+            this->JsonToNode(node, *itor);
+            node->method = static_cast<TransformNode::Method>((*itor)["method_id"].GetInt());
+            m_xform_nodes.push_back(node);
+            lookup.insert(std::make_pair(node->id, node));
+        }
+    }
+    field = "script_nodes";
+    if (d.HasMember(field) && d[field].IsArray())
+    {
+        auto& j_array = d[field];
+        rapidjson::Value::ConstValueIterator itor = j_array.Begin();
+        rapidjson::Value::ConstValueIterator endi = j_array.End();
+        for (; itor != endi; ++itor)
+        {
+            ScriptNode* node = new ScriptNode(this, ImVec2());
+            this->JsonToNode(node, *itor);
+            strncpy(node->code_buf, (*itor)["source_code"].GetString(), IM_ARRAYSIZE(node->code_buf));
+            m_script_nodes.push_back(node);
+            lookup.insert(std::make_pair(node->id, node));
+        }
+    }
+
+    // IMPORT LINKS
+
+    field = "links";
+    if (d.HasMember(field) && d[field].IsArray())
+    {
+        auto& j_array = d[field];
+        rapidjson::Value::ConstValueIterator itor = j_array.Begin();
+        rapidjson::Value::ConstValueIterator endi = j_array.End();
+        for (; itor != endi; ++itor)
+        {
+            Link* link = new Link();
+            link->node_src = lookup.find((*itor)["node_src_id"].GetInt())->second;
+            link->node_dst = lookup.find((*itor)["node_dst_id"].GetInt())->second;
+            link->slot_src = (*itor)["slot_src"].GetInt();
+            link->slot_dst = (*itor)["slot_dst"].GetInt();
+            this->NodeLinkChanged(link, true); // Notify link added
+            m_links.push_back(link);
+        }
+    }
+}
+
+void RoR::NodeGraphTool::ClearAll()
+{
+    for (Link* link: m_links)
+        this->DeleteLink(link);
+    m_links.clear();
+
+    for (GeneratorNode* g: m_gen_nodes)
+        delete g;
+    m_gen_nodes.clear();
+
+    for (ScriptNode* s: m_script_nodes)
+        delete s;
+    m_script_nodes.clear();
+
+    for (DisplayNode* d: m_disp_nodes)
+        delete d;
+    m_disp_nodes.clear();
+
+    for (TransformNode* t: m_xform_nodes)
+        delete t;
+    m_xform_nodes.clear();
 }
 
 // -------------------------------- Nodes -----------------------------------
