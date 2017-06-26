@@ -586,9 +586,13 @@ void RoR::NodeGraphTool::AddMessage(const char* format, ...)
     m_messages.push_back(buffer);
 }
 
-void RoR::NodeGraphTool::NodeToJson(rapidjson::Value& j_data, Node* node)
+void RoR::NodeGraphTool::NodeToJson(rapidjson::Value& j_data, Node* node, rapidjson::Document& doc)
 {
-    
+    j_data.AddMember("pos_x",       node->pos.x,       doc.GetAllocator());
+    j_data.AddMember("pos_y",       node->pos.y,       doc.GetAllocator());
+    j_data.AddMember("user_size_x", node->user_size.x, doc.GetAllocator());
+    j_data.AddMember("user_size_y", node->user_size.y, doc.GetAllocator());
+    j_data.AddMember("id",          node->id,          doc.GetAllocator());
 }
 
 void RoR::NodeGraphTool::SaveAsJson(const char* filepath)
@@ -596,12 +600,13 @@ void RoR::NodeGraphTool::SaveAsJson(const char* filepath)
     rapidjson::Document doc(rapidjson::kObjectType);
     auto& j_alloc = doc.GetAllocator();
 
-    // SAVE NODES
+    // EXPORT NODES
 
     rapidjson::Value j_gen_nodes(rapidjson::kArrayType);
     for (GeneratorNode* gen_node: m_gen_nodes)
     {
         rapidjson::Value j_data(rapidjson::kObjectType);
+        this->NodeToJson(j_data, gen_node, doc);
         j_data.AddMember("amplitude", gen_node->amplitude, j_alloc);
         j_data.AddMember("frequency", gen_node->frequency, j_alloc);
         j_gen_nodes.PushBack(j_data, j_alloc);
@@ -611,6 +616,7 @@ void RoR::NodeGraphTool::SaveAsJson(const char* filepath)
     for (TransformNode* xform_node: m_xform_nodes)
     {
         rapidjson::Value j_data(rapidjson::kObjectType);
+        this->NodeToJson(j_data, xform_node, doc);
         j_data.AddMember("method", xform_node->method, j_alloc);
         j_xform_nodes.PushBack(j_data, j_alloc);
     }
@@ -619,9 +625,61 @@ void RoR::NodeGraphTool::SaveAsJson(const char* filepath)
     for (DisplayNode* disp_node: m_disp_nodes)
     {
         rapidjson::Value j_data(rapidjson::kObjectType);
-        j_data.AddMember("method", xform_node->method, j_alloc);
+        this->NodeToJson(j_data, disp_node, doc);
         j_disp_nodes.PushBack(j_data, j_alloc);
     }
+
+    rapidjson::Value j_script_nodes(rapidjson::kArrayType);
+    for (ScriptNode* as_node: m_script_nodes)
+    {
+        rapidjson::Value j_data(rapidjson::kObjectType);
+        this->NodeToJson(j_data, as_node, doc);
+        j_data.AddMember("source_code", rapidjson::StringRef(as_node->code_buf), j_alloc);
+        j_script_nodes.PushBack(j_data, j_alloc);
+    }
+
+    // EXPORT LINKS
+
+    rapidjson::Value j_links(rapidjson::kArrayType);
+    for (Link* link: m_links)
+    {
+        rapidjson::Value j_data(rapidjson::kObjectType);
+        j_data.AddMember("node_src_id",  link->node_src->id,  j_alloc);
+        j_data.AddMember("node_dst_id",  link->node_src->id,  j_alloc);
+        j_data.AddMember("slot_src",     link->slot_src,      j_alloc);
+        j_data.AddMember("slot_dst",     link->slot_dst,      j_alloc);
+    }
+
+    // SAVE FILE
+
+    FILE* file = nullptr;
+    errno_t fopen_result = 0;
+#ifdef _WIN32
+    static const char* fopen_name = "_wfopen_s()";
+    // Binary mode recommended by RapidJSON tutorial: http://rapidjson.org/md_doc_stream.html#FileWriteStream
+    fopen_result = fopen_s(&file, out_path.asWStr_c_str(), "wb");
+#else
+    static const char* fopen_name = "fopen_s()";
+    fopen_s(&file, out_path.asUTF8_c_str(), "w");
+#endif
+    if ((fopen_result != 0) || (file == nullptr))
+    {
+        std::stringstream msg;
+        msg << "[RoR|RigEditor] Failed to save JSON project file (path: "<< out_path << ")";
+        if (fopen_result != 0)
+        {
+            msg<<" Tech details: function ["<<fopen_name<<"] returned ["<<fopen_result<<"]";
+        }
+        LOG(msg.str());
+        return; // TODO: Notify the user!
+    }
+
+    char* buffer = new char[100000]; // 100kb
+    rapidjson::FileWriteStream j_out_stream(file, buffer, sizeof(buffer));
+    rapidjson::PrettyWriter<rapidjson::FileWriteStream> j_writer(j_out_stream);
+    m_json_doc.Accept(j_writer);
+    fclose(file);
+    delete buffer;
 }
 
 void RoR::NodeGraphTool::LoadFromJson(const char* filepath)

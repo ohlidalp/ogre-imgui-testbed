@@ -232,7 +232,7 @@ private:
     void            AddMessage(const char* fmt, ...);
     void            SaveAsJson(const char* filepath);
     void            LoadFromJson(const char* filepath);
-    void            NodeToJson(rapidjson::Value& j_data, Node* node);
+    void            NodeToJson(rapidjson::Value& j_data, Node* node, rapidjson::Document& doc);
 
 
     inline bool IsSlotHovered(ImVec2 center_pos) const /// Slots can't use the "InvisibleButton" technique because it won't work when dragging.

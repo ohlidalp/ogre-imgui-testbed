@@ -120,7 +120,7 @@
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>D:\Lib\angelscript_2.31.2\sdk\angelscript\include;D:\Source\armadillo-7.950.1\include;lib\DearIMGUI_OGRE;lib\DearIMGUI;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\Ois;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\Ois;C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Lib\angelscript_2.31.2\sdk\angelscript\include;D:\Source\armadillo-7.950.1\include;lib\DearIMGUI_OGRE;lib;lib\DearIMGUI;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\Ois;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\Ois;C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
