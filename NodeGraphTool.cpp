@@ -485,6 +485,10 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         if (node->method == TransformNode::Method::FIR_DIRECT)
         {
             ImGui::InputText("Coefs", node->input_field, sizeof(node->input_field));
+            if (ImGui::SmallButton("Submit coefs"))
+            {
+                strcpy(node->coefs_str, node->input_field);
+            }
         }
 
         this->DrawNodeFinalize(node);
@@ -954,6 +958,11 @@ void RoR::NodeGraphTool::Buffer::CopyResetOffset(Buffer* src) // Copies source b
     this->data_offset = 0;
 }
 
+void RoR::NodeGraphTool::Buffer::Fill(const float* const src, int offset, int len) // offset: default=0; len: default=Buffer::SIZE
+{
+    memcpy(this->data_buffer + offset, src, len);
+}
+
 // -------------------------------- Script node -----------------------------------
 
 RoR::NodeGraphTool::ScriptNode::ScriptNode(NodeGraphTool* _nodegraph, ImVec2 _pos):
@@ -1123,19 +1132,22 @@ RoR::NodeGraphTool::TransformNode::TransformNode(ImVec2 _pos):Node() // Data off
     pos = _pos;
     method = Method::NONE;
     memset(input_field, 0, sizeof(input_field));
+    memset(coefs_str, 0, sizeof(coefs_str));
+    sprintf(input_field, "3.0 2.0 1.0");
+    sprintf(coefs_str, "3.0 2.0 1.0");
     done = false;
 }
 
 void RoR::NodeGraphTool::TransformNode::ApplyFirDirect()
 {
     sp::FIR_filt<float, float, float> fir;
-    arma::fvec coefs = input_field;
+    arma::fvec coefs = coefs_str;
     fir.set_coeffs(coefs);
 
     Buffer src0; // Copy of source with 0-offset
     src0.CopyResetOffset(links_in[0]->node_src);
-    arma::fvec src_vec(src0.data_buffer, static_cast<arma::uword>(Buffer::SIZE), true); // copy memory
-    arma::fvec dst_vec(static_cast<arma::uword>(Buffer::SIZE));
+    arma::fvec src_vec(src0.data_buffer, static_cast<arma::uword>(Buffer::SIZE), false, true); // use memory in-place, strict mode
+    arma::fvec dst_vec(this->data_buffer, static_cast<arma::uword>(Buffer::SIZE), false, true); // ...same...
 
     dst_vec = fir.filter(src_vec);
 }

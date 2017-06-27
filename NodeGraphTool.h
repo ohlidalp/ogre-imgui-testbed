@@ -204,6 +204,7 @@ public:
         bool Process();
 
         char input_field[100];
+        char coefs_str[100];
         Method method;
         bool done;
     };
