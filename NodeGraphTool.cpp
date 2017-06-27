@@ -587,44 +587,38 @@ void RoR::NodeGraphTool::SaveAsJson()
 
     // EXPORT NODES
 
-    rapidjson::Value j_gen_nodes(rapidjson::kArrayType);
-    for (GeneratorNode* gen_node: m_gen_nodes)
-    {
-        rapidjson::Value j_data(rapidjson::kObjectType);
-        this->NodeToJson(j_data, gen_node, doc);
-        j_data.AddMember("amplitude", gen_node->amplitude, j_alloc);
-        j_data.AddMember("frequency", gen_node->frequency, j_alloc);
-        j_data.AddMember("noise_max", gen_node->noise_max, j_alloc);
-        j_gen_nodes.PushBack(j_data, j_alloc);
-    }
-
     rapidjson::Value j_xform_nodes(rapidjson::kArrayType);
     rapidjson::Value j_disp_nodes(rapidjson::kArrayType);
     rapidjson::Value j_script_nodes(rapidjson::kArrayType);
-    for (Node* node: m_all_nodes)
+    rapidjson::Value j_gen_nodes(rapidjson::kArrayType);
+    for (Node* node: m_nodes)
     {
         rapidjson::Value j_data(rapidjson::kObjectType); // Common properties....
         this->NodeToJson(j_data, node, doc);
 
         switch (node->type) // Specifics...
         {
+        case Node::Type::GENERATOR:
+            j_data.AddMember("amplitude", static_cast<GeneratorNode*>(node)->amplitude, j_alloc);
+            j_data.AddMember("frequency", static_cast<GeneratorNode*>(node)->frequency, j_alloc);
+            j_data.AddMember("noise_max", static_cast<GeneratorNode*>(node)->noise_max, j_alloc);
+            j_gen_nodes.PushBack(j_data, j_alloc);
+            break;
+
         case Node::Type::TRANSFORM:
-        {
             j_data.AddMember("method_id", static_cast<int>(static_cast<TransformNode*>(node)->method), j_alloc);
             j_xform_nodes.PushBack(j_data, j_alloc);
             break;
-        }
+
         case Node::Type::DISPLAY:
-        {
             j_disp_nodes.PushBack(j_data, j_alloc);
             break;
-        }
+
         case Node::Type::SCRIPT:
-        {
             j_data.AddMember("source_code", rapidjson::StringRef(static_cast<ScriptNode*>(node)->code_buf), j_alloc);
             j_script_nodes.PushBack(j_data, j_alloc);
             break;
-        }
+
         } // end switch
     }
 
@@ -712,12 +706,12 @@ void RoR::NodeGraphTool::LoadFromJson()
         rapidjson::Value::ConstValueIterator endi = j_gen.End();
         for (; itor != endi; ++itor)
         {
-            GeneratorNode* node = new GeneratorNode(ImVec2());
+            GeneratorNode* node = new GeneratorNode(this, ImVec2());
             this->JsonToNode(node, *itor);
             node->amplitude = (*itor)["amplitude"].GetFloat();
             node->frequency = (*itor)["frequency"].GetFloat();
             node->noise_max = (*itor)["noise_max"].GetInt();
-            m_gen_nodes.push_back(node);
+            m_nodes.push_back(node);
             lookup.insert(std::make_pair(node->id, node));
         }
     }
@@ -729,9 +723,9 @@ void RoR::NodeGraphTool::LoadFromJson()
         rapidjson::Value::ConstValueIterator endi = j_array.End();
         for (; itor != endi; ++itor)
         {
-            DisplayNode* node = new DisplayNode(ImVec2());
+            DisplayNode* node = new DisplayNode(this, ImVec2());
             this->JsonToNode(node, *itor);
-            m_all_nodes.push_back(node);
+            m_nodes.push_back(node);
             lookup.insert(std::make_pair(node->id, node));
         }
     }
@@ -743,10 +737,10 @@ void RoR::NodeGraphTool::LoadFromJson()
         rapidjson::Value::ConstValueIterator endi = j_array.End();
         for (; itor != endi; ++itor)
         {
-            TransformNode* node = new TransformNode(ImVec2());
+            TransformNode* node = new TransformNode(this, ImVec2());
             this->JsonToNode(node, *itor);
             node->method = static_cast<TransformNode::Method>((*itor)["method_id"].GetInt());
-            m_xform_nodes.push_back(node);
+            m_nodes.push_back(node);
             lookup.insert(std::make_pair(node->id, node));
         }
     }
@@ -761,7 +755,7 @@ void RoR::NodeGraphTool::LoadFromJson()
             ScriptNode* node = new ScriptNode(this, ImVec2());
             this->JsonToNode(node, *itor);
             strncpy(node->code_buf, (*itor)["source_code"].GetString(), IM_ARRAYSIZE(node->code_buf));
-            m_script_nodes.push_back(node);
+            m_nodes.push_back(node);
             lookup.insert(std::make_pair(node->id, node));
         }
     }
@@ -777,11 +771,8 @@ void RoR::NodeGraphTool::LoadFromJson()
         for (; itor != endi; ++itor)
         {
             Link* link = new Link();
-            link->node_src = lookup.find((*itor)["node_src_id"].GetInt())->second;
-            link->node_dst = lookup.find((*itor)["node_dst_id"].GetInt())->second;
-            link->slot_src = (*itor)["slot_src"].GetInt();
-            link->slot_dst = (*itor)["slot_dst"].GetInt();
-            this->NodeLinkChanged(link, true); // Notify link added
+            lookup.find((*itor)["node_src_id"].GetInt())->second->BindSrc(link, (*itor)["slot_src"].GetInt());
+            lookup.find((*itor)["node_dst_id"].GetInt())->second->BindDst(link, (*itor)["slot_dst"].GetInt());
             m_links.push_back(link);
         }
     }
@@ -813,13 +804,16 @@ template<typename N> void DeleteNodeFromVector(std::vector<N*>& vec, RoR::NodeGr
 
 void RoR::NodeGraphTool::DeleteNode(Node* node)
 {
-    switch (node->type)
+    auto itor = m_nodes.begin();
+    auto endi = m_nodes.end();
+    for (; itor != endi; ++itor)
     {
-    case Node::Type::DISPLAY:   DeleteNodeFromVector<DisplayNode>  (m_disp_nodes,   node); return;
-    case Node::Type::GENERATOR: DeleteNodeFromVector<GeneratorNode>(m_gen_nodes,    node); return;
-    case Node::Type::TRANSFORM: DeleteNodeFromVector<TransformNode>(m_xform_nodes,  node); return;
-    case Node::Type::SCRIPT:    DeleteNodeFromVector<ScriptNode>   (m_script_nodes, node); return;
-    default: return;
+        if (*itor == node)
+        {
+            m_nodes.erase(itor);
+            delete node;
+            return;
+        }
     }
 }
 
@@ -831,7 +825,7 @@ void RoR::NodeGraphTool::DetachAndDeleteNode(Node* node)
         Link* found_link = this->FindLinkByDestination(node, i);
         if (found_link != nullptr)
         {
-            this->NodeLinkChanged(found_link, false); // Detaches link from nodes
+            node->DetachLink(found_link);
             this->DeleteLink(found_link); // De-allocates link
         }
     }
@@ -841,7 +835,7 @@ void RoR::NodeGraphTool::DetachAndDeleteNode(Node* node)
         Link* found_link = this->FindLinkBySource(node, i);
         if (found_link != nullptr)
         {
-            this->NodeLinkChanged(found_link, false); // Detaches link from nodes
+            node->DetachLink(found_link);
             this->DeleteLink(found_link); // De-allocates link
         }
     }
