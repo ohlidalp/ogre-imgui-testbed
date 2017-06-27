@@ -83,18 +83,34 @@ public:
         int slot_dst;
     };
 
-    struct Node
+    struct Buffer
+    {
+        static const int SIZE = 2000; // Physics tick is 2Khz
+
+        Buffer(): data_offset(0)
+        {
+            memset(data_buffer, 0, sizeof(float)*Buffer::SIZE);
+        }
+
+        void CopyKeepOffset(Buffer* src); ///< Copies source buffer as-is, including the offset; fastest
+        void CopyResetOffset(Buffer* src); ///< Copies source buffer with 0-offset
+        void Fill(const float* const src, int offset=0, int len=SIZE);
+
+        float data_buffer[Buffer::SIZE];
+        int data_offset;
+    };
+
+    struct Node: public Buffer // TODO: Make node a container of buffers, not single buffer itself.
     {
         enum class Type { INVALID, GENERATOR, TRANSFORM, SCRIPT, DISPLAY };
-        static const int BUF_SIZE = 2000; // Physics tick is 2Khz
 
-        Node(): num_inputs(0), num_outputs(0), pos(100.f, 100.f), type(Type::INVALID), data_offset(0)
+        Node(): Buffer(), num_inputs(0), num_outputs(0), pos(100.f, 100.f), type(Type::INVALID)
         {
             static int new_id = 1;
             id = new_id;
             ++new_id;
             memset(links_in, 0, sizeof(links_in));
-            memset(data_buffer, 0, sizeof(float)*Node::BUF_SIZE);
+            
         }
 
         size_t num_inputs;
@@ -107,8 +123,6 @@ public:
         Type type;
         bool done; // Are data ready in this processing step?
         Link* links_in[MAX_SLOTS];
-        float data_buffer[Node::BUF_SIZE];
-        int data_offset;
 
         inline ImVec2 GetInputSlotPos(size_t slot_idx)  { return ImVec2(pos.x,               pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_inputs+1)))); }
         inline ImVec2 GetOutputSlotPos(size_t slot_idx) { return ImVec2(pos.x + calc_size.x, pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_outputs+1)))); }
@@ -152,7 +166,7 @@ public:
 
         float frequency; // Hz
         float amplitude;
-        float noise_max;
+        int noise_max;
         float elapsed;
     };
 
@@ -161,7 +175,7 @@ public:
         ScriptNode(NodeGraphTool* _nodegraph, ImVec2 _pos);
         void InitScripting();
         void Apply();
-        void  Exec();
+        bool Process(); ///< @return false if waiting for data, true if processed/nothing to process.
         // Script functions
         float Read(int slot, int offset);
         void  Write(float val);
@@ -184,17 +198,10 @@ public:
             FIR_ADAPTIVE
         };
 
-        TransformNode(ImVec2 _pos):Node() // Data offset is always '0' here
-        {
-            num_inputs = 1;
-            num_outputs = 1;
-            done = false;
-            type = Type::TRANSFORM;
-            pos = _pos;
-            method = Method::NONE;
-            memset(input_field, 0, sizeof(input_field));
-            done = false;
-        }
+        TransformNode(ImVec2 _pos);
+
+        void ApplyFirDirect();
+        bool Process();
 
         char input_field[100];
         Method method;
@@ -236,6 +243,7 @@ private:
     void            DrawGrid ();
     void            DrawLink(Link* link);
     void            DeleteLink(Link* link);
+    void            DeleteNode(Node* node);
     void            DrawNodeBegin(Node* node);
     void            DrawNodeFinalize(Node* node);
     void            NodeLinkChanged(Link* link, bool added);
@@ -243,6 +251,7 @@ private:
     void            NodeToJson(rapidjson::Value& j_data, Node* node, rapidjson::Document& doc);
     void            JsonToNode(Node* node, const rapidjson::Value& j_object);
     void            ScriptMessageCallback(const asSMessageInfo *msg, void *param);
+    void            DetachAndDeleteNode(Node* node);
 
 
     inline bool IsSlotHovered(ImVec2 center_pos) const /// Slots can't use the "InvisibleButton" technique because it won't work when dragging.
@@ -267,6 +276,8 @@ private:
     ImVec2     m_scroll;
     ImVec2     m_scroll_offset;
     ImVec2     m_nodegraph_mouse_pos;
+    Node*      m_hovered_node;
+    Node*      m_context_menu_node;
     Node*      m_hovered_slot_node;
     int        m_hovered_slot_input;  // -1 = none
     int        m_hovered_slot_output; // -1 = none

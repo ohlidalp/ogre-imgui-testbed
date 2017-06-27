@@ -20,6 +20,8 @@ RoR::NodeGraphTool::NodeGraphTool():
         m_link_mouse_src(nullptr),
         m_link_mouse_dst(nullptr),
         m_hovered_slot_node(nullptr),
+        m_hovered_node(nullptr),
+        m_context_menu_node(nullptr),
         m_header_mode(HeaderMode::NORMAL),
         m_hovered_slot_input(-1),
         m_hovered_slot_output(-1)
@@ -172,8 +174,18 @@ void RoR::NodeGraphTool::PhysicsTick()
     for (GeneratorNode* gen_node: m_gen_nodes)
     {
         gen_node->elapsed += 0.002f;
-        gen_node->data_offset = (gen_node->data_offset + 1) % Node::BUF_SIZE;
-        gen_node->data_buffer[gen_node->data_offset] = cosf((gen_node->elapsed / 2.f) * 3.14f * gen_node->frequency) * gen_node->amplitude;
+        gen_node->data_offset = (gen_node->data_offset + 1) % Buffer::SIZE;
+        float result = cosf((gen_node->elapsed / 2.f) * 3.14f * gen_node->frequency) * gen_node->amplitude;
+
+        // add noise
+        if (gen_node->noise_max != 0)
+        {
+            int r = rand() % gen_node->noise_max;
+            result += static_cast<float>((r*2)-r) * 0.1f;
+        }
+
+        // save to buffer
+        gen_node->data_buffer[gen_node->data_offset] = result;
     }
     this->CalcGraph();
 }
@@ -313,6 +325,9 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
     drawlist->AddRect(node->draw_rect_min, draw_rect_max, border_color, m_style.node_rounding);
 
     ImGui::PopID();
+
+    if (is_hovered)
+        m_hovered_node = node;
 }
 
 void RoR::NodeGraphTool::NodeLinkChanged(Link* link, bool added)
@@ -390,16 +405,22 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
     // Draw grid
     this->DrawGrid();
 
-    // Draw links
+    // DRAW LINKS
+
     drawlist->ChannelsSetCurrent(0);
     for (Link* link: m_links)
     {
         this->DrawLink(link);
     }
 
+    // DRAW NODES
+    m_hovered_node = nullptr;
+
     for (GeneratorNode* node: m_gen_nodes)
     {
         this->DrawNodeBegin(node);
+
+        ImGui::Text("Sine generator");
 
         float freq = node->frequency;
         if (ImGui::InputFloat("Freq", &freq))
@@ -411,6 +432,12 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         if (ImGui::InputFloat("Ampl", &ampl))
         {
             node->amplitude = ampl;
+        }
+
+        int noise = node->noise_max;
+        if (ImGui::InputInt("Noise", &noise))
+        {
+            node->noise_max = noise;
         }
 
         this->DrawNodeFinalize(node);
@@ -435,7 +462,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             data_offset = node_src->data_offset;
             stride = sizeof(float);
             title = "";
-            data_length = Node::BUF_SIZE;
+            data_length = Buffer::SIZE;
         }
         const float PLOT_MIN = -1.7f;//std::numeric_limits<float>::min();
         const float PLOT_MAX = +1.7f; //std::numeric_limits<float>::max();
@@ -487,14 +514,18 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
     }
 
     // Open context menu
-    bool open_context_menu = false;
-    if (!ImGui::IsAnyItemHovered() && ImGui::IsMouseHoveringWindow() && ImGui::IsMouseClicked(1))
+    if (ImGui::IsMouseHoveringWindow() && ImGui::IsMouseClicked(1))
     {
-        open_context_menu = true;
-    }
-    if (open_context_menu)
-    {
-        ImGui::OpenPopup("context_menu");
+        if (!ImGui::IsAnyItemHovered())
+        {
+            ImGui::OpenPopup("context_menu");
+            m_context_menu_node = nullptr;
+        }
+        else if (m_hovered_node != nullptr)
+        {
+            m_context_menu_node = m_hovered_node;
+            ImGui::OpenPopup("context_menu");
+        }
     }
 
     // Draw context menu
@@ -502,21 +533,41 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
     if (ImGui::BeginPopup("context_menu"))
     {
         ImVec2 scene_pos = ImGui::GetMousePosOnOpeningCurrentPopup() - m_scroll_offset;
-        ImGui::Text("New node:");
-        if (ImGui::MenuItem("Generator"))
+        if (m_context_menu_node != nullptr)
         {
-            m_gen_nodes.push_back(new GeneratorNode(scene_pos));
+            ImGui::Text("Existing node:");
+            if (ImGui::MenuItem("Delete"))
+            {
+                this->DetachAndDeleteNode(m_context_menu_node);
+                m_context_menu_node = nullptr;
+            }
         }
-        if (ImGui::MenuItem("Display"))
+        else
         {
-            m_disp_nodes.push_back(new DisplayNode(scene_pos));
-        }
-        if (ImGui::MenuItem("Script"))
-        {
-            m_script_nodes.push_back(new ScriptNode(this, scene_pos));
-            m_script_nodes.back()->InitScripting();
+            ImGui::Text("New node:");
+            if (ImGui::MenuItem("Generator"))
+            {
+                m_gen_nodes.push_back(new GeneratorNode(scene_pos));
+            }
+            if (ImGui::MenuItem("Display"))
+            {
+                m_disp_nodes.push_back(new DisplayNode(scene_pos));
+            }
+            if (ImGui::MenuItem("Transform"))
+            {
+                m_xform_nodes.push_back(new TransformNode(scene_pos));
+            }
+            if (ImGui::MenuItem("Script"))
+            {
+                m_script_nodes.push_back(new ScriptNode(this, scene_pos));
+                m_script_nodes.back()->InitScripting();
+            }
         }
         ImGui::EndPopup();
+    }
+    else
+    {
+        m_context_menu_node = nullptr;
     }
     ImGui::PopStyleVar();
 
@@ -530,19 +581,6 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
     drawlist->ChannelsMerge();
 }
 
-/* TODO
-void Sigpack_FIR_Direct(RoR::NodeGraphTool::TransformNode* node, float* src_data)
-{
-    sp::FIR_filt<float, float, float> G;
-    arma::fvec b = node->input_field;
-    G.set_coeffs(b);
-
-    arma::fvec input_vec(2000);
-    for (int i = 0; i < 2000; ++i)
-        input_vec(i) = node->data_buffer[i];
-
-}*/
-
 void RoR::NodeGraphTool::CalcGraph()
 {
     // Reset states
@@ -555,7 +593,7 @@ void RoR::NodeGraphTool::CalcGraph()
         n->done = false;
     }
 
-    bool keep_working = false;
+    bool all_done = true;
     do
     {
         for (TransformNode* n: m_xform_nodes)
@@ -563,24 +601,8 @@ void RoR::NodeGraphTool::CalcGraph()
             if (n->done)
                 continue; // Next, please
 
-            if (n->links_in[0] == nullptr)
-            {
-                n->done = true; // Nothing to transform here
-                continue;
-            }
-
-            Node* node_src = n->links_in[0]->node_src;
-            int slot_src = n->links_in[0]->slot_src;
-            if (! node_src->done)
-            {
-                keep_working = true;
-                continue; // Not ready for processing yet
-            }
-
-            // Get data
-            memcpy(n->data_buffer, node_src->data_buffer, 2000*sizeof(float));
-            n->data_offset = node_src->data_offset;
-            n->done = true;
+            if (! n->Process())
+                all_done = false; // We need another round
         }
 
         for (ScriptNode* n: m_script_nodes)
@@ -588,10 +610,11 @@ void RoR::NodeGraphTool::CalcGraph()
             if (n->done)
                 continue; // Next, please
 
-            n->Exec();
+            if (! n->Process())
+                all_done = false; // We need another round
         }
     }
-    while (keep_working);
+    while (!all_done);
 }
 
 void RoR::NodeGraphTool::ScriptMessageCallback(const asSMessageInfo *msg, void *param)
@@ -649,6 +672,7 @@ void RoR::NodeGraphTool::SaveAsJson()
         this->NodeToJson(j_data, gen_node, doc);
         j_data.AddMember("amplitude", gen_node->amplitude, j_alloc);
         j_data.AddMember("frequency", gen_node->frequency, j_alloc);
+        j_data.AddMember("noise_max", gen_node->noise_max, j_alloc);
         j_gen_nodes.PushBack(j_data, j_alloc);
     }
 
@@ -766,6 +790,7 @@ void RoR::NodeGraphTool::LoadFromJson()
             this->JsonToNode(node, *itor);
             node->amplitude = (*itor)["amplitude"].GetFloat();
             node->frequency = (*itor)["frequency"].GetFloat();
+            node->noise_max = (*itor)["noise_max"].GetInt();
             m_gen_nodes.push_back(node);
             lookup.insert(std::make_pair(node->id, node));
         }
@@ -859,7 +884,77 @@ void RoR::NodeGraphTool::ClearAll()
     m_xform_nodes.clear();
 }
 
-// -------------------------------- Nodes -----------------------------------
+template<typename N> void DeleteNodeFromVector(std::vector<N*>& vec, RoR::NodeGraphTool::Node* node)
+{
+    for (auto itor = vec.begin(); itor != vec.end(); ++itor)
+    {
+        if (*itor == node)
+        {
+            delete node;
+            vec.erase(itor);
+            return;
+        }
+    }
+}
+
+void RoR::NodeGraphTool::DeleteNode(Node* node)
+{
+    switch (node->type)
+    {
+    case Node::Type::DISPLAY:   DeleteNodeFromVector<DisplayNode>  (m_disp_nodes,   node); return;
+    case Node::Type::GENERATOR: DeleteNodeFromVector<GeneratorNode>(m_gen_nodes,    node); return;
+    case Node::Type::TRANSFORM: DeleteNodeFromVector<TransformNode>(m_xform_nodes,  node); return;
+    case Node::Type::SCRIPT:    DeleteNodeFromVector<ScriptNode>   (m_script_nodes, node); return;
+    default: return;
+    }
+}
+
+void RoR::NodeGraphTool::DetachAndDeleteNode(Node* node)
+{
+    // Disconnect inputs
+    for (int i = 0; i<node->num_inputs; ++i)
+    {
+        Link* found_link = this->FindLinkByDestination(node, i);
+        if (found_link != nullptr)
+        {
+            this->NodeLinkChanged(found_link, false); // Detaches link from nodes
+            this->DeleteLink(found_link); // De-allocates link
+        }
+    }
+    // Disconnect outputs
+    for (int i=0; i< node->num_outputs; ++i)
+    {
+        Link* found_link = this->FindLinkBySource(node, i);
+        if (found_link != nullptr)
+        {
+            this->NodeLinkChanged(found_link, false); // Detaches link from nodes
+            this->DeleteLink(found_link); // De-allocates link
+        }
+    }
+    // Erase the node
+    this->DeleteNode(node);
+}
+
+// -------------------------------- Buffer object -----------------------------------
+
+void RoR::NodeGraphTool::Buffer::CopyKeepOffset(Buffer* src) // Copies source buffer as-is, including the offset; fastest
+{
+    memcpy(this->data_buffer, src->data_buffer, Buffer::SIZE*sizeof(float));
+    this->data_offset = src->data_offset;
+}
+
+void RoR::NodeGraphTool::Buffer::CopyResetOffset(Buffer* src) // Copies source buffer with 0-offset
+{
+    // Upper portion
+    int src_upper_size = (Buffer::SIZE - src->data_offset);
+    memcpy(this->data_buffer, src->data_buffer + src->data_offset, src_upper_size*sizeof(float));
+    // Lower portion
+    memcpy(this->data_buffer + src_upper_size, src->data_buffer, src->data_offset*sizeof(float));
+    // Reset offset
+    this->data_offset = 0;
+}
+
+// -------------------------------- Script node -----------------------------------
 
 RoR::NodeGraphTool::ScriptNode::ScriptNode(NodeGraphTool* _nodegraph, ImVec2 _pos):
     Node(), nodegraph(_nodegraph), script_func(nullptr), script_engine(nullptr), script_context(nullptr)
@@ -959,12 +1054,12 @@ float RoR::NodeGraphTool::ScriptNode::Read(int slot, int offset)
     if (slot < 0 || slot > (num_inputs - 1) || links_in[slot] == nullptr)
         return 0.f;
 
-    if (offset > 0 || offset < -(Node::BUF_SIZE - 1))
+    if (offset > 0 || offset < -(Buffer::SIZE - 1))
         return 0.f;
 
     Node* src_node = links_in[slot]->node_src;
     int pos = (src_node->data_offset + offset);
-    pos = (pos < 0) ? (pos + Node::BUF_SIZE) : pos;
+    pos = (pos < 0) ? (pos + Buffer::SIZE) : pos;
     return src_node->data_buffer[pos];
 }
 
@@ -973,10 +1068,13 @@ void RoR::NodeGraphTool::ScriptNode::Write(float val)
     data_buffer[data_offset] = val;
 }
 
-void RoR::NodeGraphTool::ScriptNode::Exec()
+bool RoR::NodeGraphTool::ScriptNode::Process()
 {
     if (! enabled)
-        return;
+    {
+        this->done = true;
+        return true;
+    }
 
     bool ready = true; // If completely disconnected, we're good to go. Otherwise, all inputs must be ready.
     for (int i=0; i<num_inputs; ++i)
@@ -986,7 +1084,7 @@ void RoR::NodeGraphTool::ScriptNode::Exec()
     }
 
     if (! ready)
-        return;
+        return false;
 
     int prep_result = script_context->Prepare(script_func);
     if (prep_result < 0)
@@ -995,7 +1093,8 @@ void RoR::NodeGraphTool::ScriptNode::Exec()
         script_engine->ReturnContext(script_context);
         script_context = nullptr;
         enabled = false;
-        return;
+        done = true;
+        return true;
     }
 
     int exec_result = script_context->Execute();
@@ -1005,9 +1104,71 @@ void RoR::NodeGraphTool::ScriptNode::Exec()
         script_engine->ReturnContext(script_context);
         script_context = nullptr;
         enabled = false;
+        done = true;
     }
 
-    data_offset = (data_offset+1)%Node::BUF_SIZE;
+    data_offset = (data_offset+1)%Buffer::SIZE;
     done = true;
+    return true;
+}
+
+// -------------------------------- Transform node -----------------------------------
+
+RoR::NodeGraphTool::TransformNode::TransformNode(ImVec2 _pos):Node() // Data offset is always '0' here
+{
+    num_inputs = 1;
+    num_outputs = 1;
+    done = false;
+    type = Type::TRANSFORM;
+    pos = _pos;
+    method = Method::NONE;
+    memset(input_field, 0, sizeof(input_field));
+    done = false;
+}
+
+void RoR::NodeGraphTool::TransformNode::ApplyFirDirect()
+{
+    sp::FIR_filt<float, float, float> fir;
+    arma::fvec coefs = input_field;
+    fir.set_coeffs(coefs);
+
+    Buffer src0; // Copy of source with 0-offset
+    src0.CopyResetOffset(links_in[0]->node_src);
+    arma::fvec src_vec(src0.data_buffer, static_cast<arma::uword>(Buffer::SIZE), true); // copy memory
+    arma::fvec dst_vec(static_cast<arma::uword>(Buffer::SIZE));
+
+    dst_vec = fir.filter(src_vec);
+}
+
+bool RoR::NodeGraphTool::TransformNode::Process() // Ret: false if it's waiting for data
+{
+    if (this->links_in[0] == nullptr)
+    {
+        this->done = true; // Nothing to transform here
+        return true;
+    }
+
+    Node* node_src = this->links_in[0]->node_src;
+    int slot_src = this->links_in[0]->slot_src;
+    if (! node_src->done)
+    {
+        return false; // data not ready
+    }
+
+    switch (this->method)
+    {
+    case Method::NONE: // Pass-thru
+        this->CopyKeepOffset(node_src);
+        this->done = true;
+        return true;
+
+    case Method::FIR_DIRECT:
+        this->ApplyFirDirect();
+        this->done = true;
+        return true;
+
+    default: return true;
+    }
+
 }
 
