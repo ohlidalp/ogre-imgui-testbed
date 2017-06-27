@@ -36,7 +36,6 @@ struct Vec3 { float x, y, z; };
 class NodeGraphTool
 {
 public:
-    static const int MAX_SLOTS = 8;
 
     struct Style
     {
@@ -71,48 +70,58 @@ public:
 
     struct Node; // Forward
 
-    struct Link
-    {
-        Link(): node_src(nullptr), node_dst(nullptr), slot_src(-1), slot_dst(-1) {}
-
-        Link(Node* src_n, Node* dst_n, int src_s, int dst_s): node_src(src_n), node_dst(dst_n), slot_src(src_s), slot_dst(dst_s) {}
-
-        Node* node_src;
-        Node* node_dst;
-        int slot_src;
-        int slot_dst;
-    };
-
+    /// An output buffer of a node. 1 buffer = 1 output slot.
     struct Buffer
     {
         static const int SIZE = 2000; // Physics tick is 2Khz
 
-        Buffer(): data_offset(0)
+        Buffer(int _slot): offset(0), slot(_slot)
         {
-            memset(data_buffer, 0, sizeof(float)*Buffer::SIZE);
+            memset(data, 0, sizeof(float)*Buffer::SIZE);
         }
 
-        void CopyKeepOffset(Buffer* src); ///< Copies source buffer as-is, including the offset; fastest
-        void CopyResetOffset(Buffer* src); ///< Copies source buffer with 0-offset
-        void Fill(const float* const src, int offset=0, int len=SIZE);
+        void            CopyKeepOffset(Buffer* src);                                ///< Copies source buffer as-is, including the offset; fastest
+        void            CopyResetOffset(Buffer* src);                               ///< Copies source buffer, transforms the offset to 0
+        void            Fill(const float* const src, int offset=0, int len=SIZE);
+        inline void     Push(float entry)                                           { data[offset] = entry; this->Step(); }
+        inline void     Step()                                                      { offset = (offset+1)%SIZE; }
 
-        float data_buffer[Buffer::SIZE];
-        int data_offset;
+        float data[Buffer::SIZE];
+        int offset;
+        int slot;
     };
 
-    struct Node: public Buffer // TODO: Make node a container of buffers, not single buffer itself.
+    struct Link
     {
-        enum class Type { INVALID, GENERATOR, TRANSFORM, SCRIPT, DISPLAY };
+        Link(): node_src(nullptr), node_dst(nullptr), slot_dst(-1), buff_src(nullptr) {}
 
-        Node(): Buffer(), num_inputs(0), num_outputs(0), pos(100.f, 100.f), type(Type::INVALID)
+        Link(Node* src_n, Node* dst_n, Buffer* src_b, int dst_s): node_src(src_n), node_dst(dst_n), buff_src(src_b), slot_dst(dst_s) {}
+
+        Node* node_src;
+        Node* node_dst;
+        int slot_dst;
+        Buffer* buff_src;
+    };
+
+    struct Node
+    {
+        enum class Type { INVALID, READING, GENERATOR, TRANSFORM, SCRIPT, DISPLAY };
+
+        Node(NodeGraphTool* _graph, ImVec2 _pos): graph(_graph), num_inputs(0), num_outputs(0), pos(_pos), type(Type::INVALID)
         {
-            static int new_id = 1;
-            id = new_id;
-            ++new_id;
-            memset(links_in, 0, sizeof(links_in));
-            
+            id = _graph->AssignId();
         }
 
+        inline ImVec2 GetInputSlotPos(size_t slot_idx)  { return ImVec2(pos.x,               pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_inputs+1)))); }
+        inline ImVec2 GetOutputSlotPos(size_t slot_idx) { return ImVec2(pos.x + calc_size.x, pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_outputs+1)))); }
+
+        virtual bool Process() {}
+        virtual void BindSrc(Link* link, int slot) {}
+        virtual void BindDst(Link* link, int slot) {}
+        virtual void DetachLink(Link* link) {}
+        virtual void Draw() {}
+
+        NodeGraphTool* graph;
         size_t num_inputs;
         size_t num_outputs;
         ImVec2 pos;
@@ -122,52 +131,49 @@ public:
         int id;
         Type type;
         bool done; // Are data ready in this processing step?
-        Link* links_in[MAX_SLOTS];
-
-        inline ImVec2 GetInputSlotPos(size_t slot_idx)  { return ImVec2(pos.x,               pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_inputs+1)))); }
-        inline ImVec2 GetOutputSlotPos(size_t slot_idx) { return ImVec2(pos.x + calc_size.x, pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_outputs+1)))); }
     };
 
-    /* ############## TODO ##############
     /// reports XYZ position of node in world space
     /// Inputs: none
     /// Outputs(3): X position, Y position, Z position
     struct ReadingNode: public Node
     {
-        ReadingNode(ImVec2 _pos):Node()
+        ReadingNode(NodeGraphTool* _graph, ImVec2 _pos):
+            Node(_graph, _pos), buffer_x(0), buffer_y(1), buffer_z(2), softbody_node_id(-1)
         {
             num_inputs = 0;
             num_outputs = 3;
-            softbody_node_id = -1;
-            data_offset = 0;
-            memset(data_buffer, 0, sizeof(data_buffer));
-            type = Type::SOURCE;
-            pos = _pos;
-            done = true;
+            type = Type::READING;
         }
 
-        int softbody_node_id; // -1 means 'none'
-        Vec3 data_buffer[BUF_SIZE]; // 1 second worth of data
-        int data_offset;
+        bool Process() override { this->done = true; return true; }
+        void BindSrc(Link* link, int slot) override;
+        void Draw() override;
 
-        inline void PushData(Vec3 entry) { data_buffer[data_offset] = entry; data_offset = (data_offset+1)%2000; }
+        int softbody_node_id; // -1 means 'none'
+        Buffer buffer_x;
+        Buffer buffer_y;
+        Buffer buffer_z;
     };
-    */
 
     struct GeneratorNode: public Node
     {
-        GeneratorNode(ImVec2 _pos): Node(), amplitude(1.f), frequency(1.f), noise_max(0.f), elapsed(0.f)
+        GeneratorNode(NodeGraphTool* _graph, ImVec2 _pos):
+            Node(_graph, _pos), amplitude(1.f), frequency(1.f), noise_max(0.f), elapsed(0.f), buffer_out(0)
         {
             num_inputs = 0;
             num_outputs = 1;
-            pos = _pos;
-            done = true; // Always ready
         }
+
+        bool Process() override                          { this->done = true; return true; }
+        void BindSrc(Link* link, int slot) override      { if (slot == 0) { link->buff_src = &buffer_out; link->node_src = this; } }
+        void Draw() override;
 
         float frequency; // Hz
         float amplitude;
         int noise_max;
         float elapsed;
+        Buffer buffer_out;
     };
 
     struct ScriptNode: public Node
@@ -178,15 +184,16 @@ public:
         bool Process(); ///< @return false if waiting for data, true if processed/nothing to process.
         // Script functions
         float Read(int slot, int offset);
-        void  Write(float val);
+        void  Write(int slot, float val);
 
         char code_buf[1000];
-        NodeGraphTool* nodegraph;
         asIScriptContext* script_context;
         asIScriptEngine*  script_engine;
         asIScriptFunction* script_func;
         char node_name[10];
         bool enabled; // Disables itself on script error
+        Link* inputs[9];
+        Buffer outputs[9];
     };
 
     struct TransformNode: public Node
@@ -194,32 +201,46 @@ public:
         enum class Method
         {
             NONE, // Pass-through
-            FIR_DIRECT,
-            FIR_ADAPTIVE
+            FIR_PLAIN,
+            FIR_ADAPTIVE_LMS,
+            FIR_ADAPTIVE_RLS,
+            FIR_ADAPTIVE_NLMS
         };
 
-        TransformNode(ImVec2 _pos);
+        TransformNode(NodeGraphTool* nodegraph, ImVec2 _pos);
 
-        void ApplyFirDirect();
+        void ApplyFIR();
         bool Process();
+        void Draw();
 
-        char input_field[100];
-        char coefs_str[100];
+        char input_fir[100];
+        char coefs_fir[100];
+        float adapt_rls_lambda;
+        float adapt_rls_p0;
+        float adapt_nlms_step;
+        float adapt_nlms_regz; // "regularization factor"
         Method method;
+        Link* link_in;
+        Buffer buffer_out;
         bool done;
     };
 
     struct DisplayNode: public Node
     {
-        DisplayNode(ImVec2 _pos):Node()
+        DisplayNode(NodeGraphTool* nodegraph, ImVec2 _pos): Node(nodegraph, _pos), link_input(nullptr)
         {
-            pos = _pos;
             num_outputs = 0;
             num_inputs = 1;
             type = Type::DISPLAY;
             user_size = ImVec2(250.f, 85.f);
             done = false; // Irrelevant for this node type - no outputs
+            plot_extent = 1.5f;
         }
+
+        void Draw() override;
+
+        Link* link_input;
+        float plot_extent; // both min and max
     };
 
     void            SaveAsJson();                                                        ///< Filename specified by `m_filename`
@@ -236,6 +257,8 @@ private:
     inline bool     IsRectHovered(ImVec2 min, ImVec2 max) const                          { return this->IsInside(min, max, m_nodegraph_mouse_pos); }
     inline void     DrawInputSlot (Node* node, const int index)                          { this->DrawSlotUni(node, index, true); }
     inline void     DrawOutputSlot (Node* node, const int index)                         { this->DrawSlotUni(node, index, false); }
+    inline int      AssignId()                                                           { return m_free_id++; }
+    inline void     UpdateFreeId(int existing_id)                                        { if (existing_id >= m_free_id) { m_free_id = (existing_id + 1); } }
     void            DrawSlotUni (Node* node, const int index, const bool input);
     Link*           AddLink (Node* src, Node* dst, int src_slot, int dst_slot);          ///< creates new link or fetches existing unused one
     Link*           FindLinkByDestination (Node* node, const int slot);
@@ -247,7 +270,6 @@ private:
     void            DeleteNode(Node* node);
     void            DrawNodeBegin(Node* node);
     void            DrawNodeFinalize(Node* node);
-    void            NodeLinkChanged(Link* link, bool added);
     void            AddMessage(const char* fmt, ...);
     void            NodeToJson(rapidjson::Value& j_data, Node* node, rapidjson::Document& doc);
     void            JsonToNode(Node* node, const rapidjson::Value& j_object);
@@ -262,13 +284,9 @@ private:
         return this->IsInside(min, max, m_nodegraph_mouse_pos);
     }
 
-    //std::vector<ReadingNode*>   m_read_nodes;
-    std::vector<TransformNode*> m_xform_nodes;
-    std::vector<DisplayNode*>   m_disp_nodes;
-    std::vector<GeneratorNode*> m_gen_nodes;
-    std::vector<ScriptNode*>    m_script_nodes;
-    std::vector<Link*>          m_links;
-    std::list<std::string>      m_messages;
+    std::vector<Node*>              m_nodes;
+    std::vector<Link*>              m_links;
+    std::list<std::string>          m_messages;
     char       m_directory[300];
     char       m_filename[100];
     char       m_motionsim_ip[40];
@@ -288,6 +306,7 @@ private:
     Node       m_fake_mouse_node;     ///< Used while dragging link with mouse
     Link*      m_link_mouse_src;      ///< Link being mouse-dragged by it's input end.
     Link*      m_link_mouse_dst;      ///< Link being mouse-dragged by it's output end.
+    int        m_free_id;
 };
 
 } // namespace RoR
