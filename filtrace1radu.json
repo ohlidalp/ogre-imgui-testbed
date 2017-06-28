@@ -1,0 +1,61 @@
+{
+    "generator_nodes": [
+        {
+            "pos_x": 48.0,
+            "pos_y": 89.0,
+            "user_size_x": 0.0,
+            "user_size_y": 0.0,
+            "id": 0,
+            "amplitude": 1.0,
+            "frequency": 1.0,
+            "noise_max": 15
+        }
+    ],
+    "transform_nodes": [],
+    "script_nodes": [
+        {
+            "pos_x": 268.0,
+            "pos_y": 193.0,
+            "user_size_x": 200.0,
+            "user_size_y": 100.0,
+            "id": 3,
+            "source_code": "float coef = 0.02;\nfloat a1 = 0;\n\nvoid step() {\nfloat a0 = Read(0,0);\nfloat z = \n    a1 + coef* (a0 - a1);\nWrite(0,z);\na1 = z;\n}"
+        }
+    ],
+    "display_nodes": [
+        {
+            "pos_x": 566.0,
+            "pos_y": 29.0,
+            "user_size_x": 250.0,
+            "user_size_y": 85.0,
+            "id": 1
+        },
+        {
+            "pos_x": 556.0,
+            "pos_y": 208.0,
+            "user_size_x": 250.0,
+            "user_size_y": 85.0,
+            "id": 2
+        }
+    ],
+    "links": [
+        {
+            "node_src_id": 0,
+            "node_dst_id": 1,
+            "slot_src": 0,
+            "slot_dst": 0
+        },
+        {
+            "node_src_id": 0,
+            "node_dst_id": 3,
+            "slot_src": 0,
+            "slot_dst": 0
+        },
+        {
+            "node_src_id": 3,
+            "node_dst_id": 2,
+            "slot_src": 0,
+            "slot_dst": 0
+        }
+    ]
+}

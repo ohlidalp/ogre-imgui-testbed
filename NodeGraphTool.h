@@ -130,11 +130,11 @@ public:
             num_outputs = 3;
         }
 
-        bool Process() override                             { this->done = true; return true; }
-        void BindSrc(Link* link, int slot) override;
-        //   BindDst() not needed - no inputs
-        //   DetachLink() not needed - no inputs
-        void Draw() override;
+        virtual bool Process() override                             { this->done = true; return true; }
+        virtual void BindSrc(Link* link, int slot) override;
+        //           BindDst() not needed - no inputs
+        virtual void DetachLink(Link* link);
+        virtual void Draw() override;
 
         int softbody_node_id; // -1 means 'none'
         Buffer buffer_x;
@@ -145,17 +145,17 @@ public:
     struct GeneratorNode: public Node
     {
         GeneratorNode(NodeGraphTool* _graph, ImVec2 _pos):
-            Node(_graph, Type::GENERATOR, _pos), amplitude(1.f), frequency(1.f), noise_max(0.f), elapsed(0.f), buffer_out(0)
+            Node(_graph, Type::GENERATOR, _pos), amplitude(1.f), frequency(1.f), noise_max(0), elapsed(0.f), buffer_out(0)
         {
             num_inputs = 0;
             num_outputs = 1;
         }
 
-        bool Process() override                          { this->done = true; return true; }
-        void BindSrc(Link* link, int slot) override      { if (slot == 0) { link->buff_src = &buffer_out; link->node_src = this; } }
+        virtual bool Process() override                          { this->done = true; return true; }
+        virtual void BindSrc(Link* link, int slot) override      { if (slot == 0) { link->buff_src = &buffer_out; link->node_src = this; } }
         //   BindDst() not needed - no inputs
-        //   DetachLink() not needed - no inputs
-        void Draw() override;
+        virtual void DetachLink(Link* link);
+        virtual void Draw() override;
 
         float frequency; // Hz
         float amplitude;
@@ -168,11 +168,11 @@ public:
     {
         ScriptNode(NodeGraphTool* _nodegraph, ImVec2 _pos);
         
-        bool Process() override;                          ///< @return false if waiting for data, true if processed/nothing to process.
-        void BindSrc(Link* link, int slot) override;
-        void BindDst(Link* link, int slot) override;
-        void DetachLink(Link* link) override;
-        void Draw() override;
+        virtual bool Process() override;                          ///< @return false if waiting for data, true if processed/nothing to process.
+        virtual void BindSrc(Link* link, int slot) override;
+        virtual void BindDst(Link* link, int slot) override;
+        virtual void DetachLink(Link* link) override;
+        virtual void Draw() override;
 
         // Script functions
         float Read(int slot, int offset);
