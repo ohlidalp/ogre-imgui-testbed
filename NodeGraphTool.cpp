@@ -985,6 +985,15 @@ void RoR::NodeGraphTool::ReadingNode::Draw()
 
 // -------------------------------- Script node -----------------------------------
 
+const char* EXAMPLE_CODE =
+    "// Static variables here"     "\n"
+    ""                             "\n"
+    "// Update func. (mandatory)"  "\n"
+    "void step() {"                "\n"
+    "    // Pass-thru"             "\n"
+    "    Write(0,Read(0,0));"      "\n"
+    "}";
+
 RoR::NodeGraphTool::ScriptNode::ScriptNode(NodeGraphTool* _graph, ImVec2 _pos):
     Node(_graph, Type::SCRIPT, _pos), 
     script_func(nullptr), script_engine(nullptr), script_context(nullptr), enabled(false),
@@ -993,6 +1002,7 @@ RoR::NodeGraphTool::ScriptNode::ScriptNode(NodeGraphTool* _graph, ImVec2 _pos):
     num_outputs = 9;
     num_inputs = 9;
     memset(code_buf, 0, sizeof(code_buf));
+    sprintf(code_buf, EXAMPLE_CODE);
     memset(inputs, 0, sizeof(inputs));
     user_size = ImVec2(250, 200);
     snprintf(node_name, 10, "Node %d", id);
