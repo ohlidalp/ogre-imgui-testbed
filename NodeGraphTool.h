@@ -49,14 +49,6 @@ public:
         Style();
     };
 
-    NodeGraphTool();
-
-    void Draw();
-    void PhysicsTick();
-    void CalcGraph();
-
-    struct Node; // Forward
-
     /// An output buffer of a node. 1 buffer = 1 output slot.
     struct Buffer
     {
@@ -77,6 +69,8 @@ public:
         int offset;
         int slot;
     };
+
+    struct Node; // forward decl.
 
     struct Link
     {
@@ -101,21 +95,21 @@ public:
         inline ImVec2 GetOutputSlotPos(size_t slot_idx) { return ImVec2(pos.x + calc_size.x, pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_outputs+1)))); }
 
         virtual bool Process() { return true; }
-        virtual void BindSrc(Link* link, int slot) {}
-        virtual void BindDst(Link* link, int slot) {}
+        virtual void BindSrc(Link* link, int slot) {} ///< Binds node output to link's SRC end.
+        virtual void BindDst(Link* link, int slot) {} ///< Binds node input to link's DST end.
         virtual void DetachLink(Link* link) {}
         virtual void Draw() {}
 
         NodeGraphTool* graph;
-        size_t num_inputs;
-        size_t num_outputs;
-        ImVec2 pos;
-        ImVec2 draw_rect_min; // Updated by `DrawNodeBegin()`
-        ImVec2 calc_size;
-        ImVec2 user_size;
-        int id;
-        Type type;
-        bool done; // Are data ready in this processing step?
+        int      num_inputs;
+        int      num_outputs;
+        ImVec2   pos;
+        ImVec2   draw_rect_min; // Updated by `DrawNodeBegin()`
+        ImVec2   calc_size;
+        ImVec2   user_size;
+        int      id;
+        Type     type;
+        bool     done; // Are data ready in this processing step?
     };
 
     /// reports XYZ position of node in world space
@@ -152,9 +146,9 @@ public:
         }
 
         virtual bool Process() override                          { this->done = true; return true; }
-        virtual void BindSrc(Link* link, int slot) override      { if (slot == 0) { link->buff_src = &buffer_out; link->node_src = this; } }
-        //   BindDst() not needed - no inputs
-        virtual void DetachLink(Link* link);
+        virtual void BindSrc(Link* link, int slot) override;
+        //           BindDst() not needed - no inputs
+        virtual void DetachLink(Link* link) override;
         virtual void Draw() override;
 
         float frequency; // Hz
@@ -194,51 +188,37 @@ public:
 
     struct TransformNode: public Node
     {
-        enum class Method
-        {
-            NONE, // Pass-through
-            FIR_PLAIN,
-            // TODO // FIR_ADAPTIVE_LMS,
-            // TODO // FIR_ADAPTIVE_RLS,
-            // TODO // FIR_ADAPTIVE_NLMS
-        };
-
         TransformNode(NodeGraphTool* nodegraph, ImVec2 _pos);
 
-        void ApplyFIR();
+        virtual bool Process() override                          { this->done = true; return true; }
+        virtual void BindSrc(Link* link, int slot) override      { assert(slot == 0); if (slot == 0) { link->node_src = this; link->buff_src = &buffer_out; } }
+        virtual void BindDst(Link* link, int slot) override      { assert(slot == 0); if (slot == 0) { link->node_dst = this; link->slot_dst = slot; link_in = link; } }
+        virtual void DetachLink(Link* link) override; // FINAL
+        virtual void Draw() override;
 
-        bool Process() override;
-        void BindSrc(Link* link, int slot) override      { if (slot == 0) { link->node_src = this; link->buff_src = &buffer_out; } }
-        void BindDst(Link* link, int slot) override      { if (slot == 0) { link->node_dst = this; link->slot_dst = slot; link_in = link; } }
-        void DetachLink(Link* link) override; // FINAL
-        void Draw() override;
-
-        char input_fir[100];
-        char coefs_fir[100];
-      //TODO  float adapt_rls_lambda;
-      //TODO  float adapt_rls_p0;
-      //TODO  float adapt_nlms_step;
-      //TODO  float adapt_nlms_regz; // "regularization factor"
-        Method method;
         Link* link_in;
         Buffer buffer_out;
-        bool done;
     };
 
     struct DisplayNode: public Node
     {
         DisplayNode(NodeGraphTool* nodegraph, ImVec2 _pos);
 
-        bool Process() override                             { this->done = true; return true; }
-        //   BindSrc() - this node has no outputs.
-        void BindDst(Link* link, int slot) override         { if (slot == 0) { link->node_dst = this; link->slot_dst = slot; link_in = link; } }
-        void DetachLink(Link* link) override; // FINAL
-        void Draw() override;
+        virtual bool Process() override                             { this->done = true; return true; }
+        //           BindSrc() - this node has no outputs.
+        virtual void BindDst(Link* link, int slot) override         { assert(slot==0); if (slot == 0) { link->node_dst = this; link->slot_dst = slot; link_in = link; } }
+        virtual void DetachLink(Link* link) override; // FINAL
+        virtual void Draw() override;
 
         Link* link_in;
         float plot_extent; // both min and max
     };
 
+    NodeGraphTool();
+
+    void            Draw();
+    void            PhysicsTick();
+    void            CalcGraph();
     void            SaveAsJson();                                                        ///< Filename specified by `m_filename`
     void            LoadFromJson();                                                      ///< Filename specified by `m_filename`
     void            SetFilename(const char* const filename)                              { strncpy(m_filename, filename, sizeof(m_filename)); }
@@ -271,6 +251,7 @@ private:
     void            JsonToNode(Node* node, const rapidjson::Value& j_object);
     void            ScriptMessageCallback(const asSMessageInfo *msg, void *param);
     void            DetachAndDeleteNode(Node* node);
+    void            DetachAndDeleteLink(Link* link);
 
 
     inline bool IsSlotHovered(ImVec2 center_pos) const /// Slots can't use the "InvisibleButton" technique because it won't work when dragging.

@@ -99,13 +99,13 @@ void RoR::NodeGraphTool::Draw()
     }
     ImGui::SameLine();
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 50.f);
-    ImGui::PushItemWidth(150.f);
-    ImGui::InputText("IP", m_motionsim_ip, IM_ARRAYSIZE(m_motionsim_ip));
-    ImGui::SameLine();
-    ImGui::InputInt("Port", &m_motionsim_port);
-    ImGui::PopItemWidth();
-    ImGui::SameLine();
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 50.f);
+  //TODO  ImGui::PushItemWidth(150.f);
+  //TODO  ImGui::InputText("IP", m_motionsim_ip, IM_ARRAYSIZE(m_motionsim_ip));
+  //TODO  ImGui::SameLine();
+  //TODO  ImGui::InputInt("Port", &m_motionsim_port);
+  //TODO  ImGui::PopItemWidth();
+  //TODO  ImGui::SameLine();
+  //TODO  ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 50.f);
     static bool transmit = false;
     ImGui::Checkbox("Transmit", &transmit); // TODO: Enable/disable networking
 
@@ -250,12 +250,12 @@ void RoR::NodeGraphTool::DrawSlotUni(Node* node, const int index, const bool inp
                 node->DetachLink(link);
                 if (input)
                 {
-                    link->node_dst = &m_fake_mouse_node;
+                    m_fake_mouse_node.BindDst(link, 0);
                     m_link_mouse_dst = link;
                 }
                 else
                 {
-                    link->node_src = &m_fake_mouse_node;
+                    m_fake_mouse_node.BindSrc(link, 0);
                     m_link_mouse_src = link;
                 }
             }
@@ -337,6 +337,15 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
         m_hovered_node = node;
 }
 
+void RoR::NodeGraphTool::DetachAndDeleteLink(Link* link)
+{
+    if (link->node_dst != nullptr)
+        link->node_dst->DetachLink(link);
+    if (link->node_src != nullptr)
+        link->node_src->DetachLink(link);
+    this->DeleteLink(link);
+}
+
 void RoR::NodeGraphTool::DeleteLink(Link* link)
 {
     auto itor = m_links.begin();
@@ -350,6 +359,7 @@ void RoR::NodeGraphTool::DeleteLink(Link* link)
             return;
         }
     }
+    assert(false && "NodeGraphTool::DeleteLink(): stray link - not in list");
 }
 
 void RoR::NodeGraphTool::DrawNodeGraphPane()
@@ -382,7 +392,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             }
             else
             {
-                this->DeleteLink(m_link_mouse_src);
+                this->DetachAndDeleteLink(m_link_mouse_src);
             }
             m_link_mouse_src = nullptr;
         }
@@ -394,7 +404,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             }
             else
             {
-                this->DeleteLink(m_link_mouse_dst);
+                this->DetachAndDeleteLink(m_link_mouse_dst);
             }
             m_link_mouse_dst = nullptr;
         }
@@ -583,7 +593,6 @@ void RoR::NodeGraphTool::SaveAsJson()
             break;
 
         case Node::Type::TRANSFORM:
-            j_data.AddMember("method_id", static_cast<int>(static_cast<TransformNode*>(node)->method), j_alloc);
             j_xform_nodes.PushBack(j_data, j_alloc);
             break;
 
@@ -716,7 +725,6 @@ void RoR::NodeGraphTool::LoadFromJson()
         {
             TransformNode* node = new TransformNode(this, ImVec2());
             this->JsonToNode(node, *itor);
-            node->method = static_cast<TransformNode::Method>((*itor)["method_id"].GetInt());
             m_nodes.push_back(node);
             lookup.insert(std::make_pair(node->id, node));
         }
@@ -880,13 +888,14 @@ void RoR::NodeGraphTool::DisplayNode::Draw()
 
 void RoR::NodeGraphTool::DisplayNode::DetachLink(Link* link)
 {
-    assert (link->node_dst != this); // Check discrepancy - this node has no inputs!
+    assert (link->node_src != this); // Check discrepancy - this node has no outputs!
 
-    if (link->node_src == this)
+    if (link->node_dst == this)
     {
-        assert(&this->buffer_out == link->buff_src); // Check discrepancy
-        link->node_src = nullptr;
-        link->buff_src = nullptr;
+        assert(this->link_in == link); // Check discrepancy
+        this->link_in = nullptr; // Clear local link
+        link->node_dst = nullptr;
+        link->slot_dst = -1;
     }
 }
 
@@ -931,6 +940,16 @@ void RoR::NodeGraphTool::GeneratorNode::DetachLink(Link* link)
     }
 }
 
+void RoR::NodeGraphTool::GeneratorNode::BindSrc(Link* link, int slot)
+{
+    assert(slot == 0); // Check invalid input
+    if (slot == 0)
+    {
+        link->node_src = this;
+        link->buff_src = &buffer_out;
+    }
+}
+
 // -------------------------------- Reading node -----------------------------------
 
 void RoR::NodeGraphTool::ReadingNode::BindSrc(Link* link, int slot)
@@ -940,7 +959,7 @@ void RoR::NodeGraphTool::ReadingNode::BindSrc(Link* link, int slot)
     case 0:    link->buff_src = &buffer_x;    link->node_src = this;     return;
     case 1:    link->buff_src = &buffer_y;    link->node_src = this;     return;
     case 2:    link->buff_src = &buffer_z;    link->node_src = this;     return;
-    default: return;
+    default: assert(false && "ReadingNode::BindSrc(): invalid slot index");
     }
 }
 
@@ -1128,12 +1147,16 @@ bool RoR::NodeGraphTool::ScriptNode::Process()
 
 void RoR::NodeGraphTool::ScriptNode::BindSrc(Link* link, int slot)
 {
+    assert(slot >= 0 && slot < num_outputs); // Check input
+    assert(link != nullptr); // Check input
     link->node_src = this;
     link->buff_src = &outputs[slot];
 }
 
 void RoR::NodeGraphTool::ScriptNode::BindDst(Link* link, int slot)
 {
+    assert(slot >= 0 && slot < num_inputs); // Check input
+    assert(link != nullptr); // Check input
     inputs[slot] = link;
     link->node_dst = this;
     link->slot_dst = slot;
@@ -1179,12 +1202,6 @@ RoR::NodeGraphTool::TransformNode::TransformNode(NodeGraphTool* _graph, ImVec2 _
 {
     num_inputs = 1;
     num_outputs = 1;
-    done = false;
-    method = Method::NONE;
-    memset(input_fir, 0, sizeof(input_fir));
-    memset(coefs_fir, 0, sizeof(coefs_fir));
-    sprintf(input_fir, "3.0 2.0 1.0");
-    sprintf(coefs_fir, "3.0 2.0 1.0");
     user_size.x = 200.f;
 }
 
@@ -1193,90 +1210,8 @@ void RoR::NodeGraphTool::TransformNode::Draw()
     graph->DrawNodeBegin(this);
     ImGui::PushItemWidth(this->user_size.x);
     ImGui::Text("Transform");
-
-    int method_id = static_cast<int>(this->method);
-    const char* mode_options[] = { "~ None ~", "FIR (plain)", "FIR + adapt. LMS", "FIR + adapt. RLS", "FIR + adapt. N-LMS" };
-    if (ImGui::Combo("Method", &method_id, mode_options, IM_ARRAYSIZE(mode_options)))
-    {
-        this->method = static_cast<TransformNode::Method>(method_id);
-    }
-
-    switch (this->method)
-    {
-    case TransformNode::Method::FIR_PLAIN:
-   //TODO case TransformNode::Method::FIR_ADAPTIVE_LMS:
-   //TODO case TransformNode::Method::FIR_ADAPTIVE_RLS:
-   //TODO case TransformNode::Method::FIR_ADAPTIVE_NLMS:
-        ImGui::InputText("Coefs", this->input_fir, sizeof(this->input_fir));
-        if (ImGui::SmallButton("Submit coefs"))
-        {
-            strcpy(this->coefs_fir, this->input_fir);
-        }
-     //TODO   switch (this->method)
-     //TODO   {
-     //TODO       case TransformNode::Method::FIR_ADAPTIVE_RLS:
-     //TODO           ImGui::InputFloat("Lambda", &this->adapt_rls_lambda);
-     //TODO           ImGui::InputFloat("P0",     &this->adapt_rls_p0);
-     //TODO           break;
-     //TODO       case TransformNode::Method::FIR_ADAPTIVE_NLMS:
-     //TODO           ImGui::InputFloat("Step", &adapt_nlms_step);
-     //TODO           ImGui::InputFloat("Regz", &adapt_nlms_regz);
-     //TODO           break;
-     //TODO   }
-        break;
-    default: break;
-    }
-
-    ImGui::PopItemWidth();
+    ImGui::Text("No options");
     graph->DrawNodeFinalize(this);
-}
-
-void RoR::NodeGraphTool::TransformNode::ApplyFIR()
-{
-    sp::FIR_filt<float, float, float> fir;
-    arma::fvec coefs = coefs_fir;
-    fir.set_coeffs(coefs);
-
-    Buffer src0(-1); // Copy of source with 0-offset
-    src0.CopyResetOffset(link_in->buff_src);
-    arma::fvec src_vec(src0.data,       static_cast<arma::uword>(Buffer::SIZE), false, true); // use memory in-place, strict mode
-    arma::fvec dst_vec(buffer_out.data, static_cast<arma::uword>(Buffer::SIZE), false, true);
-
-    dst_vec = fir.filter(src_vec);
-}
-
-bool RoR::NodeGraphTool::TransformNode::Process() // Ret: false if it's waiting for data
-{
-    if (this->link_in == nullptr)
-    {
-        this->done = true; // Nothing to transform here
-        return true;
-    }
-
-    Node* node_src = this->link_in->node_src;
-    if (! node_src->done)
-    {
-        return false; // data not ready
-    }
-
-    switch (this->method)
-    {
-    case Method::NONE: // Pass-thru
-        this->buffer_out.CopyKeepOffset(this->link_in->buff_src);
-        this->done = true;
-        return true;
-
-    case Method::FIR_PLAIN:
-    //TODO   case Method::FIR_ADAPTIVE_LMS:
-    //TODO   case Method::FIR_ADAPTIVE_RLS:
-    //TODO   case Method::FIR_ADAPTIVE_NLMS:
-        this->ApplyFIR();
-        this->done = true;
-        return true;
-
-    default: return true;
-    }
-
 }
 
 void RoR::NodeGraphTool::TransformNode::DetachLink(Link* link)
@@ -1290,7 +1225,7 @@ void RoR::NodeGraphTool::TransformNode::DetachLink(Link* link)
     }
     else if (link->node_src == this)
     {
-        assert(this->buffer_out == *link->buff_src); // Check discrepancy
+        assert(&this->buffer_out == link->buff_src); // Check discrepancy
         link->node_src = nullptr;
         link->buff_src = nullptr;
     }
