@@ -12,8 +12,6 @@
 
 #include <map>
 
-FakeTruck G_fake_truck; // declared extern in "NodeGraphTool.h"
-
 RoR::NodeGraphTool::NodeGraphTool():
     m_scroll(0.0f, 0.0f),
     m_last_scaled_node(nullptr),
@@ -26,7 +24,7 @@ RoR::NodeGraphTool::NodeGraphTool():
     m_hovered_slot_input(-1),
     m_hovered_slot_output(-1),
     m_free_id(0),
-    m_fake_mouse_node(nullptr, ImVec2())
+    m_fake_mouse_node(this, ImVec2()) // Used for dragging links with mouse
 {
     memset(m_filename, 0, sizeof(m_filename));
     snprintf(m_motionsim_ip, IM_ARRAYSIZE(m_motionsim_ip), "localhost");
@@ -179,9 +177,8 @@ void RoR::NodeGraphTool::PhysicsTick()
             continue;
 
         GeneratorNode* gen_node = static_cast<GeneratorNode*>(node);
-        
         gen_node->elapsed += 0.002f;
-        gen_node->buffer_out.offset = (gen_node->buffer_out.offset + 1) % Buffer::SIZE;
+
         float result = cosf((gen_node->elapsed / 2.f) * 3.14f * gen_node->frequency) * gen_node->amplitude;
 
         // add noise
@@ -192,7 +189,7 @@ void RoR::NodeGraphTool::PhysicsTick()
         }
 
         // save to buffer
-        gen_node->buffer_out.data[gen_node->buffer_out.offset] = result;
+        gen_node->buffer_out.Push(result);
     }
     this->CalcGraph();
 }
@@ -279,10 +276,13 @@ void RoR::NodeGraphTool::DrawSlotUni(Node* node, const int index, const bool inp
     drawlist->AddCircleFilled(slot_center_pos+m_scroll_offset, m_style.node_slots_radius, color);
 }
 
-RoR::NodeGraphTool::Link* RoR::NodeGraphTool::AddLink(Node* src, Node* dst, int src_slot, int dst_slot) ///< creates new link or fetches existing unused one
+RoR::NodeGraphTool::Link* RoR::NodeGraphTool::AddLink(Node* src, Node* dst, int src_slot, int dst_slot)
 {
-    m_links.push_back(new Link(src, dst, src_slot, dst_slot));
-    return m_links.back();
+    Link* link = new Link();
+    src->BindSrc(link, src_slot);
+    dst->BindDst(link, dst_slot);
+    m_links.push_back(link);
+    return link;
 }
 
 void RoR::NodeGraphTool::DrawNodeBegin(Node* node)
@@ -418,28 +418,6 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         node->Draw();
     }
 
-    
-
-    for (TransformNode* node: m_xform_nodes)
-    {
-        
-    }
-
-    for (ScriptNode* node: m_script_nodes)
-    {
-        this->DrawNodeBegin(node);
-        const int flags = ImGuiInputTextFlags_AllowTabInput;
-        const ImVec2 size = node->user_size;
-        ImGui::Text((node->enabled)? "Enabled" : "Disabled");
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Update"))
-        {
-            node->Apply();
-        }
-        ImGui::InputTextMultiline("##source", node->code_buf, IM_ARRAYSIZE(node->code_buf), size, flags);
-        this->DrawNodeFinalize(node);
-    }
-
     // Slot hover cleanup
     if (!m_is_any_slot_hovered)
     {
@@ -482,20 +460,19 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             ImGui::Text("New node:");
             if (ImGui::MenuItem("Generator"))
             {
-                m_gen_nodes.push_back(new GeneratorNode(scene_pos));
+                m_nodes.push_back(new GeneratorNode(this, scene_pos));
             }
             if (ImGui::MenuItem("Display"))
             {
-                m_disp_nodes.push_back(new DisplayNode(scene_pos));
+                m_nodes.push_back(new DisplayNode(this, scene_pos));
             }
             if (ImGui::MenuItem("Transform"))
             {
-                m_xform_nodes.push_back(new TransformNode(scene_pos));
+                m_nodes.push_back(new TransformNode(this, scene_pos));
             }
             if (ImGui::MenuItem("Script"))
             {
-                m_script_nodes.push_back(new ScriptNode(this, scene_pos));
-                m_script_nodes.back()->InitScripting();
+                m_nodes.push_back(new ScriptNode(this, scene_pos));
             }
         }
         ImGui::EndPopup();
@@ -519,7 +496,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
 void RoR::NodeGraphTool::CalcGraph()
 {
     // Reset states
-    for (Node* n: m_all_nodes)
+    for (Node* n: m_nodes)
     {
         n->done = false;
     }
@@ -527,7 +504,7 @@ void RoR::NodeGraphTool::CalcGraph()
     bool all_done = true;
     do
     {
-        for (Node* n: m_all_nodes)
+        for (Node* n: m_nodes)
         {
             if (! n->done)
             {
@@ -866,6 +843,16 @@ void RoR::NodeGraphTool::Buffer::Fill(const float* const src, int offset, int le
 
 // -------------------------------- Display node -----------------------------------
 
+RoR::NodeGraphTool::DisplayNode::DisplayNode(NodeGraphTool* nodegraph, ImVec2 _pos):
+    Node(nodegraph, Type::DISPLAY, _pos), link_in(nullptr)
+{
+    num_outputs = 0;
+    num_inputs = 1;
+    user_size = ImVec2(250.f, 85.f);
+    done = false; // Irrelevant for this node type - no outputs
+    plot_extent = 1.5f;
+}
+
 static const float DUMMY_PLOT[] = {0,0,0,0,0};
 
 void RoR::NodeGraphTool::DisplayNode::Draw()
@@ -877,10 +864,10 @@ void RoR::NodeGraphTool::DisplayNode::Draw()
     int data_offset = 0;
     int stride = sizeof(float);
     const char* title = "~~ disconnected ~~";
-    if (this->link_input != nullptr)
+    if (this->link_in != nullptr)
     {
-        data_ptr    = this->link_input->buff_src->data;
-        data_offset = this->link_input->buff_src->offset;
+        data_ptr    = this->link_in->buff_src->data;
+        data_offset = this->link_in->buff_src->offset;
         stride = sizeof(float);
         title = "";
         data_length = Buffer::SIZE;
@@ -889,6 +876,18 @@ void RoR::NodeGraphTool::DisplayNode::Draw()
     ImGui::InputFloat("Scale", &this->plot_extent);
 
     graph->DrawNodeFinalize(this);
+}
+
+void RoR::NodeGraphTool::DisplayNode::DetachLink(Link* link)
+{
+    assert (link->node_dst != this); // Check discrepancy - this node has no inputs!
+
+    if (link->node_src == this)
+    {
+        assert(&this->buffer_out == link->buff_src); // Check discrepancy
+        link->node_src = nullptr;
+        link->buff_src = nullptr;
+    }
 }
 
 // -------------------------------- Generator node -----------------------------------
@@ -944,13 +943,13 @@ void RoR::NodeGraphTool::ReadingNode::Draw()
 // -------------------------------- Script node -----------------------------------
 
 RoR::NodeGraphTool::ScriptNode::ScriptNode(NodeGraphTool* _graph, ImVec2 _pos):
-    Node(_graph, _pos), script_func(nullptr), script_engine(nullptr), script_context(nullptr),
+    Node(_graph, Type::SCRIPT, _pos), 
+    script_func(nullptr), script_engine(nullptr), script_context(nullptr),
     outputs{{0},{1},{2},{3},{4},{5},{6},{7},{8}} // C++11 mandatory :)
 {
     num_outputs = 9;
     num_inputs = 9;
     memset(code_buf, 0, sizeof(code_buf));
-    type = Type::SCRIPT;
     user_size = ImVec2(200, 100);
     snprintf(node_name, 10, "Node %d", id);
     enabled = false;
@@ -1103,15 +1102,60 @@ bool RoR::NodeGraphTool::ScriptNode::Process()
     return true;
 }
 
+void RoR::NodeGraphTool::ScriptNode::BindSrc(Link* link, int slot)
+{
+    link->node_src = this;
+    link->buff_src = &outputs[slot];
+}
+
+void RoR::NodeGraphTool::ScriptNode::BindDst(Link* link, int slot)
+{
+    inputs[slot] = link;
+    link->node_dst = this;
+    link->slot_dst = slot;
+}
+
+void RoR::NodeGraphTool::ScriptNode::DetachLink(Link* link)
+{
+    if (link->node_dst == this)
+    {
+        assert(inputs[link->slot_dst] == link); // Check discrepancy
+        inputs[link->slot_dst] = nullptr;
+        link->node_dst = nullptr;
+        link->slot_dst = -1;
+    }
+    else if (link->node_src == this)
+    {
+        assert((link->buff_src != nullptr)); // Check discrepancy
+        link->buff_src = nullptr;
+        link->node_src = nullptr;
+    }
+    else assert(false && "ScriptNode::DetachLink() called on unrelated node");
+}
+
+void RoR::NodeGraphTool::ScriptNode::Draw()
+{
+    graph->DrawNodeBegin(this);
+    const int flags = ImGuiInputTextFlags_AllowTabInput;
+    const ImVec2 size = this->user_size;
+    ImGui::Text((this->enabled)? "Enabled" : "Disabled");
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Update"))
+    {
+        this->Apply();
+    }
+    ImGui::InputTextMultiline("##source", this->code_buf, IM_ARRAYSIZE(this->code_buf), size, flags);
+    graph->DrawNodeFinalize(this);
+}
+
 // -------------------------------- Transform node -----------------------------------
 
 RoR::NodeGraphTool::TransformNode::TransformNode(NodeGraphTool* _graph, ImVec2 _pos):
-    Node(_graph, _pos), buffer_out(0)
+    Node(_graph, Type::TRANSFORM, _pos), buffer_out(0)
 {
     num_inputs = 1;
     num_outputs = 1;
     done = false;
-    type = Type::TRANSFORM;
     method = Method::NONE;
     memset(input_fir, 0, sizeof(input_fir));
     memset(coefs_fir, 0, sizeof(coefs_fir));
@@ -1137,25 +1181,25 @@ void RoR::NodeGraphTool::TransformNode::Draw()
     switch (this->method)
     {
     case TransformNode::Method::FIR_PLAIN:
-    case TransformNode::Method::FIR_ADAPTIVE_LMS:
-    case TransformNode::Method::FIR_ADAPTIVE_RLS:
-    case TransformNode::Method::FIR_ADAPTIVE_NLMS:
+   //TODO case TransformNode::Method::FIR_ADAPTIVE_LMS:
+   //TODO case TransformNode::Method::FIR_ADAPTIVE_RLS:
+   //TODO case TransformNode::Method::FIR_ADAPTIVE_NLMS:
         ImGui::InputText("Coefs", this->input_fir, sizeof(this->input_fir));
         if (ImGui::SmallButton("Submit coefs"))
         {
             strcpy(this->coefs_fir, this->input_fir);
         }
-        switch (this->method)
-        {
-            case TransformNode::Method::FIR_ADAPTIVE_RLS:
-                ImGui::InputFloat("Lambda", &this->adapt_rls_lambda);
-                ImGui::InputFloat("P0",     &this->adapt_rls_p0);
-                break;
-            case TransformNode::Method::FIR_ADAPTIVE_NLMS:
-                ImGui::InputFloat("Step", &adapt_nlms_step);
-                ImGui::InputFloat("Regz", &adapt_nlms_regz);
-                break;
-        }
+     //TODO   switch (this->method)
+     //TODO   {
+     //TODO       case TransformNode::Method::FIR_ADAPTIVE_RLS:
+     //TODO           ImGui::InputFloat("Lambda", &this->adapt_rls_lambda);
+     //TODO           ImGui::InputFloat("P0",     &this->adapt_rls_p0);
+     //TODO           break;
+     //TODO       case TransformNode::Method::FIR_ADAPTIVE_NLMS:
+     //TODO           ImGui::InputFloat("Step", &adapt_nlms_step);
+     //TODO           ImGui::InputFloat("Regz", &adapt_nlms_regz);
+     //TODO           break;
+     //TODO   }
         break;
     default: break;
     }
@@ -1176,11 +1220,6 @@ void RoR::NodeGraphTool::TransformNode::ApplyFIR()
     arma::fvec dst_vec(buffer_out.data, static_cast<arma::uword>(Buffer::SIZE), false, true);
 
     dst_vec = fir.filter(src_vec);
-
-    switch (this->method)
-    {
-    case Method::FIR_ADAPTIVE_LMS:
-    }
 }
 
 bool RoR::NodeGraphTool::TransformNode::Process() // Ret: false if it's waiting for data
@@ -1205,9 +1244,9 @@ bool RoR::NodeGraphTool::TransformNode::Process() // Ret: false if it's waiting 
         return true;
 
     case Method::FIR_PLAIN:
-    case Method::FIR_ADAPTIVE_LMS:
-    case Method::FIR_ADAPTIVE_RLS:
-    case Method::FIR_ADAPTIVE_NLMS:
+    //TODO   case Method::FIR_ADAPTIVE_LMS:
+    //TODO   case Method::FIR_ADAPTIVE_RLS:
+    //TODO   case Method::FIR_ADAPTIVE_NLMS:
         this->ApplyFIR();
         this->done = true;
         return true;
@@ -1215,5 +1254,23 @@ bool RoR::NodeGraphTool::TransformNode::Process() // Ret: false if it's waiting 
     default: return true;
     }
 
+}
+
+void RoR::NodeGraphTool::TransformNode::DetachLink(Link* link)
+{
+    if (link->node_dst == this)
+    {
+        assert(this->link_in == link); // Check discrepancy
+        link->node_dst = nullptr;
+        link->slot_dst = -1;
+        this->link_in = nullptr;
+    }
+    else if (link->node_src == this)
+    {
+        assert(this->buffer_out == *link->buff_src); // Check discrepancy
+        link->node_src = nullptr;
+        link->buff_src = nullptr;
+    }
+    else assert(false && "TransformNode::DetachLink() called on unrelated node");
 }
 

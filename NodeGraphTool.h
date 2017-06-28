@@ -13,19 +13,6 @@
 #include <string>
 #include <vector>
 
-    // ############# testing dummy #############
-struct FakeTruck
-{
-    static const size_t NUM_NODES = 100;
-
-    FakeTruck() { memset(nodes_x, 0, sizeof(nodes_x)); }
-
-    float nodes_x[NUM_NODES];
-};
-
-extern FakeTruck G_fake_truck;
-    // ############# END dummy #############
-
 
 namespace RoR {
 
@@ -95,8 +82,6 @@ public:
     {
         Link(): node_src(nullptr), node_dst(nullptr), slot_dst(-1), buff_src(nullptr) {}
 
-        Link(Node* src_n, Node* dst_n, Buffer* src_b, int dst_s): node_src(src_n), node_dst(dst_n), buff_src(src_b), slot_dst(dst_s) {}
-
         Node* node_src;
         Node* node_dst;
         int slot_dst;
@@ -107,7 +92,7 @@ public:
     {
         enum class Type { INVALID, READING, GENERATOR, TRANSFORM, SCRIPT, DISPLAY };
 
-        Node(NodeGraphTool* _graph, ImVec2 _pos): graph(_graph), num_inputs(0), num_outputs(0), pos(_pos), type(Type::INVALID)
+        Node(NodeGraphTool* _graph, Type _type, ImVec2 _pos): graph(_graph), num_inputs(0), num_outputs(0), pos(_pos), type(_type), done(false)
         {
             id = _graph->AssignId();
         }
@@ -115,7 +100,7 @@ public:
         inline ImVec2 GetInputSlotPos(size_t slot_idx)  { return ImVec2(pos.x,               pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_inputs+1)))); }
         inline ImVec2 GetOutputSlotPos(size_t slot_idx) { return ImVec2(pos.x + calc_size.x, pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_outputs+1)))); }
 
-        virtual bool Process() {}
+        virtual bool Process() { return true; }
         virtual void BindSrc(Link* link, int slot) {}
         virtual void BindDst(Link* link, int slot) {}
         virtual void DetachLink(Link* link) {}
@@ -139,15 +124,16 @@ public:
     struct ReadingNode: public Node
     {
         ReadingNode(NodeGraphTool* _graph, ImVec2 _pos):
-            Node(_graph, _pos), buffer_x(0), buffer_y(1), buffer_z(2), softbody_node_id(-1)
+            Node(_graph, Type::READING, _pos), buffer_x(0), buffer_y(1), buffer_z(2), softbody_node_id(-1)
         {
             num_inputs = 0;
             num_outputs = 3;
-            type = Type::READING;
         }
 
-        bool Process() override { this->done = true; return true; }
+        bool Process() override                             { this->done = true; return true; }
         void BindSrc(Link* link, int slot) override;
+        //   BindDst() not needed - no inputs
+        //   DetachLink() not needed - no inputs
         void Draw() override;
 
         int softbody_node_id; // -1 means 'none'
@@ -159,7 +145,7 @@ public:
     struct GeneratorNode: public Node
     {
         GeneratorNode(NodeGraphTool* _graph, ImVec2 _pos):
-            Node(_graph, _pos), amplitude(1.f), frequency(1.f), noise_max(0.f), elapsed(0.f), buffer_out(0)
+            Node(_graph, Type::GENERATOR, _pos), amplitude(1.f), frequency(1.f), noise_max(0.f), elapsed(0.f), buffer_out(0)
         {
             num_inputs = 0;
             num_outputs = 1;
@@ -167,6 +153,8 @@ public:
 
         bool Process() override                          { this->done = true; return true; }
         void BindSrc(Link* link, int slot) override      { if (slot == 0) { link->buff_src = &buffer_out; link->node_src = this; } }
+        //   BindDst() not needed - no inputs
+        //   DetachLink() not needed - no inputs
         void Draw() override;
 
         float frequency; // Hz
@@ -179,9 +167,13 @@ public:
     struct ScriptNode: public Node
     {
         ScriptNode(NodeGraphTool* _nodegraph, ImVec2 _pos);
-        void InitScripting();
-        void Apply();
-        bool Process(); ///< @return false if waiting for data, true if processed/nothing to process.
+        
+        bool Process() override;                          ///< @return false if waiting for data, true if processed/nothing to process.
+        void BindSrc(Link* link, int slot) override;
+        void BindDst(Link* link, int slot) override;
+        void DetachLink(Link* link) override;
+        void Draw() override;
+
         // Script functions
         float Read(int slot, int offset);
         void  Write(int slot, float val);
@@ -194,6 +186,10 @@ public:
         bool enabled; // Disables itself on script error
         Link* inputs[9];
         Buffer outputs[9];
+
+    private:
+        void InitScripting();
+        void Apply();
     };
 
     struct TransformNode: public Node
@@ -202,23 +198,27 @@ public:
         {
             NONE, // Pass-through
             FIR_PLAIN,
-            FIR_ADAPTIVE_LMS,
-            FIR_ADAPTIVE_RLS,
-            FIR_ADAPTIVE_NLMS
+            // TODO // FIR_ADAPTIVE_LMS,
+            // TODO // FIR_ADAPTIVE_RLS,
+            // TODO // FIR_ADAPTIVE_NLMS
         };
 
         TransformNode(NodeGraphTool* nodegraph, ImVec2 _pos);
 
         void ApplyFIR();
-        bool Process();
-        void Draw();
+
+        bool Process() override;
+        void BindSrc(Link* link, int slot) override      { if (slot == 0) { link->node_src = this; link->buff_src = &buffer_out; } }
+        void BindDst(Link* link, int slot) override      { if (slot == 0) { link->node_dst = this; link->slot_dst = slot; link_in = link; } }
+        void DetachLink(Link* link) override; // FINAL
+        void Draw() override;
 
         char input_fir[100];
         char coefs_fir[100];
-        float adapt_rls_lambda;
-        float adapt_rls_p0;
-        float adapt_nlms_step;
-        float adapt_nlms_regz; // "regularization factor"
+      //TODO  float adapt_rls_lambda;
+      //TODO  float adapt_rls_p0;
+      //TODO  float adapt_nlms_step;
+      //TODO  float adapt_nlms_regz; // "regularization factor"
         Method method;
         Link* link_in;
         Buffer buffer_out;
@@ -227,19 +227,15 @@ public:
 
     struct DisplayNode: public Node
     {
-        DisplayNode(NodeGraphTool* nodegraph, ImVec2 _pos): Node(nodegraph, _pos), link_input(nullptr)
-        {
-            num_outputs = 0;
-            num_inputs = 1;
-            type = Type::DISPLAY;
-            user_size = ImVec2(250.f, 85.f);
-            done = false; // Irrelevant for this node type - no outputs
-            plot_extent = 1.5f;
-        }
+        DisplayNode(NodeGraphTool* nodegraph, ImVec2 _pos);
 
+        bool Process() override                             { this->done = true; return true; }
+        //   BindSrc() - this node has no outputs.
+        void BindDst(Link* link, int slot) override         { if (slot == 0) { link->node_dst = this; link->slot_dst = slot; link_in = link; } }
+        void DetachLink(Link* link) override; // FINAL
         void Draw() override;
 
-        Link* link_input;
+        Link* link_in;
         float plot_extent; // both min and max
     };
 
@@ -303,7 +299,7 @@ private:
     bool       m_is_any_slot_hovered;
     HeaderMode m_header_mode;
     Node*      m_last_scaled_node;
-    Node       m_fake_mouse_node;     ///< Used while dragging link with mouse
+    TransformNode  m_fake_mouse_node;     ///< Used while dragging link with mouse. Type 'Transform' used just because we need anything with 1 input and 1 output.
     Link*      m_link_mouse_src;      ///< Link being mouse-dragged by it's input end.
     Link*      m_link_mouse_dst;      ///< Link being mouse-dragged by it's output end.
     int        m_free_id;
