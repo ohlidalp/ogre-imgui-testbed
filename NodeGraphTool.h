@@ -49,6 +49,8 @@ public:
         Style();
     };
 
+    struct Node; // Forward
+
     /// An output buffer of a node. 1 buffer = 1 output slot.
     struct Buffer
     {
@@ -64,13 +66,12 @@ public:
         void            Fill(const float* const src, int offset=0, int len=SIZE);
         inline void     Push(float entry)                                           { data[offset] = entry; this->Step(); }
         inline void     Step()                                                      { offset = (offset+1)%SIZE; }
+        inline float    Read() const                                                { return data[offset]; }
 
         float data[Buffer::SIZE];
         int offset;
         int slot;
     };
-
-    struct Node; // forward decl.
 
     struct Link
     {
@@ -84,7 +85,7 @@ public:
 
     struct Node
     {
-        enum class Type { INVALID, READING, GENERATOR, TRANSFORM, SCRIPT, DISPLAY };
+        enum class Type { INVALID, READING, GENERATOR, TRANSFORM, SCRIPT, DISPLAY, EULER, UDP };
 
         Node(NodeGraphTool* _graph, Type _type, ImVec2 _pos): graph(_graph), num_inputs(0), num_outputs(0), pos(_pos), type(_type), done(false)
         {
@@ -124,6 +125,7 @@ public:
             num_outputs = 3;
         }
 
+        inline void Push(Ogre::Vector3 pos)                 { buffer_x.Push(pos.x); buffer_y.Push(-pos.z); buffer_z.Push(pos.y); } // Transform OGRE coords -> classic coords
         virtual bool Process() override                             { this->done = true; return true; }
         virtual void BindSrc(Link* link, int slot) override;
         //           BindDst() not needed - no inputs
@@ -161,7 +163,7 @@ public:
     struct ScriptNode: public Node
     {
         ScriptNode(NodeGraphTool* _nodegraph, ImVec2 _pos);
-        
+
         virtual bool Process() override;                          ///< @return false if waiting for data, true if processed/nothing to process.
         virtual void BindSrc(Link* link, int slot) override;
         virtual void BindDst(Link* link, int slot) override;
@@ -184,6 +186,21 @@ public:
     private:
         void InitScripting();
         void Apply();
+    };
+
+    struct EulerNode: public Node
+    {
+        EulerNode(NodeGraphTool* _nodegraph, ImVec2 _pos);
+        
+        virtual bool Process() override;                          ///< @return false if waiting for data, true if processed/nothing to process.
+        virtual void BindSrc(Link* link, int slot) override;
+        virtual void BindDst(Link* link, int slot) override;
+        virtual void DetachLink(Link* link) override;
+        virtual void Draw() override;
+
+        Link* inputs[6]; // pitch axis XYZ, roll axis XYZ
+        Buffer outputs[3]; // 
+        bool error;
     };
 
     struct TransformNode: public Node
@@ -214,6 +231,25 @@ public:
         float plot_extent; // both min and max
     };
 
+    /// Sink of the graph. Each field in UDP packet has one instance. Cannot be created by user, created automatically. Not placed in 'm_nodes' array.
+    struct UdpNode: public Node
+    {
+        UdpNode(NodeGraphTool* nodegraph, ImVec2 _pos, const char* _title, const char* _desc);
+
+        bool Process() override                             { this->done = true; return true; }
+        //   BindSrc() - this node has no outputs.
+        void BindDst(Link* link, int slot) override;
+        void DetachLink(Link* link) override;
+        void Draw() override;
+
+        inline float Capture(int slot)                      { if (inputs[slot] != nullptr) { return inputs[slot]->buff_src->Read(); } else { return 0.f; } }
+
+        Link* inputs[3];
+        const char* title;
+        const char* desc;
+    };
+
+
     NodeGraphTool();
 
     void            Draw();
@@ -223,6 +259,8 @@ public:
     void            LoadFromJson();                                                      ///< Filename specified by `m_filename`
     void            SetFilename(const char* const filename)                              { strncpy(m_filename, filename, sizeof(m_filename)); }
     void            ClearAll();
+    void            SetVisible(bool vis)                                                 { m_panel_visible = vis; }
+    bool            IsVisible() const                                                    { return m_panel_visible; }
 
 private:
 
@@ -266,8 +304,6 @@ private:
     std::list<std::string>          m_messages;
     char       m_directory[300];
     char       m_filename[100];
-    char       m_motionsim_ip[40];
-    int        m_motionsim_port;
     Style      m_style;
     ImVec2     m_scroll;
     ImVec2     m_scroll_offset;
@@ -284,6 +320,13 @@ private:
     Link*      m_link_mouse_src;      ///< Link being mouse-dragged by it's input end.
     Link*      m_link_mouse_dst;      ///< Link being mouse-dragged by it's output end.
     int        m_free_id;
+    bool       m_panel_visible;
+
+public:
+    UdpNode udp_position_node;
+    UdpNode udp_velocity_node;
+    UdpNode udp_accel_node;
+    UdpNode udp_orient_node;
 };
 
 } // namespace RoR

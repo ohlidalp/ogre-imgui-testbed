@@ -24,11 +24,15 @@ RoR::NodeGraphTool::NodeGraphTool():
     m_hovered_slot_input(-1),
     m_hovered_slot_output(-1),
     m_free_id(0),
-    m_fake_mouse_node(this, ImVec2()) // Used for dragging links with mouse
+    m_panel_visible(false),
+    m_fake_mouse_node(this, ImVec2()), // Used for dragging links with mouse
+
+    udp_position_node(this, ImVec2(300.f, 200.f), "UDP position", "(world XYZ)"),
+    udp_velocity_node(this, ImVec2(300.f, 250.f), "UDP velocity", "(world XYZ)"),
+    udp_accel_node   (this, ImVec2(300.f, 300.f), "UDP acceleration", "(world XYZ)"),
+    udp_orient_node  (this, ImVec2(300.f, 350.f), "UDP orientation", "(pitch roll yaw)")
 {
     memset(m_filename, 0, sizeof(m_filename));
-    snprintf(m_motionsim_ip, IM_ARRAYSIZE(m_motionsim_ip), "localhost");
-    m_motionsim_port = 1234;
 }
 
 RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkByDestination(Node* node, const int slot)
@@ -76,7 +80,7 @@ RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkBySource(Node* node, const
 void RoR::NodeGraphTool::Draw()
 {
     // Create a window
-    if (!ImGui::Begin("RigsOfRods NodeGraph"))
+    if (!ImGui::Begin("MotionFeeder"))
         return; // No window -> nothing to do.
 
     // Debug outputs
@@ -99,13 +103,6 @@ void RoR::NodeGraphTool::Draw()
     }
     ImGui::SameLine();
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 50.f);
-  //TODO  ImGui::PushItemWidth(150.f);
-  //TODO  ImGui::InputText("IP", m_motionsim_ip, IM_ARRAYSIZE(m_motionsim_ip));
-  //TODO  ImGui::SameLine();
-  //TODO  ImGui::InputInt("Port", &m_motionsim_port);
-  //TODO  ImGui::PopItemWidth();
-  //TODO  ImGui::SameLine();
-  //TODO  ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 50.f);
     static bool transmit = false;
     ImGui::Checkbox("Transmit", &transmit); // TODO: Enable/disable networking
 
@@ -302,9 +299,9 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
     node->calc_size = ImGui::GetItemRectSize() + (m_style.node_window_padding * 2.f);
 
     // Draw slots: 0 inputs, 3 outputs (XYZ)
-    for (size_t i = 0; i<node->num_inputs; ++i)
+    for (int i = 0; i<node->num_inputs; ++i)
         this->DrawInputSlot(node, i);
-    for (size_t i = 0; i<node->num_outputs; ++i)
+    for (int i = 0; i<node->num_outputs; ++i)
         this->DrawOutputSlot(node, i);
 
     // Handle mouse dragging
@@ -888,15 +885,65 @@ void RoR::NodeGraphTool::DisplayNode::Draw()
 
 void RoR::NodeGraphTool::DisplayNode::DetachLink(Link* link)
 {
+    assert (link->node_dst != this); // Check discrepancy - this node has no inputs!
+
+    if (link->node_src == this)
+    {
+        assert(&this->buffer_out == link->buff_src); // Check discrepancy
+        link->node_src = nullptr;
+        link->buff_src = nullptr;
+    }
+}
+
+// -------------------------------- UDP node -----------------------------------
+
+RoR::NodeGraphTool::UdpNode::UdpNode(NodeGraphTool* nodegraph, ImVec2 _pos, const char* _title, const char* _desc):
+    Node(nodegraph, Type::UDP, _pos)
+{
+    num_outputs = 0;
+    num_inputs = 3;
+    inputs[0]=nullptr;
+    inputs[1]=nullptr;
+    inputs[2]=nullptr;
+    title = _title;
+    desc = _desc;
+}
+
+void RoR::NodeGraphTool::UdpNode::Draw()
+{
+    graph->DrawNodeBegin(this);
+    ImGui::Text(title);
+    ImGui::Separator();
+    ImGui::Text(desc);
+    graph->DrawNodeFinalize(this);
+}
+
+void RoR::NodeGraphTool::UdpNode::DetachLink(Link* link)
+{
     assert (link->node_src != this); // Check discrepancy - this node has no outputs!
 
     if (link->node_dst == this)
     {
-        assert(this->link_in == link); // Check discrepancy
-        this->link_in = nullptr; // Clear local link
-        link->node_dst = nullptr;
-        link->slot_dst = -1;
+        for (int i=0; i<num_inputs; ++i)
+        {
+            if (inputs[i] == link)
+            {
+                inputs[i] = nullptr;
+                link->node_dst = nullptr;
+                link->slot_dst = -1;
+                return;
+            }
+            assert(false && "UdpNode::DetachLink(): Discrepancy! link points to node but node doesn't point to link");
+        }
     }
+}
+
+void RoR::NodeGraphTool::UdpNode::BindDst(Link* link, int slot)
+{
+    assert(slot >= 0 && slot < num_inputs);
+    inputs[slot] = link;
+    link->node_dst = this;
+    link->slot_dst = slot;
 }
 
 // -------------------------------- Generator node -----------------------------------
@@ -983,9 +1030,106 @@ void RoR::NodeGraphTool::ReadingNode::Draw()
     this->graph->DrawNodeFinalize(this);
 }
 
+// -------------------------------- Euler node -----------------------------------
+
+RoR::NodeGraphTool::EulerNode::EulerNode(NodeGraphTool* _graph, ImVec2 _pos):
+    Node(_graph, Type::EULER, _pos),
+    outputs{{0},{1},{2}} // C++11 mandatory :)
+{
+    num_outputs = 3; // Pitch roll yaw
+    num_inputs = 6; // Roll XYZ, Pitch XYZ
+    memset(inputs, 0, sizeof(inputs));
+}
+
+void RoR::NodeGraphTool::EulerNode::BindSrc(Link* link, int slot)
+{
+    link->node_src = this;
+    link->buff_src = &outputs[slot];
+}
+
+void RoR::NodeGraphTool::EulerNode::BindDst(Link* link, int slot)
+{
+    inputs[slot] = link;
+    link->node_dst = this;
+    link->slot_dst = slot;
+}
+
+void RoR::NodeGraphTool::EulerNode::DetachLink(Link* link)
+{
+    if (link->node_dst == this)
+    {
+        assert(inputs[link->slot_dst] == link); // Check discrepancy
+        inputs[link->slot_dst] = nullptr;
+        link->node_dst = nullptr;
+        link->slot_dst = -1;
+    }
+    else if (link->node_src == this)
+    {
+        assert((link->buff_src != nullptr)); // Check discrepancy
+        link->buff_src = nullptr;
+        link->node_src = nullptr;
+    }
+    else assert(false && "EulerNode::DetachLink() called on unrelated node");
+}
+
+inline float ReadFromLink(RoR::NodeGraphTool::Link* link)
+{ 
+    if (link != nullptr && link->node_src != nullptr && link->buff_src != nullptr)
+    {
+        return link->buff_src->Read();
+    }
+    else
+    {
+        return 0.f;
+    }
+}
+
+bool RoR::NodeGraphTool::EulerNode::Process()
+{
+    if (this->error) // Emergency disable
+        return true;
+
+    bool ready = true; // If completely disconnected, we're good to go. Otherwise, all inputs must be ready.
+    for (int i=0; i<num_inputs; ++i)
+    {
+        if ((inputs[i] != nullptr) && (! inputs[i]->node_src->done))
+            ready = false;
+    }
+
+    if (!ready)
+        return false;
+
+    // Readings
+
+    Ogre::Vector3 roll_axis(ReadFromLink(inputs[0]), ReadFromLink(inputs[1]), ReadFromLink(inputs[2]));
+    Ogre::Vector3 pitch_axis(ReadFromLink(inputs[3]), ReadFromLink(inputs[4]), ReadFromLink(inputs[5]));
+    Ogre::Vector3 yaw_axis     = pitch_axis.crossProduct(roll_axis);
+
+    // Orientation
+    Ogre::Matrix3 orient_mtx;
+    orient_mtx.FromAxes(pitch_axis, yaw_axis, roll_axis);
+    Ogre::Radian yaw, pitch, roll;
+    orient_mtx.ToEulerAnglesYXZ(yaw, roll, pitch); // NOTE: This is probably swapped... Function args are(Y, P, R)
+    outputs[0].Push( pitch.valueRadians());
+    outputs[1].Push(roll.valueRadians());
+    outputs[2].Push(yaw.valueRadians());
+}
+
+void RoR::NodeGraphTool::EulerNode::Draw()
+{
+    this->graph->DrawNodeBegin(this);
+
+    ImGui::Text("Euler node");
+    ImGui::Separator();
+    ImGui::Text("In: Roll(XYZ), Pitch(XYZ)");
+    ImGui::Text("Out: pitch, roll, yaw");
+
+    this->graph->DrawNodeFinalize(this);
+}
+
 // -------------------------------- Script node -----------------------------------
 
-const char* EXAMPLE_CODE =
+const char* SCRIPTNODE_EXAMPLE_CODE =
     "// Static variables here"     "\n"
     ""                             "\n"
     "// Update func. (mandatory)"  "\n"
@@ -1002,7 +1146,7 @@ RoR::NodeGraphTool::ScriptNode::ScriptNode(NodeGraphTool* _graph, ImVec2 _pos):
     num_outputs = 9;
     num_inputs = 9;
     memset(code_buf, 0, sizeof(code_buf));
-    sprintf(code_buf, EXAMPLE_CODE);
+    sprintf(code_buf, SCRIPTNODE_EXAMPLE_CODE);
     memset(inputs, 0, sizeof(inputs));
     user_size = ImVec2(250, 200);
     snprintf(node_name, 10, "Node %d", id);
