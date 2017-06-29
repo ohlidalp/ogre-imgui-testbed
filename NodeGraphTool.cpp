@@ -27,10 +27,10 @@ RoR::NodeGraphTool::NodeGraphTool():
     m_panel_visible(false),
     m_fake_mouse_node(this, ImVec2()), // Used for dragging links with mouse
 
-    udp_position_node(this, ImVec2(300.f, 200.f), "UDP position", "(world XYZ)"),
-    udp_velocity_node(this, ImVec2(300.f, 250.f), "UDP velocity", "(world XYZ)"),
-    udp_accel_node   (this, ImVec2(300.f, 300.f), "UDP acceleration", "(world XYZ)"),
-    udp_orient_node  (this, ImVec2(300.f, 350.f), "UDP orientation", "(pitch roll yaw)")
+    udp_position_node(this, ImVec2(-300.f, 100.f), "UDP position", "(world XYZ)"),
+    udp_velocity_node(this, ImVec2(-300.f, 200.f), "UDP velocity", "(world XYZ)"),
+    udp_accel_node   (this, ImVec2(-300.f, 300.f), "UDP acceleration", "(world XYZ)"),
+    udp_orient_node  (this, ImVec2(-300.f, 400.f), "UDP orientation", "(pitch roll yaw)")
 {
     memset(m_filename, 0, sizeof(m_filename));
     m_fake_mouse_node.id = MOUSEDRAG_NODE_ID;
@@ -431,6 +431,12 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         node->Draw();
     }
 
+    // DRAW SPECIAL NODES
+    udp_accel_node   .Draw();
+    udp_velocity_node.Draw();
+    udp_orient_node  .Draw();
+    udp_position_node.Draw();
+
     // Slot hover cleanup
     if (!m_is_any_slot_hovered)
     {
@@ -461,16 +467,28 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         ImVec2 scene_pos = ImGui::GetMousePosOnOpeningCurrentPopup() - m_scroll_offset;
         if (m_context_menu_node != nullptr)
         {
-            ImGui::Text("Existing node:");
-            if (ImGui::MenuItem("Delete"))
+            if (m_context_menu_node == &udp_accel_node ||
+                m_context_menu_node == &udp_velocity_node ||
+                m_context_menu_node == &udp_position_node ||
+                m_context_menu_node == &udp_orient_node 
+                )
             {
-                this->DetachAndDeleteNode(m_context_menu_node);
-                m_context_menu_node = nullptr;
+                ImGui::Text("UDP node:");
+                ImGui::Text("~ no actions ~");
+            }
+            else
+            {
+                ImGui::Text("Existing node:");
+                if (ImGui::MenuItem("Delete"))
+                {
+                    this->DetachAndDeleteNode(m_context_menu_node);
+                    m_context_menu_node = nullptr;
+                }
             }
         }
         else
         {
-            ImGui::Text("New node:");
+            ImGui::Text("-- Create new node --");
             if (ImGui::MenuItem("Generator"))
             {
                 m_nodes.push_back(new GeneratorNode(this, scene_pos));
@@ -487,6 +505,11 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             {
                 m_nodes.push_back(new EulerNode(this, scene_pos));
             }
+            ImGui::Text("-- Fetch UDP node --");
+            if (ImGui::MenuItem("Position")) { udp_position_node.pos = scene_pos; }
+            if (ImGui::MenuItem("Velocity")) { udp_velocity_node.pos = scene_pos; }
+            if (ImGui::MenuItem("Accel."))   { udp_accel_node.pos = scene_pos; }
+            if (ImGui::MenuItem("Rotation")) { udp_orient_node.pos = scene_pos; }
         }
         ImGui::EndPopup();
     }
