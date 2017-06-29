@@ -33,6 +33,12 @@ RoR::NodeGraphTool::NodeGraphTool():
     udp_orient_node  (this, ImVec2(300.f, 350.f), "UDP orientation", "(pitch roll yaw)")
 {
     memset(m_filename, 0, sizeof(m_filename));
+    m_fake_mouse_node.id = MOUSEDRAG_NODE_ID;
+    udp_position_node.id = UDP_POS_NODE_ID;
+    udp_velocity_node.id = UDP_VELO_NODE_ID;
+    udp_accel_node   .id = UDP_ACC_NODE_ID;
+    udp_orient_node  .id = UDP_ANGLES_NODE_ID;
+
 }
 
 RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkByDestination(Node* node, const int slot)
@@ -511,6 +517,7 @@ void RoR::NodeGraphTool::CalcGraph()
     bool all_done = true;
     do
     {
+        all_done = true;
         for (Node* n: m_nodes)
         {
             if (! n->done)
@@ -717,7 +724,7 @@ void RoR::NodeGraphTool::LoadFromJson()
                 node = rnode;
                 break;
             }
-            //case Node::Type::TRANSFORM:   // Not enabled for use at the moment
+            //case Node::Type::MOUSE:   // Not enabled for use at the moment
             case Node::Type::GENERATOR:
             {
                 GeneratorNode* gnode = new GeneratorNode(this, ImVec2());
@@ -879,7 +886,7 @@ void RoR::NodeGraphTool::Buffer::Fill(const float* const src, int offset, int le
 // -------------------------------- Display node -----------------------------------
 
 RoR::NodeGraphTool::DisplayNode::DisplayNode(NodeGraphTool* nodegraph, ImVec2 _pos):
-    Node(nodegraph, Type::DISPLAY, _pos), link_in(nullptr)
+    UserNode(nodegraph, Type::DISPLAY, _pos), link_in(nullptr)
 {
     num_outputs = 0;
     num_inputs = 1;
@@ -957,7 +964,7 @@ void RoR::NodeGraphTool::UdpNode::Draw()
 {
     graph->DrawNodeBegin(this);
     ImGui::Text(title);
-    ImGui::Separator();
+    ImGui::Text(" ---------- ");
     ImGui::Text(desc);
     graph->DrawNodeFinalize(this);
 }
@@ -1077,7 +1084,7 @@ void RoR::NodeGraphTool::ReadingNode::Draw()
 // -------------------------------- Euler node -----------------------------------
 
 RoR::NodeGraphTool::EulerNode::EulerNode(NodeGraphTool* _graph, ImVec2 _pos):
-    Node(_graph, Type::EULER, _pos),
+    UserNode(_graph, Type::EULER, _pos),
     outputs{{0},{1},{2}} // C++11 mandatory :)
 {
     num_outputs = 3; // Pitch roll yaw
@@ -1157,16 +1164,20 @@ bool RoR::NodeGraphTool::EulerNode::Process()
     outputs[0].Push( pitch.valueRadians());
     outputs[1].Push(roll.valueRadians());
     outputs[2].Push(yaw.valueRadians());
+
+    this->done = true;
+    return true;
 }
 
 void RoR::NodeGraphTool::EulerNode::Draw()
 {
     this->graph->DrawNodeBegin(this);
 
-    ImGui::Text("Euler node");
-    ImGui::Separator();
-    ImGui::Text("In: Roll(XYZ), Pitch(XYZ)");
-    ImGui::Text("Out: pitch, roll, yaw");
+    ImGui::Text("     Euler angles     ");
+    ImGui::Text("IN axes ==> angles OUT");
+    ImGui::Text("Roll(XYZ)        pitch");
+    ImGui::Text("Pitch(XYZ)        roll");
+    ImGui::Text("                   yaw");
 
     this->graph->DrawNodeFinalize(this);
 }
@@ -1183,7 +1194,7 @@ const char* SCRIPTNODE_EXAMPLE_CODE =
     "}";
 
 RoR::NodeGraphTool::ScriptNode::ScriptNode(NodeGraphTool* _graph, ImVec2 _pos):
-    Node(_graph, Type::SCRIPT, _pos), 
+    UserNode(_graph, Type::SCRIPT, _pos), 
     script_func(nullptr), script_engine(nullptr), script_context(nullptr), enabled(false),
     outputs{{0},{1},{2},{3},{4},{5},{6},{7},{8}} // C++11 mandatory :)
 {
@@ -1395,15 +1406,15 @@ void RoR::NodeGraphTool::ScriptNode::Draw()
 
 // -------------------------------- Transform node -----------------------------------
 
-RoR::NodeGraphTool::TransformNode::TransformNode(NodeGraphTool* _graph, ImVec2 _pos):
-    Node(_graph, Type::TRANSFORM, _pos), buffer_out(0), link_in(nullptr)
+RoR::NodeGraphTool::MouseDragNode::MouseDragNode(NodeGraphTool* _graph, ImVec2 _pos):
+    Node(_graph, Type::MOUSE, _pos), buffer_out(0), link_in(nullptr)
 {
     num_inputs = 1;
     num_outputs = 1;
     user_size.x = 200.f;
 }
 
-void RoR::NodeGraphTool::TransformNode::Draw()
+void RoR::NodeGraphTool::MouseDragNode::Draw()
 {
     graph->DrawNodeBegin(this);
     ImGui::PushItemWidth(this->user_size.x);
@@ -1412,7 +1423,7 @@ void RoR::NodeGraphTool::TransformNode::Draw()
     graph->DrawNodeFinalize(this);
 }
 
-void RoR::NodeGraphTool::TransformNode::DetachLink(Link* link)
+void RoR::NodeGraphTool::MouseDragNode::DetachLink(Link* link)
 {
     if (link->node_dst == this)
     {
@@ -1427,6 +1438,6 @@ void RoR::NodeGraphTool::TransformNode::DetachLink(Link* link)
         link->node_src = nullptr;
         link->buff_src = nullptr;
     }
-    else assert(false && "TransformNode::DetachLink() called on unrelated node");
+    else assert(false && "MouseDragNode::DetachLink() called on unrelated node");
 }
 
