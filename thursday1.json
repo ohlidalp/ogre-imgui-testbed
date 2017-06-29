@@ -1,0 +1,109 @@
+{
+    "nodes": [
+        {
+            "pos_x": 32.0,
+            "pos_y": 62.0,
+            "user_size_x": 0.0,
+            "user_size_y": 0.0,
+            "id": 4,
+            "type_id": 2,
+            "amplitude": 1.0,
+            "frequency": 1.0,
+            "noise_max": 2
+        },
+        {
+            "pos_x": 835.0,
+            "pos_y": 7.0,
+            "user_size_x": 250.0,
+            "user_size_y": 85.0,
+            "id": 5,
+            "type_id": 5,
+            "scale": 1.5
+        },
+        {
+            "pos_x": 444.0,
+            "pos_y": 172.0,
+            "user_size_x": 250.0,
+            "user_size_y": 200.0,
+            "id": 6,
+            "type_id": 4,
+            "source_code": "// Static variables here\n\n// Update func. (mandatory)\nvoid step() {\n    float a = Read(4,0);\n    float a200 = Read(4,-200);\n    Write(2,a-a200);\n\tWrite(5,a200-a);\n}"
+        },
+        {
+            "pos_x": 855.0,
+            "pos_y": 332.0,
+            "user_size_x": 250.0,
+            "user_size_y": 85.0,
+            "id": 7,
+            "type_id": 5,
+            "scale": 1.5
+        },
+        {
+            "pos_x": 849.0,
+            "pos_y": 191.0,
+            "user_size_x": 250.0,
+            "user_size_y": 85.0,
+            "id": 8,
+            "type_id": 5,
+            "scale": 1.5
+        }
+    ],
+    "links": [
+        {
+            "node_src_id": 4,
+            "node_dst_id": 5,
+            "slot_src": 0,
+            "slot_dst": 0
+        },
+        {
+            "node_src_id": 4,
+            "node_dst_id": 6,
+            "slot_src": 0,
+            "slot_dst": 4
+        },
+        {
+            "node_src_id": 6,
+            "node_dst_id": 7,
+            "slot_src": 2,
+            "slot_dst": 0
+        },
+        {
+            "node_src_id": 6,
+            "node_dst_id": 8,
+            "slot_src": 5,
+            "slot_dst": 0
+        }
+    ],
+    "udp_pos_node": {
+        "pos_x": 300.0,
+        "pos_y": 200.0,
+        "user_size_x": 0.0,
+        "user_size_y": 0.0,
+        "id": 0,
+        "type_id": 7
+    },
+    "udp_acc_node": {
+        "pos_x": 300.0,
+        "pos_y": 300.0,
+        "user_size_x": 0.0,
+        "user_size_y": 0.0,
+        "id": 2,
+        "type_id": 7
+    },
+    "udp_orient_node": {
+        "pos_x": 300.0,
+        "pos_y": 350.0,
+        "user_size_x": 0.0,
+        "user_size_y": 0.0,
+        "id": 3,
+        "type_id": 7
+    },
+    "udp_velo_node": {
+        "pos_x": 300.0,
+        "pos_y": 250.0,
+        "user_size_x": 0.0,
+        "user_size_y": 0.0,
+        "id": 1,
+        "type_id": 7
+    }
+}

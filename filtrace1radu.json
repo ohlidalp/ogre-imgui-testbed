@@ -1,6 +1,9 @@
 {
-    "generator_nodes": [
+    "__COMMENT":" Type { INVALID 0, READING 1, GENERATOR 2, TRANSFORM 3, SCRIPT 4, DISPLAY 5, EULER new6, UDP new7 };",
+    
+    "nodes": [
         {
+            "type_id":"2",
             "pos_x": 48.0,
             "pos_y": 89.0,
             "user_size_x": 0.0,
@@ -9,21 +12,18 @@
             "amplitude": 1.0,
             "frequency": 1.0,
             "noise_max": 15
-        }
-    ],
-    "transform_nodes": [],
-    "script_nodes": [
+        },
         {
+            "type_id":"4",
             "pos_x": 268.0,
             "pos_y": 193.0,
             "user_size_x": 200.0,
             "user_size_y": 100.0,
             "id": 3,
             "source_code": "float coef = 0.02;\nfloat a1 = 0;\n\nvoid step() {\nfloat a0 = Read(0,0);\nfloat z = \n    a1 + coef* (a0 - a1);\nWrite(0,z);\na1 = z;\n}"
-        }
-    ],
-    "display_nodes": [
+        },
         {
+            "type_id":"5",
             "pos_x": 566.0,
             "pos_y": 29.0,
             "user_size_x": 250.0,
@@ -31,6 +31,7 @@
             "id": 1
         },
         {
+            "type_id":"5",
             "pos_x": 556.0,
             "pos_y": 208.0,
             "user_size_x": 250.0,
@@ -38,6 +39,7 @@
             "id": 2
         }
     ],
+
     "links": [
         {
             "node_src_id": 0,

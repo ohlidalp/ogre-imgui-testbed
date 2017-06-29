@@ -356,7 +356,7 @@ void RoR::NodeGraphTool::DeleteLink(Link* link)
             return;
         }
     }
-    assert(false && "NodeGraphTool::DeleteLink(): stray link - not in list");
+    this->Assert(false , "NodeGraphTool::DeleteLink(): stray link - not in list");
 }
 
 void RoR::NodeGraphTool::DrawNodeGraphPane()
@@ -473,13 +473,13 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             {
                 m_nodes.push_back(new DisplayNode(this, scene_pos));
             }
-            if (ImGui::MenuItem("Transform"))
-            {
-                m_nodes.push_back(new TransformNode(this, scene_pos));
-            }
             if (ImGui::MenuItem("Script"))
             {
                 m_nodes.push_back(new ScriptNode(this, scene_pos));
+            }
+            if (ImGui::MenuItem("Euler"))
+            {
+                m_nodes.push_back(new EulerNode(this, scene_pos));
             }
         }
         ImGui::EndPopup();
@@ -554,6 +554,7 @@ void RoR::NodeGraphTool::NodeToJson(rapidjson::Value& j_data, Node* node, rapidj
     j_data.AddMember("user_size_x", node->user_size.x, doc.GetAllocator());
     j_data.AddMember("user_size_y", node->user_size.y, doc.GetAllocator());
     j_data.AddMember("id",          node->id,          doc.GetAllocator());
+    j_data.AddMember("type_id",     static_cast<int>(node->type),  doc.GetAllocator());
 }
 
 void RoR::NodeGraphTool::JsonToNode(Node* node, const rapidjson::Value& j_object)
@@ -571,10 +572,7 @@ void RoR::NodeGraphTool::SaveAsJson()
 
     // EXPORT NODES
 
-    rapidjson::Value j_xform_nodes(rapidjson::kArrayType);
-    rapidjson::Value j_disp_nodes(rapidjson::kArrayType);
-    rapidjson::Value j_script_nodes(rapidjson::kArrayType);
-    rapidjson::Value j_gen_nodes(rapidjson::kArrayType);
+    rapidjson::Value j_nodes(rapidjson::kArrayType);
     for (Node* node: m_nodes)
     {
         rapidjson::Value j_data(rapidjson::kObjectType); // Common properties....
@@ -586,24 +584,37 @@ void RoR::NodeGraphTool::SaveAsJson()
             j_data.AddMember("amplitude", static_cast<GeneratorNode*>(node)->amplitude, j_alloc);
             j_data.AddMember("frequency", static_cast<GeneratorNode*>(node)->frequency, j_alloc);
             j_data.AddMember("noise_max", static_cast<GeneratorNode*>(node)->noise_max, j_alloc);
-            j_gen_nodes.PushBack(j_data, j_alloc);
-            break;
-
-        case Node::Type::TRANSFORM:
-            j_xform_nodes.PushBack(j_data, j_alloc);
-            break;
-
-        case Node::Type::DISPLAY:
-            j_disp_nodes.PushBack(j_data, j_alloc);
             break;
 
         case Node::Type::SCRIPT:
             j_data.AddMember("source_code", rapidjson::StringRef(static_cast<ScriptNode*>(node)->code_buf), j_alloc);
-            j_script_nodes.PushBack(j_data, j_alloc);
+            break;
+
+        case Node::Type::READING:
+            j_data.AddMember("softbody_node_id", static_cast<ReadingNode*>(node)->softbody_node_id, j_alloc); // Int
+            break;
+
+        case Node::Type::DISPLAY:
+            j_data.AddMember("scale", static_cast<DisplayNode*>(node)->plot_extent, j_alloc);
+            break;
+
+        default:
             break;
 
         } // end switch
+        j_nodes.PushBack(j_data, j_alloc);
     }
+
+    // EXPORT UDP NODES
+    rapidjson::Value j_udp_pos   (rapidjson::kObjectType);
+    rapidjson::Value j_udp_acc   (rapidjson::kObjectType);
+    rapidjson::Value j_udp_orient(rapidjson::kObjectType);
+    rapidjson::Value j_udp_velo  (rapidjson::kObjectType);
+
+    this->NodeToJson(j_udp_pos,    &this->udp_position_node, doc);
+    this->NodeToJson(j_udp_acc,    &this->udp_accel_node,    doc);
+    this->NodeToJson(j_udp_orient, &this->udp_orient_node,   doc);
+    this->NodeToJson(j_udp_velo,   &this->udp_velocity_node, doc);
 
     // EXPORT LINKS
 
@@ -611,20 +622,21 @@ void RoR::NodeGraphTool::SaveAsJson()
     for (Link* link: m_links)
     {
         rapidjson::Value j_data(rapidjson::kObjectType);
-        j_data.AddMember("node_src_id",  link->node_src->id,  j_alloc);
-        j_data.AddMember("node_dst_id",  link->node_dst->id,  j_alloc);
-        j_data.AddMember("slot_src",     link->buff_src->slot, j_alloc);
-        j_data.AddMember("slot_dst",     link->slot_dst,      j_alloc);
+        j_data.AddMember("node_src_id",  link->node_src->id,    j_alloc);
+        j_data.AddMember("node_dst_id",  link->node_dst->id,    j_alloc);
+        j_data.AddMember("slot_src",     link->buff_src->slot,  j_alloc);
+        j_data.AddMember("slot_dst",     link->slot_dst,        j_alloc);
         j_links.PushBack(j_data, j_alloc);
     }
 
     // COMBINE
 
-    doc.AddMember("generator_nodes", j_gen_nodes,    j_alloc);
-    doc.AddMember("transform_nodes", j_xform_nodes,  j_alloc);
-    doc.AddMember("script_nodes",    j_script_nodes, j_alloc);
-    doc.AddMember("display_nodes",   j_disp_nodes,   j_alloc);
-    doc.AddMember("links",           j_links,        j_alloc);
+    doc.AddMember("nodes", j_nodes, j_alloc);
+    doc.AddMember("links", j_links, j_alloc);
+    doc.AddMember("udp_pos_node",    j_udp_pos   , j_alloc);
+    doc.AddMember("udp_acc_node",    j_udp_acc   , j_alloc);
+    doc.AddMember("udp_orient_node", j_udp_orient, j_alloc);
+    doc.AddMember("udp_velo_node",   j_udp_velo  , j_alloc);
 
     // SAVE FILE
 
@@ -681,83 +693,101 @@ void RoR::NodeGraphTool::LoadFromJson()
     // IMPORT NODES
     std::unordered_map<int, Node*> lookup;
 
-    const char* field = "generator_nodes";
-    if (d.HasMember(field) && d[field].IsArray())
+    if (d.HasMember("nodes") && d["nodes"].IsArray())
     {
-        auto& j_gen = d[field];
-        rapidjson::Value::ConstValueIterator itor = j_gen.Begin();
-        rapidjson::Value::ConstValueIterator endi = j_gen.End();
+        rapidjson::Value::ConstValueIterator itor = d["nodes"].Begin();
+        rapidjson::Value::ConstValueIterator endi = d["nodes"].End();
         for (; itor != endi; ++itor)
         {
-            GeneratorNode* node = new GeneratorNode(this, ImVec2());
+            Node::Type type = static_cast<Node::Type>((*itor)["type_id"].GetInt());
+            Node* node = nullptr;
+            switch(type)
+            {
+            case Node::Type::DISPLAY:
+            {
+                DisplayNode* dnode = new DisplayNode  (this, ImVec2());
+                dnode->plot_extent = (*itor)["scale"].GetFloat();
+                node = dnode;
+                break;
+            }
+            case Node::Type::READING:
+            {
+                ReadingNode* rnode = new ReadingNode  (this, ImVec2());
+                rnode->softbody_node_id = (*itor)["softbody_node_id"].GetInt();
+                node = rnode;
+                break;
+            }
+            //case Node::Type::TRANSFORM:   // Not enabled for use at the moment
+            case Node::Type::GENERATOR:
+            {
+                GeneratorNode* gnode = new GeneratorNode(this, ImVec2());
+                gnode->amplitude = (*itor)["amplitude"].GetFloat();
+                gnode->frequency = (*itor)["frequency"].GetFloat();
+                gnode->noise_max = (*itor)["noise_max"].GetInt();
+                node = gnode;
+                break;
+            }
+            case Node::Type::SCRIPT:
+            {
+                ScriptNode* gnode = new ScriptNode(this, ImVec2());
+                strncpy(gnode->code_buf, (*itor)["source_code"].GetString(), IM_ARRAYSIZE(gnode->code_buf));
+                node = gnode;
+                break;
+            }
+            case Node::Type::EULER:
+            {
+                node = new EulerNode    (this, ImVec2());  // No parameters
+                break;
+            }
+            //case Node::Type::UDP: // special, saved separately
+            }
             this->JsonToNode(node, *itor);
-            node->amplitude = (*itor)["amplitude"].GetFloat();
-            node->frequency = (*itor)["frequency"].GetFloat();
-            node->noise_max = (*itor)["noise_max"].GetInt();
-            m_nodes.push_back(node);
             lookup.insert(std::make_pair(node->id, node));
+            m_nodes.push_back(node);
         }
     }
-    field = "display_nodes";
-    if (d.HasMember(field) && d[field].IsArray())
-    {
-        auto& j_array = d[field];
-        rapidjson::Value::ConstValueIterator itor = j_array.Begin();
-        rapidjson::Value::ConstValueIterator endi = j_array.End();
-        for (; itor != endi; ++itor)
-        {
-            DisplayNode* node = new DisplayNode(this, ImVec2());
-            this->JsonToNode(node, *itor);
-            m_nodes.push_back(node);
-            lookup.insert(std::make_pair(node->id, node));
-        }
-    }
-    field = "transform_nodes";
-    if (d.HasMember(field) && d[field].IsArray())
-    {
-        auto& j_array = d[field];
-        rapidjson::Value::ConstValueIterator itor = j_array.Begin();
-        rapidjson::Value::ConstValueIterator endi = j_array.End();
-        for (; itor != endi; ++itor)
-        {
-            TransformNode* node = new TransformNode(this, ImVec2());
-            this->JsonToNode(node, *itor);
-            m_nodes.push_back(node);
-            lookup.insert(std::make_pair(node->id, node));
-        }
-    }
-    field = "script_nodes";
-    if (d.HasMember(field) && d[field].IsArray())
-    {
-        auto& j_array = d[field];
-        rapidjson::Value::ConstValueIterator itor = j_array.Begin();
-        rapidjson::Value::ConstValueIterator endi = j_array.End();
-        for (; itor != endi; ++itor)
-        {
-            ScriptNode* node = new ScriptNode(this, ImVec2());
-            this->JsonToNode(node, *itor);
-            strncpy(node->code_buf, (*itor)["source_code"].GetString(), IM_ARRAYSIZE(node->code_buf));
-            m_nodes.push_back(node);
-            lookup.insert(std::make_pair(node->id, node));
-        }
-    }
+    else this->Assert(false, "LoadFromJson(): No 'nodes' array in JSON");
+
+    // IMPORT special UDP nodes
+
+    this->JsonToNode(&this->udp_position_node, d["udp_pos_node"]);
+    this->JsonToNode(&this->udp_accel_node,    d["udp_acc_node"]);
+    this->JsonToNode(&this->udp_orient_node,   d["udp_orient_node"]);
+    this->JsonToNode(&this->udp_orient_node,   d["udp_velo_node"]);
 
     // IMPORT LINKS
 
-    field = "links";
-    if (d.HasMember(field) && d[field].IsArray())
+    if (d.HasMember("links") && d["links"].IsArray())
     {
-        auto& j_array = d[field];
-        rapidjson::Value::ConstValueIterator itor = j_array.Begin();
-        rapidjson::Value::ConstValueIterator endi = j_array.End();
-        for (; itor != endi; ++itor)
+        rapidjson::Value::ConstValueIterator l_itor = d["links"].Begin();
+        rapidjson::Value::ConstValueIterator l_endi = d["links"].End();
+        for (; l_itor != l_endi; ++l_itor)
         {
             Link* link = new Link();
-            lookup.find((*itor)["node_src_id"].GetInt())->second->BindSrc(link, (*itor)["slot_src"].GetInt());
-            lookup.find((*itor)["node_dst_id"].GetInt())->second->BindDst(link, (*itor)["slot_dst"].GetInt());
+            int src_id = (*l_itor)["node_src_id"].GetInt();
+            int dst_id = (*l_itor)["node_dst_id"].GetInt();
+
+            auto src_found = lookup.find(src_id);
+            auto dst_found = lookup.find(dst_id);
+
+            if (src_found == lookup.end())
+            {
+                this->AddMessage("JSON load error: failed to resolve link src node %d", src_id);
+                delete link;
+                continue;
+            }
+            if (dst_found == lookup.end())
+            {
+                this->AddMessage("JSON load error: failed to resolve link dst node %d", dst_id);
+                delete link;
+                continue;
+            }
+            src_found->second->BindSrc(link, (*l_itor)["slot_src"].GetInt());
+            dst_found->second->BindDst(link, (*l_itor)["slot_dst"].GetInt());
             m_links.push_back(link);
         }
     }
+    else this->Assert(false, "LoadFromJson(): No 'links' array in JSON");
 }
 
 void RoR::NodeGraphTool::ClearAll()
@@ -885,13 +915,27 @@ void RoR::NodeGraphTool::DisplayNode::Draw()
 
 void RoR::NodeGraphTool::DisplayNode::DetachLink(Link* link)
 {
-    assert (link->node_dst != this); // Check discrepancy - this node has no inputs!
+    graph->Assert (link->node_src != this, "DisplayNode::DetachLink() discrepancy - this node has no outputs!");
 
-    if (link->node_src == this)
+    if (link->node_dst == this)
     {
-        assert(&this->buffer_out == link->buff_src); // Check discrepancy
-        link->node_src = nullptr;
-        link->buff_src = nullptr;
+        graph->Assert(this->link_in == link, "DisplayNode::DetachLink() discrepancy in link: node_dst attached, link_in not");
+        link->node_dst = nullptr;
+        link->slot_dst = -1;
+        link_in = nullptr;
+    }
+    else graph->Assert (false, "DisplayNode::DetachLink() called with unrelated link");
+}
+
+void RoR::NodeGraphTool::DisplayNode::BindDst(Link* link, int slot)
+{ 
+    graph->Assert(slot == 0, "DisplayNode::BindDst() called with bad slot");
+
+    if (slot == 0)
+    { 
+        link->node_dst = this; 
+        link->slot_dst = slot; 
+        link_in = link; 
     }
 }
 
@@ -1320,18 +1364,18 @@ void RoR::NodeGraphTool::ScriptNode::DetachLink(Link* link)
 {
     if (link->node_dst == this)
     {
-        assert(inputs[link->slot_dst] == link); // Check discrepancy
+        graph->Assert(inputs[link->slot_dst] == link, "ScriptNode::DetachLink(): Discrepancy: inputs[link->slot_dst] != link "); // Check discrepancy
         inputs[link->slot_dst] = nullptr;
         link->node_dst = nullptr;
         link->slot_dst = -1;
     }
     else if (link->node_src == this)
     {
-        assert((link->buff_src != nullptr)); // Check discrepancy
+        graph->Assert((link->buff_src != nullptr), "ScriptNode::DetachLink(): Discrepancy, buff_src is NULL"); // Check discrepancy
         link->buff_src = nullptr;
         link->node_src = nullptr;
     }
-    else assert(false && "ScriptNode::DetachLink() called on unrelated node");
+    else graph->Assert(false,"ScriptNode::DetachLink() called on unrelated node");
 }
 
 void RoR::NodeGraphTool::ScriptNode::Draw()

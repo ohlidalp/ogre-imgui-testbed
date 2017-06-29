@@ -85,7 +85,7 @@ public:
 
     struct Node
     {
-        enum class Type { INVALID, READING, GENERATOR, TRANSFORM, SCRIPT, DISPLAY, EULER, UDP };
+        enum class Type    { INVALID, READING, GENERATOR, TRANSFORM, SCRIPT, DISPLAY, EULER, UDP };
 
         Node(NodeGraphTool* _graph, Type _type, ImVec2 _pos): graph(_graph), num_inputs(0), num_outputs(0), pos(_pos), type(_type), done(false)
         {
@@ -222,8 +222,8 @@ public:
         DisplayNode(NodeGraphTool* nodegraph, ImVec2 _pos);
 
         virtual bool Process() override                             { this->done = true; return true; }
-        //           BindSrc() - this node has no outputs.
-        virtual void BindDst(Link* link, int slot) override         { assert(slot==0); if (slot == 0) { link->node_dst = this; link->slot_dst = slot; link_in = link; } }
+        virtual void BindSrc(Link* link, int slot) override         { graph->Assert(false, "Called DisplayNode::BindSrc() - node has no outputs!"); }
+        virtual void BindDst(Link* link, int slot) override;
         virtual void DetachLink(Link* link) override; // FINAL
         virtual void Draw() override;
 
@@ -236,11 +236,11 @@ public:
     {
         UdpNode(NodeGraphTool* nodegraph, ImVec2 _pos, const char* _title, const char* _desc);
 
-        bool Process() override                             { this->done = true; return true; }
-        //   BindSrc() - this node has no outputs.
-        void BindDst(Link* link, int slot) override;
-        void DetachLink(Link* link) override;
-        void Draw() override;
+        virtual bool Process() override                             { this->done = true; return true; }
+        virtual void BindSrc(Link* link, int slot) override         { graph->Assert(false, "Called UdpNode::BindSrc() - node has no outputs!"); }
+        virtual void BindDst(Link* link, int slot) override;
+        virtual void DetachLink(Link* link) override;
+        virtual void Draw() override;
 
         inline float Capture(int slot)                      { if (inputs[slot] != nullptr) { return inputs[slot]->buff_src->Read(); } else { return 0.f; } }
 
@@ -272,6 +272,7 @@ private:
     inline void     DrawInputSlot (Node* node, const int index)                          { this->DrawSlotUni(node, index, true); }
     inline void     DrawOutputSlot (Node* node, const int index)                         { this->DrawSlotUni(node, index, false); }
     inline int      AssignId()                                                           { return m_free_id++; }
+    inline void     Assert(bool expr, const char* msg)                                   { if (!expr) { this->AddMessage("Assert failed: %s", msg); } }
     inline void     UpdateFreeId(int existing_id)                                        { if (existing_id >= m_free_id) { m_free_id = (existing_id + 1); } }
     void            DrawSlotUni (Node* node, const int index, const bool input);
     Link*           AddLink (Node* src, Node* dst, int src_slot, int dst_slot);          ///< creates new link or fetches existing unused one
