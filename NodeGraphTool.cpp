@@ -8,7 +8,7 @@
 #include "rapidjson/filewritestream.h"
 #include "rapidjson/filereadstream.h"
 #include "rapidjson/prettywriter.h"
-#include "sigpack/sigpack.h"
+// END bundled
 
 #include <map>
 
@@ -525,12 +525,12 @@ void RoR::NodeGraphTool::CalcGraph()
     while (!all_done);
 }
 
-void RoR::NodeGraphTool::ScriptMessageCallback(const asSMessageInfo *msg, void *param)
+void RoR::NodeGraphTool::ScriptMessageCallback(const AngelScript::asSMessageInfo *msg, void *param)
 {
     const char *type = "ERR ";
-    if( msg->type == asMSGTYPE_WARNING ) 
+    if( msg->type == AngelScript::asMSGTYPE_WARNING ) 
         type = "WARN";
-    else if( msg->type == asMSGTYPE_INFORMATION ) 
+    else if( msg->type == AngelScript::asMSGTYPE_INFORMATION ) 
         type = "INFO";
 
     char buf[500];
@@ -1011,28 +1011,28 @@ RoR::NodeGraphTool::ScriptNode::ScriptNode(NodeGraphTool* _graph, ImVec2 _pos):
 
 void RoR::NodeGraphTool::ScriptNode::InitScripting()
 {
-    script_engine = asCreateScriptEngine(ANGELSCRIPT_VERSION);
+    script_engine = AngelScript::asCreateScriptEngine(ANGELSCRIPT_VERSION);
     if (script_engine == nullptr)
     {
         graph->AddMessage("%s: failed to create scripting engine", node_name);
         return;
     }
 
-    int result = script_engine->SetMessageCallback(asMETHOD(NodeGraphTool, ScriptMessageCallback), this, asCALL_THISCALL);
+    int result = script_engine->SetMessageCallback(AngelScript::asMETHOD(NodeGraphTool, ScriptMessageCallback), this, AngelScript::asCALL_THISCALL);
     if (result < 0)
     {
         graph->AddMessage("%s: failed to register message callback function, res: %d", node_name, result);
         return;
     }
 
-    result = script_engine->RegisterGlobalFunction("void Write(int, float)", asMETHOD(RoR::NodeGraphTool::ScriptNode, Write), asCALL_THISCALL_ASGLOBAL, this);
+    result = script_engine->RegisterGlobalFunction("void Write(int, float)", AngelScript::asMETHOD(RoR::NodeGraphTool::ScriptNode, Write), AngelScript::asCALL_THISCALL_ASGLOBAL, this);
     if (result < 0)
     {
         graph->AddMessage("%s: failed to register function `Write`, res: %d", node_name, result);
         return;
     }
 
-    result = script_engine->RegisterGlobalFunction("float Read(int, int)", asMETHOD(RoR::NodeGraphTool::ScriptNode, Read), asCALL_THISCALL_ASGLOBAL, this);
+    result = script_engine->RegisterGlobalFunction("float Read(int, int)", AngelScript::asMETHOD(RoR::NodeGraphTool::ScriptNode, Read), AngelScript::asCALL_THISCALL_ASGLOBAL, this);
     if (result < 0)
     {
         graph->AddMessage("%s: failed to register function `Read`, res: %d", node_name, result);
@@ -1042,7 +1042,7 @@ void RoR::NodeGraphTool::ScriptNode::InitScripting()
 
 void RoR::NodeGraphTool::ScriptNode::Apply()
 {
-    asIScriptModule* module = script_engine->GetModule(nullptr, asGM_ALWAYS_CREATE);
+    AngelScript::asIScriptModule* module = script_engine->GetModule(nullptr, AngelScript::asGM_ALWAYS_CREATE);
     if (module == nullptr)
     {
         graph->AddMessage("%s: Failed to create module", node_name);
@@ -1137,7 +1137,7 @@ bool RoR::NodeGraphTool::ScriptNode::Process()
     }
 
     int exec_result = script_context->Execute();
-    if (exec_result != asEXECUTION_FINISHED)
+    if (exec_result != AngelScript::asEXECUTION_FINISHED)
     {
         graph->AddMessage("%s: failed to `Execute()`, res: %d", node_name, exec_result);
         script_engine->ReturnContext(script_context);

@@ -86,7 +86,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;AS_USE_NAMESPACE;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>lib\DearIMGUI_OGRE;lib\DearIMGUI;C:\Lib\boost-1.61-vc140-x86-12.03.2016;c:\Lib\OGRE-SDK-1.9.0-vc140-x86-12.03.2016\include\OIS;c:\Lib\OGRE-SDK-1.9.0-vc140-x86-12.03.2016\include\OGRE\Overlay;c:\Lib\OGRE-SDK-1.9.0-vc140-x86-12.03.2016\include\OGRE;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
@@ -118,9 +118,9 @@
       <Optimization>Disabled</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>false</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;AS_USE_NAMESPACE;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>C:\Lib\angelscript-2-31-2\sdk\angelscript\include;D:\Lib\angelscript_2.31.2\sdk\angelscript\include;C:\Source\armadillo-7.950.1\include;D:\Source\armadillo-7.950.1\include;lib\DearIMGUI_OGRE;lib;lib\DearIMGUI;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\Ois;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\Ois;C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>dependencies\angelscript-2-31-2\angelscript\include;lib\DearIMGUI_OGRE;lib;lib\DearIMGUI;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\Ois;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\Ois;C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -130,8 +130,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>C:\Builds\armadillo-cmake-build\RelWithDebInfo;C:\Lib\angelscript-2-31-2\sdk\angelscript\lib;D:\Lib\angelscript_2.31.2\sdk\angelscript\lib;c:\BuildS\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\lib\release;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\lib\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>OgreMain.lib;OgreOverlay.lib;OIS.lib;angelscript.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>c:\BuildS\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\lib\release;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\lib\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>OgreMain.lib;OgreOverlay.lib;OIS.lib;dependencies\angelscript-2-31-2\angelscript\lib\angelscript-MT_StaticRelease.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

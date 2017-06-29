@@ -6,8 +6,8 @@
 // Bundled
 #include "rapidjson/rapidjson.h"
 #include "rapidjson/document.h"
-// External
-#include <angelscript.h>
+#include "angelscript.h"
+// END bundled
 
 #include <list>
 #include <string>
@@ -173,9 +173,9 @@ public:
         void  Write(int slot, float val);
 
         char code_buf[1000];
-        asIScriptContext* script_context;
-        asIScriptEngine*  script_engine;
-        asIScriptFunction* script_func;
+        AngelScript::asIScriptContext* script_context;
+        AngelScript::asIScriptEngine*  script_engine;
+        AngelScript::asIScriptFunction* script_func;
         char node_name[10];
         bool enabled; // Disables itself on script error
         Link* inputs[9];
@@ -249,7 +249,7 @@ private:
     void            AddMessage(const char* fmt, ...);
     void            NodeToJson(rapidjson::Value& j_data, Node* node, rapidjson::Document& doc);
     void            JsonToNode(Node* node, const rapidjson::Value& j_object);
-    void            ScriptMessageCallback(const asSMessageInfo *msg, void *param);
+    void            ScriptMessageCallback(const AngelScript::asSMessageInfo *msg, void *param);
     void            DetachAndDeleteNode(Node* node);
     void            DetachAndDeleteLink(Link* link);
 
