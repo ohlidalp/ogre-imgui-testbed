@@ -58,6 +58,9 @@ public:
         float link_line_width;
         ImVec2 slot_hoverbox_extent;
         ImVec2 scaler_size;
+        ImU32 display2d_grid_bg_color;
+        ImU32 display2d_grid_line_color;
+        float display2d_grid_line_width;
 
         Style();
     };
@@ -252,6 +255,26 @@ public:
         float plot_extent; // both min and max
     };
 
+    struct Display2DNode: public UserNode
+    {
+        Display2DNode(NodeGraphTool* nodegraph, ImVec2 _pos);
+
+        //           Process() override                          --- Nothing to do here.
+        virtual void BindSrc(Link* link, int slot) override         { graph->Assert(false, "Called Display2DNode::BindSrc() - node has no outputs!"); }
+        virtual void BindDst(Link* link, int slot) override;
+        virtual void DetachLink(Link* link) override; // FINAL
+        virtual void Draw() override;
+
+        Link* input_rough_x;
+        Link* input_rough_y;
+        Link* input_smooth_x;
+        Link* input_smooth_y;
+        Link* input_scroll_x;
+        Link* input_scroll_y;
+        float zoom;
+        float grid_size;
+    };
+
     /// Sink of the graph. Each field in UDP packet has one instance. Cannot be created by user, created automatically. Not placed in 'm_nodes' array.
     struct UdpNode: public Node // Special - inherits directly Node
     {
@@ -302,6 +325,7 @@ private:
     void            DrawNodeGraphPane ();
     void            DrawGrid ();
     void            DrawLink(Link* link);
+    bool            IsLinkAttached(Link* link)                                           { return link != nullptr && link != m_link_mouse_dst && link != m_link_mouse_src; }
     void            DeleteLink(Link* link);
     void            DeleteNode(Node* node);
     void            DrawNodeBegin(Node* node);                                           ///< Important: Call `ClipTestNode()` first!
