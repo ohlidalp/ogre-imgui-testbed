@@ -1,7 +1,5 @@
 #include "NodeGraphTool.h"
 
-#include <imgui_internal.h> // For ImRect
-
 // Bundled libs
 #include "rapidjson/rapidjson.h"
 #include "rapidjson/document.h"
@@ -14,7 +12,8 @@
 
 RoR::NodeGraphTool::NodeGraphTool():
     m_scroll(0.0f, 0.0f),
-    m_last_scaled_node(nullptr),
+    m_scroll_offset(0.0f, 0.0f),
+    m_mouse_resize_node(nullptr),
     m_link_mouse_src(nullptr),
     m_link_mouse_dst(nullptr),
     m_hovered_slot_node(nullptr),
@@ -24,7 +23,6 @@ RoR::NodeGraphTool::NodeGraphTool():
     m_hovered_slot_input(-1),
     m_hovered_slot_output(-1),
     m_free_id(0),
-    m_panel_visible(false),
     m_fake_mouse_node(this, ImVec2()), // Used for dragging links with mouse
 
     udp_position_node(this, ImVec2(-300.f, 100.f), "UDP position", "(world XYZ)"),
@@ -71,6 +69,7 @@ RoR::NodeGraphTool::Style::Style()
     node_slots_radius         = 5.f;
     color_link                = ImColor(200,200,100);
     link_line_width           = 3.f;
+    scaler_size               = ImVec2(20, 20);
 }
 
 RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkBySource(Node* node, const int slot)
@@ -83,11 +82,15 @@ RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkBySource(Node* node, const
     return nullptr;
 }
 
-void RoR::NodeGraphTool::Draw()
+void RoR::NodeGraphTool::Draw(int net_send_state)
 {
     // Create a window
-    if (!ImGui::Begin("MotionFeeder"))
-        return; // No window -> nothing to do.
+    bool is_open = true;
+    ImGui::Begin("MotionFeeder", &is_open);
+ // RoR   if (!is_open)
+ // RoR   {
+ // RoR       App::sim_motionfeeder_mode.SetPending(MotionFeederMode::HIDDEN);
+ // RoR   }
 
     // Debug outputs
     //ImGui::Text("MouseDrag - src: 0x%p, dst: 0x%p | mousenode - X:%.1f, Y:%.1f", m_link_mouse_src, m_link_mouse_dst, m_fake_mouse_node.pos.x, m_fake_mouse_node.pos.y);
@@ -107,10 +110,10 @@ void RoR::NodeGraphTool::Draw()
     {
         m_header_mode = HeaderMode::CLEAR_ALL;
     }
+
     ImGui::SameLine();
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 50.f);
-    static bool transmit = false;
-    ImGui::Checkbox("Transmit", &transmit); // TODO: Enable/disable networking
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 100.f);
+    ImGui::Text("Net status: %s", (net_send_state >= 0) ? "OK" : "ERROR");
 
     if (m_header_mode != HeaderMode::NORMAL)
     {
@@ -172,27 +175,36 @@ void RoR::NodeGraphTool::Draw()
     ImGui::End();
 }
 
-void RoR::NodeGraphTool::PhysicsTick()
+void RoR::NodeGraphTool::PhysicsTick(Beam* actor)
 {
     for (Node* node: m_nodes)
     {
-        if (node->type != Node::Type::GENERATOR)
-            continue;
-
-        GeneratorNode* gen_node = static_cast<GeneratorNode*>(node);
-        gen_node->elapsed += 0.002f;
-
-        float result = cosf((gen_node->elapsed / 2.f) * 3.14f * gen_node->frequency) * gen_node->amplitude;
-
-        // add noise
-        if (gen_node->noise_max != 0)
+        if (node->type == Node::Type::GENERATOR)
         {
-            int r = rand() % gen_node->noise_max;
-            result += static_cast<float>((r*2)-r) * 0.1f;
-        }
 
-        // save to buffer
-        gen_node->buffer_out.Push(result);
+            GeneratorNode* gen_node = static_cast<GeneratorNode*>(node);
+            gen_node->elapsed += 0.002f;
+
+            float result = cosf((gen_node->elapsed / 2.f) * 3.14f * gen_node->frequency) * gen_node->amplitude;
+
+            // add noise
+            if (gen_node->noise_max != 0)
+            {
+                int r = rand() % gen_node->noise_max;
+                result += static_cast<float>((r*2)-r) * 0.1f;
+            }
+
+            // save to buffer
+            gen_node->buffer_out.Push(result);
+        }
+   // RoR     else if (node->type == Node::Type::READING)
+   // RoR     {
+   // RoR         ReadingNode* rnode = static_cast<ReadingNode*>(node);
+   // RoR         if (rnode->softbody_node_id >= 0)
+   // RoR         {
+   // RoR             rnode->Push(actor->nodes[rnode->softbody_node_id].AbsPosition);
+   // RoR         }
+   // RoR     }
     }
     this->CalcGraph();
 }
@@ -211,6 +223,18 @@ void RoR::NodeGraphTool::DrawGrid()
         draw_list->AddLine(ImVec2(0.0f,y)+win_pos, ImVec2(canvasSize.x,y)+win_pos, m_style.color_grid, m_style.grid_line_width);
 }
 
+bool RoR::NodeGraphTool::ClipTest(ImRect r)
+{
+    return ImGui::GetCurrentWindow()->Rect().Overlaps(r);
+}
+
+bool RoR::NodeGraphTool::ClipTestNode(Node* n)
+{
+    n->draw_rect_min = m_scroll_offset + n->pos;
+    // NOTE: We're using value from previous update; `calc_size` is updated by DrawNodeFinalize(); --> We must add a safety minimum size in case the node was never displayed before
+    return this->ClipTest(ImRect(n->draw_rect_min, n->draw_rect_min + n->calc_size + ImVec2(50.f,25.f)));
+}
+
 void RoR::NodeGraphTool::DrawLink(Link* link)
 {
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
@@ -220,7 +244,7 @@ void RoR::NodeGraphTool::DrawLink(Link* link)
     ImVec2 p2 = offset + link->node_dst->GetInputSlotPos(link->slot_dst);
     ImRect window = ImGui::GetCurrentWindow()->Rect();
 
-    if (this->IsInside(window.Min, window.Max, p1) || this->IsInside(window.Min, window.Max, p1)) // very basic clipping
+    if (this->IsInside(window.Min, window.Max, p1) || this->IsInside(window.Min, window.Max, p2)) // very basic clipping
     {
         float bezier_pt_dist = fmin(50.f, fmin(fabs(p1.x - p2.x)*0.75f, fabs(p1.y - p2.y)*0.75f)); // Maximum: 50; minimum: 75% of shorter-axis distance between p1 and p2
         draw_list->AddBezierCurve(p1, p1+ImVec2(+bezier_pt_dist,0), p2+ImVec2(-bezier_pt_dist,0), p2, m_style.color_link, m_style.link_line_width);
@@ -232,6 +256,16 @@ void RoR::NodeGraphTool::DrawSlotUni(Node* node, const int index, const bool inp
     ImDrawList* drawlist = ImGui::GetWindowDrawList();
     drawlist->ChannelsSetCurrent(2);
     ImVec2 slot_center_pos =  ((input) ? node->GetInputSlotPos(index) : (node->GetOutputSlotPos(index)));
+
+    // Clip test
+    ImVec2 clip_pos = slot_center_pos + m_scroll_offset;
+    ImVec2 clip_min(clip_pos.x - m_style.node_slots_radius, clip_pos.y - m_style.node_slots_radius);
+    ImVec2 clip_max(clip_pos.x + m_style.node_slots_radius, clip_pos.y + m_style.node_slots_radius);
+    if (!this->ClipTest(ImRect(clip_min, clip_max)))
+    {
+        return;
+    }
+
     ImGui::SetCursorScreenPos((slot_center_pos + m_scroll_offset) - m_style.slot_hoverbox_extent);
     ImU32 color = (input) ? m_style.color_input_slot : m_style.color_output_slot;
     if (this->IsSlotHovered(slot_center_pos))
@@ -291,7 +325,6 @@ RoR::NodeGraphTool::Link* RoR::NodeGraphTool::AddLink(Node* src, Node* dst, int 
 void RoR::NodeGraphTool::DrawNodeBegin(Node* node)
 {
     ImGui::PushID(node->id);
-    node->draw_rect_min = m_scroll_offset + node->pos;
     // Draw content
     ImDrawList* drawlist = ImGui::GetWindowDrawList();
     drawlist->ChannelsSetCurrent(2);
@@ -312,7 +345,7 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
 
     // Handle mouse dragging
     bool is_hovered = false;
-    if (!m_is_any_slot_hovered)
+    if (!m_is_any_slot_hovered && (m_mouse_resize_node == nullptr))
     {
         ImGui::SetCursorScreenPos(node->draw_rect_min);
         ImGui::InvisibleButton("node", node->calc_size);
@@ -333,6 +366,34 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
     ImVec2 draw_rect_max = node->draw_rect_min + node->calc_size;
     drawlist->AddRectFilled(node->draw_rect_min, draw_rect_max, bg_color, m_style.node_rounding);
     drawlist->AddRect(node->draw_rect_min, draw_rect_max, border_color, m_style.node_rounding);
+
+    // Resizing
+    if (node->is_scalable)
+    {
+        // Handle resize
+        ImVec2 scaler_mouse_max = node->pos + node->calc_size;
+        ImVec2 scaler_mouse_min = scaler_mouse_max - m_style.scaler_size;
+        bool scaler_hover = false;
+        if ((m_mouse_resize_node == nullptr) && this->IsInside(scaler_mouse_min, scaler_mouse_max, m_nodegraph_mouse_pos)) // Ignore this scaler if another node is already scaled
+        {
+            scaler_hover = true;
+            if (ImGui::IsMouseDragging(0))
+            {
+                m_mouse_resize_node = node;
+            }
+        }
+
+        // Draw
+        ImColor scaler_color = ImGui::GetStyle().Colors[ImGuiCol_Button];
+        if (scaler_hover || (node == m_mouse_resize_node))
+        {
+            scaler_color = ImGui::GetStyle().Colors[ImGuiCol_ButtonActive];
+        }
+        drawlist->AddTriangleFilled(draw_rect_max,
+                                    ImVec2(draw_rect_max.x, draw_rect_max.y - m_style.scaler_size.y), 
+                                    ImVec2(draw_rect_max.x - m_style.scaler_size.x, draw_rect_max.y),
+                                    scaler_color);
+    }
 
     ImGui::PopID();
 
@@ -379,8 +440,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
     drawlist->ChannelsSplit(3); // 0 = background (grid, curves); 1 = node rectangle/slots; 2 = node content
 
     // Update mouse drag
-    const ImVec2 nodepane_screen_pos = ImGui::GetCursorScreenPos();
-    m_nodegraph_mouse_pos = (ImGui::GetIO().MousePos - nodepane_screen_pos);
+    m_nodegraph_mouse_pos = (ImGui::GetIO().MousePos - m_scroll_offset);
     if (ImGui::IsMouseDragging(0) && this->IsLinkDragInProgress())
     {
         m_fake_mouse_node.pos = m_nodegraph_mouse_pos;
@@ -411,6 +471,16 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
             }
             m_link_mouse_dst = nullptr;
         }
+    }
+
+    // Update node resize
+    if (ImGui::IsMouseDragging(0) && m_mouse_resize_node != nullptr)
+    {
+        m_mouse_resize_node->user_size += ImGui::GetIO().MouseDelta;
+    }
+    else // Resize ended
+    {
+        m_mouse_resize_node = nullptr;
     }
 
     // Draw grid
@@ -489,22 +559,11 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         else
         {
             ImGui::Text("-- Create new node --");
-            if (ImGui::MenuItem("Generator"))
-            {
-                m_nodes.push_back(new GeneratorNode(this, scene_pos));
-            }
-            if (ImGui::MenuItem("Display"))
-            {
-                m_nodes.push_back(new DisplayNode(this, scene_pos));
-            }
-            if (ImGui::MenuItem("Script"))
-            {
-                m_nodes.push_back(new ScriptNode(this, scene_pos));
-            }
-            if (ImGui::MenuItem("Euler"))
-            {
-                m_nodes.push_back(new EulerNode(this, scene_pos));
-            }
+            if (ImGui::MenuItem("Reading"))   { m_nodes.push_back(new ReadingNode(this, scene_pos));   }
+            if (ImGui::MenuItem("Generator")) { m_nodes.push_back(new GeneratorNode(this, scene_pos)); }
+            if (ImGui::MenuItem("Display"))   { m_nodes.push_back(new DisplayNode(this, scene_pos));   }
+            if (ImGui::MenuItem("Script"))    { m_nodes.push_back(new ScriptNode(this, scene_pos));    }
+            if (ImGui::MenuItem("Euler")) { m_nodes.push_back(new EulerNode(this, scene_pos)); }
             ImGui::Text("-- Fetch UDP node --");
             if (ImGui::MenuItem("Position")) { udp_position_node.pos = scene_pos; }
             if (ImGui::MenuItem("Velocity")) { udp_velocity_node.pos = scene_pos; }
@@ -698,6 +757,26 @@ void RoR::NodeGraphTool::SaveAsJson()
     delete buffer;
 }
 
+RoR::NodeGraphTool::Node* ResolveNodeByIdHelper(RoR::NodeGraphTool* graph,
+                                                std::unordered_map<int, RoR::NodeGraphTool::Node*>& lookup,
+                                                int node_id)
+{
+    switch (node_id)
+    {
+        case RoR::NodeGraphTool::UDP_POS_NODE_ID   : return &graph->udp_position_node; 
+        case RoR::NodeGraphTool::UDP_VELO_NODE_ID  : return &graph->udp_velocity_node; 
+        case RoR::NodeGraphTool::UDP_ACC_NODE_ID   : return &graph->udp_accel_node;    
+        case RoR::NodeGraphTool::UDP_ANGLES_NODE_ID: return &graph->udp_orient_node;   
+        default:
+        {
+            auto found_itor = lookup.find(node_id);
+            if (found_itor != lookup.end())
+                return found_itor->second;
+        }
+    }
+    return nullptr;
+}
+
 void RoR::NodeGraphTool::LoadFromJson()
 {
     this->ClearAll();
@@ -783,7 +862,7 @@ void RoR::NodeGraphTool::LoadFromJson()
     this->JsonToNode(&this->udp_position_node, d["udp_pos_node"]);
     this->JsonToNode(&this->udp_accel_node,    d["udp_acc_node"]);
     this->JsonToNode(&this->udp_orient_node,   d["udp_orient_node"]);
-    this->JsonToNode(&this->udp_orient_node,   d["udp_velo_node"]);
+    this->JsonToNode(&this->udp_velocity_node, d["udp_velo_node"]);
 
     // IMPORT LINKS
 
@@ -796,24 +875,23 @@ void RoR::NodeGraphTool::LoadFromJson()
             Link* link = new Link();
             int src_id = (*l_itor)["node_src_id"].GetInt();
             int dst_id = (*l_itor)["node_dst_id"].GetInt();
+            Node* src_node = ResolveNodeByIdHelper(this, lookup, src_id);
+            Node* dst_node = ResolveNodeByIdHelper(this, lookup, dst_id);
 
-            auto src_found = lookup.find(src_id);
-            auto dst_found = lookup.find(dst_id);
-
-            if (src_found == lookup.end())
+            if (src_node == nullptr)
             {
                 this->AddMessage("JSON load error: failed to resolve link src node %d", src_id);
                 delete link;
                 continue;
             }
-            if (dst_found == lookup.end())
+            if (dst_node == nullptr)
             {
                 this->AddMessage("JSON load error: failed to resolve link dst node %d", dst_id);
                 delete link;
                 continue;
             }
-            src_found->second->BindSrc(link, (*l_itor)["slot_src"].GetInt());
-            dst_found->second->BindDst(link, (*l_itor)["slot_dst"].GetInt());
+            src_node->BindSrc(link, (*l_itor)["slot_src"].GetInt());
+            dst_node->BindDst(link, (*l_itor)["slot_dst"].GetInt());
             m_links.push_back(link);
         }
     }
@@ -822,13 +900,12 @@ void RoR::NodeGraphTool::LoadFromJson()
 
 void RoR::NodeGraphTool::ClearAll()
 {
-    for (Link* link: m_links)
-        this->DeleteLink(link);
-    m_links.clear();
+    while (!m_links.empty())
+        this->DetachAndDeleteLink(m_links.back());
 
-    for (Node* n: m_nodes)
-        delete n;
-    m_nodes.clear();
+    while (!m_nodes.empty())
+        this->DetachAndDeleteNode(m_nodes.back());
+
 }
 
 template<typename N> void DeleteNodeFromVector(std::vector<N*>& vec, RoR::NodeGraphTool::Node* node)
@@ -922,6 +999,8 @@ static const float DUMMY_PLOT[] = {0,0,0,0,0};
 
 void RoR::NodeGraphTool::DisplayNode::Draw()
 {
+    if (!graph->ClipTestNode(this))
+        return;
     graph->DrawNodeBegin(this);
 
     const float* data_ptr = DUMMY_PLOT;;
@@ -985,6 +1064,8 @@ RoR::NodeGraphTool::UdpNode::UdpNode(NodeGraphTool* nodegraph, ImVec2 _pos, cons
 
 void RoR::NodeGraphTool::UdpNode::Draw()
 {
+    if (!graph->ClipTestNode(this))
+        return;
     graph->DrawNodeBegin(this);
     ImGui::Text(title);
     ImGui::Text(" ---------- ");
@@ -1024,6 +1105,8 @@ void RoR::NodeGraphTool::UdpNode::BindDst(Link* link, int slot)
 
 void RoR::NodeGraphTool::GeneratorNode::Draw()
 {
+    if (!graph->ClipTestNode(this))
+        return;
     this->graph->DrawNodeBegin(this);
 
     ImGui::Text("Sine generator");
@@ -1098,6 +1181,8 @@ void RoR::NodeGraphTool::ReadingNode::DetachLink(Link* link)
 
 void RoR::NodeGraphTool::ReadingNode::Draw()
 {
+    if (!graph->ClipTestNode(this))
+        return;
     this->graph->DrawNodeBegin(this);
     ImGui::Text("SoftBody reading");
     ImGui::InputInt("Node", &softbody_node_id);
@@ -1194,6 +1279,8 @@ bool RoR::NodeGraphTool::EulerNode::Process()
 
 void RoR::NodeGraphTool::EulerNode::Draw()
 {
+    if (!graph->ClipTestNode(this))
+        return;
     this->graph->DrawNodeBegin(this);
 
     ImGui::Text("     Euler angles     ");
@@ -1229,6 +1316,7 @@ RoR::NodeGraphTool::ScriptNode::ScriptNode(NodeGraphTool* _graph, ImVec2 _pos):
     user_size = ImVec2(250, 200);
     snprintf(node_name, 10, "Node %d", id);
     this->InitScripting();
+    is_scalable = true;
 }
 
 void RoR::NodeGraphTool::ScriptNode::InitScripting()
@@ -1414,6 +1502,8 @@ void RoR::NodeGraphTool::ScriptNode::DetachLink(Link* link)
 
 void RoR::NodeGraphTool::ScriptNode::Draw()
 {
+    if (!graph->ClipTestNode(this))
+        return;
     graph->DrawNodeBegin(this);
     const int flags = ImGuiInputTextFlags_AllowTabInput;
     const ImVec2 size = this->user_size;
@@ -1439,6 +1529,8 @@ RoR::NodeGraphTool::MouseDragNode::MouseDragNode(NodeGraphTool* _graph, ImVec2 _
 
 void RoR::NodeGraphTool::MouseDragNode::Draw()
 {
+    if (!graph->ClipTestNode(this))
+        return;
     graph->DrawNodeBegin(this);
     ImGui::PushItemWidth(this->user_size.x);
     ImGui::Text("Transform");
@@ -1463,4 +1555,3 @@ void RoR::NodeGraphTool::MouseDragNode::DetachLink(Link* link)
     }
     else assert(false && "MouseDragNode::DetachLink() called on unrelated node");
 }
-

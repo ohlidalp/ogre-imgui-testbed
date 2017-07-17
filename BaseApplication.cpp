@@ -50,7 +50,7 @@ public:
         }
 
         if (show_nodegraph)
-            m_nodegraph.Draw();
+            m_nodegraph.Draw(0); // 0 = dummy network status
 
 
     }
@@ -154,7 +154,7 @@ private:
         while (last_time < ImGui::GetTime())
         {
             // Update data
-            m_nodegraph.PhysicsTick();
+            m_nodegraph.PhysicsTick(nullptr); // Arg = actor (dummy)
 
             // update time
             last_time += (1.f / 2000.f);

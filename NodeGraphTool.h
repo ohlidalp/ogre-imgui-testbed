@@ -3,6 +3,8 @@
 
 #include "ImguiManager.h"
 
+#include <imgui_internal.h> // For ImRect
+
 // Bundled
 #include "rapidjson/rapidjson.h"
 #include "rapidjson/document.h"
@@ -16,9 +18,13 @@
 
 namespace RoR {
 
+class Beam; // Forward decl.
+
 struct Vec3 { float x, y, z; };
 
 #define RoR_ARRAYSIZE(_ARR)  (sizeof(_ARR)/sizeof(*_ARR))
+
+// =========================================================================
 
 class NodeGraphTool
 {
@@ -51,6 +57,7 @@ public:
         ImU32 color_link;
         float link_line_width;
         ImVec2 slot_hoverbox_extent;
+        ImVec2 scaler_size;
 
         Style();
     };
@@ -93,9 +100,8 @@ public:
     {
         enum class Type    { INVALID, READING, GENERATOR, MOUSE, SCRIPT, DISPLAY, EULER, UDP };
 
-        Node(NodeGraphTool* _graph, Type _type, ImVec2 _pos): graph(_graph), num_inputs(0), num_outputs(0), pos(_pos), type(_type), done(false)
+        Node(NodeGraphTool* _graph, Type _type, ImVec2 _pos): graph(_graph), num_inputs(0), num_outputs(0), pos(_pos), type(_type), done(false), is_scalable(false)
         {
-            
         }
 
         inline ImVec2 GetInputSlotPos(size_t slot_idx)  { return ImVec2(pos.x,               pos.y + (calc_size.y * (static_cast<float>(slot_idx+1) / static_cast<float>(num_inputs+1)))); }
@@ -117,6 +123,7 @@ public:
         int      id;
         Type     type;
         bool     done; // Are data ready in this processing step?
+        bool     is_scalable; ///< Should the resize handle be enabled?
     };
 
     struct UserNode: Node ///< Node added to graph by user. Gets auto-assigned ID.
@@ -266,15 +273,13 @@ public:
 
     NodeGraphTool();
 
-    void            Draw();
-    void            PhysicsTick();
+    void            Draw(int net_send_state);
+    void            PhysicsTick(Beam* actor);
     void            CalcGraph();
     void            SaveAsJson();                                                        ///< Filename specified by `m_filename`
     void            LoadFromJson();                                                      ///< Filename specified by `m_filename`
     void            SetFilename(const char* const filename)                              { strncpy(m_filename, filename, sizeof(m_filename)); }
     void            ClearAll();
-    void            SetVisible(bool vis)                                                 { m_panel_visible = vis; }
-    bool            IsVisible() const                                                    { return m_panel_visible; }
 
 private:
 
@@ -288,8 +293,10 @@ private:
     inline int      AssignId()                                                           { return m_free_id++; }
     inline void     Assert(bool expr, const char* msg)                                   { if (!expr) { this->AddMessage("Assert failed: %s", msg); } }
     inline void     UpdateFreeId(int existing_id)                                        { if (existing_id >= m_free_id) { m_free_id = (existing_id + 1); } }
+    bool            ClipTest(ImRect r);                                                  /// Very basic clipping, added because ImGUI's window clipping doesn't yet work with OGRE
+    bool            ClipTestNode(Node* n);
     void            DrawSlotUni (Node* node, const int index, const bool input);
-    Link*           AddLink (Node* src, Node* dst, int src_slot, int dst_slot);          ///< creates new link or fetches existing unused one
+    Link*           AddLink (Node* src, Node* dst, int src_slot, int dst_slot);
     Link*           FindLinkByDestination (Node* node, const int slot);
     Link*           FindLinkBySource (Node* node, const int slot);
     void            DrawNodeGraphPane ();
@@ -297,7 +304,7 @@ private:
     void            DrawLink(Link* link);
     void            DeleteLink(Link* link);
     void            DeleteNode(Node* node);
-    void            DrawNodeBegin(Node* node);
+    void            DrawNodeBegin(Node* node);                                           ///< Important: Call `ClipTestNode()` first!
     void            DrawNodeFinalize(Node* node);
     void            AddMessage(const char* fmt, ...);
     void            NodeToJson(rapidjson::Value& j_data, Node* node, rapidjson::Document& doc);
@@ -320,8 +327,8 @@ private:
     char       m_directory[300];
     char       m_filename[100];
     Style      m_style;
-    ImVec2     m_scroll;
-    ImVec2     m_scroll_offset;
+    ImVec2     m_scroll;             ///< Scroll position of the node graph pane
+    ImVec2     m_scroll_offset;      ///< Offset from screen position to nodegraph pane position
     ImVec2     m_nodegraph_mouse_pos;
     Node*      m_hovered_node;
     Node*      m_context_menu_node;
@@ -330,12 +337,11 @@ private:
     int        m_hovered_slot_output; // -1 = none
     bool       m_is_any_slot_hovered;
     HeaderMode m_header_mode;
-    Node*      m_last_scaled_node;
+    Node*      m_mouse_resize_node;    ///< Node with mouse resizing in progress.
     MouseDragNode  m_fake_mouse_node;     ///< Used while dragging link with mouse. Type 'Transform' used just because we need anything with 1 input and 1 output.
     Link*      m_link_mouse_src;      ///< Link being mouse-dragged by it's input end.
     Link*      m_link_mouse_dst;      ///< Link being mouse-dragged by it's output end.
     int        m_free_id;
-    bool       m_panel_visible;
 
 public:
     UdpNode udp_position_node;
