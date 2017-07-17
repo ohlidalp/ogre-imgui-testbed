@@ -104,8 +104,8 @@ bool ImguiManager::mouseMoved( const OIS::MouseEvent &arg )
 
     ImGuiIO& io = ImGui::GetIO();
 
-    io.MousePos.x = arg.state.X.abs;
-    io.MousePos.y = arg.state.Y.abs;
+    io.MousePos.x = static_cast<float>( arg.state.X.abs );
+    io.MousePos.y = static_cast<float>( arg.state.Y.abs );
 
     return true;
 }
