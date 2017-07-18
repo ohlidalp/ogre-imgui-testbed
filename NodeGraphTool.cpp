@@ -691,6 +691,11 @@ void RoR::NodeGraphTool::SaveAsJson()
             j_data.AddMember("scale", static_cast<DisplayNode*>(node)->plot_extent, j_alloc);
             break;
 
+        case Node::Type::DISPLAY_2D:
+            j_data.AddMember("zoom",      static_cast<Display2DNode*>(node)->zoom, j_alloc);
+            j_data.AddMember("grid_size", static_cast<Display2DNode*>(node)->grid_size, j_alloc);
+            break;
+
         default:
             break;
 
@@ -820,6 +825,14 @@ void RoR::NodeGraphTool::LoadFromJson()
             {
                 DisplayNode* dnode = new DisplayNode  (this, ImVec2());
                 dnode->plot_extent = (*itor)["scale"].GetFloat();
+                node = dnode;
+                break;
+            }
+            case Node::Type::DISPLAY_2D:
+            {
+                Display2DNode* dnode = new Display2DNode  (this, ImVec2());
+                dnode->zoom      = (*itor)["zoom"].GetFloat();
+                dnode->grid_size = (*itor)["grid_size"].GetFloat();
                 node = dnode;
                 break;
             }
@@ -990,19 +1003,20 @@ void RoR::NodeGraphTool::Buffer::Fill(const float* const src, int offset, int le
 // -------------------------------- Display2D node -----------------------------------
 
 RoR::NodeGraphTool::Display2DNode::Display2DNode(NodeGraphTool* nodegraph, ImVec2 _pos):
-    UserNode(nodegraph, Type::DISPLAY, _pos),
+    UserNode(nodegraph, Type::DISPLAY_2D, _pos),
     input_rough_x(nullptr),
     input_rough_y(nullptr),
     input_smooth_x(nullptr),
     input_smooth_y(nullptr),
     input_scroll_x(nullptr),
-    input_scroll_y(nullptr)
+    input_scroll_y(nullptr),
+    zoom(1.5f),
+    grid_size(10.f)
 {
     num_outputs = 0;
     num_inputs = 6;
     user_size = ImVec2(200.f, 200.f);
     done = false; // Irrelevant for this node type - no outputs
-    zoom = 1.5f;
     is_scalable = true;
 }
 
@@ -1069,31 +1083,35 @@ void RoR::NodeGraphTool::Display2DNode::Draw()
     // ---- Create sub panel ----
     const int window_flags = ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollWithMouse;
     const bool draw_border = false;
+    ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImGui::GetStyle().Colors[ImGuiCol_FrameBg]);
     ImGui::BeginChild("display-node-2D", this->user_size, draw_border, window_flags);
 
     if (graph->IsLinkAttached(input_scroll_x) && graph->IsLinkAttached(input_scroll_y))
     {
-        // ---- Draw grid ----
         ImDrawList* drawlist = ImGui::GetWindowDrawList();
+        const ImVec2 canvas_screen_min    = ImGui::GetCursorScreenPos();
+        const ImVec2 canvas_screen_max    = canvas_screen_min + this->user_size;
+        const ImVec2 canvas_world_center  = ImVec2(input_scroll_x->buff_src->Read(), input_scroll_y->buff_src->Read());
+        const ImVec2 canvas_world_min     = canvas_world_center - ((this->user_size / 2.f) / this->zoom);
 
-        const ImVec2 grid_screen_min = ImGui::GetCursorPos() + graph->m_scroll_offset;
-        const ImVec2 grid_screen_max = grid_screen_min + this->user_size;
-        const ImVec2 grid_world_center = ImVec2(input_scroll_x->buff_src->Read(), input_scroll_y->buff_src->Read());
-        const ImVec2 grid_world_min = grid_world_center - ((this->user_size / 2.f) / this->zoom );
-        const ImVec2 grid_world_max = grid_world_center + ((this->user_size / 2.f) / this->zoom );
+        // --- Draw grid ----
+        const float grid_screen_spacing = this->grid_size * this->zoom;
+        ImVec2 grid_screen_min((fmodf(canvas_world_min.x, this->grid_size) * this->zoom), (fmodf(canvas_world_min.y, this->grid_size) * this->zoom));
+        if (grid_screen_min.x < 0.f)
+            grid_screen_min.x += grid_screen_spacing;
+        if (grid_screen_min.y < 0.f)
+            grid_screen_min.y += grid_screen_spacing;
+        grid_screen_min += canvas_screen_min;
 
-        for (float x = fmodf(grid_world_min.x, this->grid_size); x < grid_world_max.x; x += this->grid_size)
+        for (float x = grid_screen_min.x; x < canvas_screen_max.x; x += grid_screen_spacing)
         {
-            const ImVec2 line_screen_start = grid_screen_min + ImVec2(x*this->zoom, 0.f);
-            const ImVec2 line_screen_end = line_screen_start + ImVec2(0.f, this->user_size.y*this->zoom);
-            drawlist->AddLine(line_screen_start, line_screen_end, graph->m_style.display2d_grid_line_color, graph->m_style.display2d_grid_line_width);
+            drawlist->AddLine(ImVec2(x, canvas_screen_min.y),               ImVec2(x, canvas_screen_max.y),
+                              graph->m_style.display2d_grid_line_color,     graph->m_style.display2d_grid_line_width);
         }
-
-        for (float y = fmodf(grid_world_min.y, this->grid_size); y < grid_world_max.y; y += this->grid_size)
+        for (float y = grid_screen_min.y; y < canvas_screen_max.y; y += grid_screen_spacing)
         {
-            const ImVec2 line_screen_start = grid_screen_min + ImVec2(0.f, y*this->zoom);
-            const ImVec2 line_screen_end = line_screen_start + ImVec2(this->user_size.x*this->zoom, 0.f);
-            drawlist->AddLine(line_screen_start, line_screen_end, graph->m_style.display2d_grid_line_color, graph->m_style.display2d_grid_line_width);
+            drawlist->AddLine(ImVec2(canvas_screen_min.x, y),               ImVec2(canvas_screen_max.x, y),
+                              graph->m_style.display2d_grid_line_color,     graph->m_style.display2d_grid_line_width);
         }
     }
     else
@@ -1103,6 +1121,7 @@ void RoR::NodeGraphTool::Display2DNode::Draw()
 
     // ---- Close sub panel ----
     ImGui::EndChild();
+    ImGui::PopStyleColor();
 
     ImGui::InputFloat("Zoom (px/m)", &this->zoom);
     ImGui::InputFloat("Grid size(m)", &this->grid_size);

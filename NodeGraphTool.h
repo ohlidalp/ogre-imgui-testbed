@@ -101,7 +101,7 @@ public:
 
     struct Node ///< Any node. Doesn't auto-assign ID; allows for special cases like mousedrag-node and UDP-nodes.
     {
-        enum class Type    { INVALID, READING, GENERATOR, MOUSE, SCRIPT, DISPLAY, EULER, UDP };
+        enum class Type    { INVALID, READING, GENERATOR, MOUSE, SCRIPT, DISPLAY, EULER, UDP, DISPLAY_2D }; // IMPORTANT - serialized to JSON files = add new items at the end!
 
         Node(NodeGraphTool* _graph, Type _type, ImVec2 _pos): graph(_graph), num_inputs(0), num_outputs(0), pos(_pos), type(_type), done(false), is_scalable(false)
         {
@@ -362,7 +362,7 @@ private:
     bool       m_is_any_slot_hovered;
     HeaderMode m_header_mode;
     Node*      m_mouse_resize_node;    ///< Node with mouse resizing in progress.
-    MouseDragNode  m_fake_mouse_node;     ///< Used while dragging link with mouse. Type 'Transform' used just because we need anything with 1 input and 1 output.
+    MouseDragNode  m_fake_mouse_node;     ///< Used while dragging link with mouse.
     Link*      m_link_mouse_src;      ///< Link being mouse-dragged by it's input end.
     Link*      m_link_mouse_dst;      ///< Link being mouse-dragged by it's output end.
     int        m_free_id;
