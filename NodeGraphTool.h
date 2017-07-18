@@ -58,7 +58,10 @@ public:
         float link_line_width;
         ImVec2 slot_hoverbox_extent;
         ImVec2 scaler_size;
-        ImU32 display2d_grid_bg_color;
+        ImU32 display2d_rough_line_color;
+        ImU32 display2d_smooth_line_color;
+        float display2d_rough_line_width;
+        float display2d_smooth_line_width;
         ImU32 display2d_grid_line_color;
         float display2d_grid_line_width;
 
@@ -265,6 +268,8 @@ public:
         virtual void DetachLink(Link* link) override; // FINAL
         virtual void Draw() override;
 
+        void DrawPath(Buffer* const buff_x, Buffer* const buff_y, float width, ImU32 color, ImVec2 canvas_world_min, ImVec2 canvas_screen_min, ImVec2 canvas_screen_max);
+
         Link* input_rough_x;
         Link* input_rough_y;
         Link* input_smooth_x;
@@ -308,7 +313,7 @@ private:
 
     enum class HeaderMode { NORMAL, SAVE_FILE, LOAD_FILE, CLEAR_ALL };
 
-    inline bool     IsInside (ImVec2 min, ImVec2 max, ImVec2 point) const                { return ((point.x > min.x) && (point.y > min.y)) && ((point.x < max.x) && (point.y < max.y)); }
+    static inline bool  IsInside (ImVec2 min, ImVec2 max, ImVec2 point)                  { return ((point.x > min.x) && (point.y > min.y)) && ((point.x < max.x) && (point.y < max.y)); }
     inline bool     IsLinkDragInProgress () const                                        { return (m_link_mouse_src != nullptr) || (m_link_mouse_dst != nullptr); }
     inline bool     IsRectHovered(ImVec2 min, ImVec2 max) const                          { return this->IsInside(min, max, m_nodegraph_mouse_pos); }
     inline void     DrawInputSlot (Node* node, const int index)                          { this->DrawSlotUni(node, index, true); }

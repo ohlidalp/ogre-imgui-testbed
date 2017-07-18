@@ -1,39 +1,65 @@
 {
     "nodes": [
         {
-            "pos_x": 342.0,
-            "pos_y": 42.0,
-            "user_size_x": 346.0,
-            "user_size_y": 321.0,
+            "pos_x": 486.0,
+            "pos_y": 63.0,
+            "user_size_x": 200.0,
+            "user_size_y": 200.0,
             "id": 0,
             "type_id": 8,
-            "zoom": 2.0,
+            "zoom": 20.0,
             "grid_size": 10.0
         },
         {
-            "pos_x": 32.0,
-            "pos_y": 254.0,
+            "pos_x": 22.0,
+            "pos_y": 258.0,
             "user_size_x": 0.0,
             "user_size_y": 0.0,
             "id": 1,
             "type_id": 2,
-            "amplitude": 22.0,
-            "frequency": 0.4000000059604645,
+            "amplitude": 1.0,
+            "frequency": 0.30000001192092898,
             "noise_max": 0
         },
         {
-            "pos_x": 30.0,
-            "pos_y": 374.0,
+            "pos_x": 37.0,
+            "pos_y": 126.0,
             "user_size_x": 0.0,
             "user_size_y": 0.0,
             "id": 2,
             "type_id": 2,
-            "amplitude": 26.0,
-            "frequency": 0.5,
+            "amplitude": 1.0,
+            "frequency": 1.0,
             "noise_max": 0
+        },
+        {
+            "pos_x": 45.0,
+            "pos_y": 19.0,
+            "user_size_x": 0.0,
+            "user_size_y": 0.0,
+            "id": 3,
+            "type_id": 2,
+            "amplitude": 2.0,
+            "frequency": 1.2000000476837159,
+            "noise_max": 0
+        },
+        {
+            "pos_x": 340.0,
+            "pos_y": 367.0,
+            "user_size_x": 250.0,
+            "user_size_y": 85.0,
+            "id": 4,
+            "type_id": 5,
+            "scale": 1.5
         }
     ],
     "links": [
+        {
+            "node_src_id": 1,
+            "node_dst_id": 0,
+            "slot_src": 0,
+            "slot_dst": 5
+        },
         {
             "node_src_id": 1,
             "node_dst_id": 0,
@@ -44,7 +70,19 @@
             "node_src_id": 2,
             "node_dst_id": 0,
             "slot_src": 0,
-            "slot_dst": 5
+            "slot_dst": 1
+        },
+        {
+            "node_src_id": 3,
+            "node_dst_id": 0,
+            "slot_src": 0,
+            "slot_dst": 0
+        },
+        {
+            "node_src_id": 1,
+            "node_dst_id": 4,
+            "slot_src": 0,
+            "slot_dst": 0
         }
     ],
     "udp_pos_node": {

@@ -70,7 +70,10 @@ RoR::NodeGraphTool::Style::Style()
     color_link                = ImColor(200,200,100);
     link_line_width           = 3.f;
     scaler_size               = ImVec2(20, 20);
-    display2d_grid_bg_color   = ImColor(0,20,50,255);
+    display2d_rough_line_color  = ImColor(225,225,225,255);
+    display2d_smooth_line_color = ImColor(125,175,255,255);
+    display2d_rough_line_width  = 1.f;
+    display2d_smooth_line_width = 1.f;
     display2d_grid_line_color = ImColor(100,125,110,255);
     display2d_grid_line_width = 1.2f;
 }
@@ -1113,6 +1116,19 @@ void RoR::NodeGraphTool::Display2DNode::Draw()
             drawlist->AddLine(ImVec2(canvas_screen_min.x, y),               ImVec2(canvas_screen_max.x, y),
                               graph->m_style.display2d_grid_line_color,     graph->m_style.display2d_grid_line_width);
         }
+
+        if (graph->IsLinkAttached(input_rough_x) && graph->IsLinkAttached(input_rough_y))
+        {
+            this->DrawPath(input_rough_x->buff_src, input_rough_y->buff_src, graph->m_style.display2d_rough_line_width,
+                           graph->m_style.display2d_rough_line_color, canvas_world_min, canvas_screen_min, canvas_screen_max);
+        }
+
+        if (graph->IsLinkAttached(input_smooth_x) && graph->IsLinkAttached(input_smooth_y))
+        {
+            this->DrawPath(input_smooth_x->buff_src, input_smooth_y->buff_src, graph->m_style.display2d_smooth_line_width,
+                           graph->m_style.display2d_smooth_line_color, canvas_world_min, canvas_screen_min, canvas_screen_max);
+        }
+
     }
     else
     {
@@ -1127,6 +1143,28 @@ void RoR::NodeGraphTool::Display2DNode::Draw()
     ImGui::InputFloat("Grid size(m)", &this->grid_size);
 
     graph->DrawNodeFinalize(this);
+}
+
+void RoR::NodeGraphTool::Display2DNode::DrawPath(Buffer* const buff_x, Buffer* const buff_y, float width, ImU32 color, ImVec2 canvas_world_min, ImVec2 canvas_screen_min, ImVec2 canvas_screen_max)
+{
+    ImDrawList* const drawlist = ImGui::GetWindowDrawList();
+    Buffer rough_buf_x(-1), rough_buf_y(-1);
+    rough_buf_x.CopyResetOffset(buff_x);
+    rough_buf_y.CopyResetOffset(buff_y);
+    for (int i = 1; i < Buffer::SIZE ; ++i) // Starts at 1 --> line is drawn from end to start
+    {
+        ImVec2 start(((rough_buf_x.data[i - 1] - canvas_world_min.x) * this->zoom),
+                     ((rough_buf_y.data[i - 1] - canvas_world_min.y) * this->zoom));
+        ImVec2 end(((rough_buf_x.data[i]     - canvas_world_min.x) * this->zoom),
+                   ((rough_buf_y.data[i]     - canvas_world_min.y) * this->zoom));
+        start += canvas_screen_min;
+        end   += canvas_screen_min;
+        if (NodeGraphTool::IsInside(canvas_screen_min, canvas_screen_max, start) &&
+            NodeGraphTool::IsInside(canvas_screen_min, canvas_screen_max, end)) // Clipping test
+        {
+            drawlist->AddLine(start, end, graph->m_style.display2d_rough_line_color, graph->m_style.display2d_rough_line_width);
+        }
+    }
 }
 
 // -------------------------------- Display node -----------------------------------
