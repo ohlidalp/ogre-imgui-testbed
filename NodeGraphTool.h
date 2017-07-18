@@ -85,7 +85,7 @@ public:
         void            Fill(const float* const src, int offset=0, int len=SIZE);
         inline void     Push(float entry)                                           { data[offset] = entry; this->Step(); }
         inline void     Step()                                                      { offset = (offset+1)%SIZE; }
-        inline float    Read() const                                                { return data[offset]; }
+        inline float    Read() const                                                { return (offset == 0) ? data[SIZE-1] : data[offset-1]; }
 
         float data[Buffer::SIZE];
         int offset;

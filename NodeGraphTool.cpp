@@ -1099,7 +1099,8 @@ void RoR::NodeGraphTool::Display2DNode::Draw()
 
         // --- Draw grid ----
         const float grid_screen_spacing = this->grid_size * this->zoom;
-        ImVec2 grid_screen_min((fmodf(canvas_world_min.x, this->grid_size) * this->zoom), (fmodf(canvas_world_min.y, this->grid_size) * this->zoom));
+        ImVec2 grid_screen_min(((this->grid_size - fmodf(canvas_world_center.x, this->grid_size)) * this->zoom),
+                               ((this->grid_size - fmodf(canvas_world_center.y, this->grid_size)) * this->zoom));
         if (grid_screen_min.x < 0.f)
             grid_screen_min.x += grid_screen_spacing;
         if (grid_screen_min.y < 0.f)
@@ -1145,24 +1146,24 @@ void RoR::NodeGraphTool::Display2DNode::Draw()
     graph->DrawNodeFinalize(this);
 }
 
-void RoR::NodeGraphTool::Display2DNode::DrawPath(Buffer* const buff_x, Buffer* const buff_y, float width, ImU32 color, ImVec2 canvas_world_min, ImVec2 canvas_screen_min, ImVec2 canvas_screen_max)
+void RoR::NodeGraphTool::Display2DNode::DrawPath(Buffer* const buff_x, Buffer* const buff_y, float line_width, ImU32 color, ImVec2 canvas_world_min, ImVec2 canvas_screen_min, ImVec2 canvas_screen_max)
 {
     ImDrawList* const drawlist = ImGui::GetWindowDrawList();
-    Buffer rough_buf_x(-1), rough_buf_y(-1);
-    rough_buf_x.CopyResetOffset(buff_x);
-    rough_buf_y.CopyResetOffset(buff_y);
+    Buffer buf_copy_x(-1), buf_copy_y(-1);
+    buf_copy_x.CopyResetOffset(buff_x);
+    buf_copy_y.CopyResetOffset(buff_y);
     for (int i = 1; i < Buffer::SIZE ; ++i) // Starts at 1 --> line is drawn from end to start
     {
-        ImVec2 start(((rough_buf_x.data[i - 1] - canvas_world_min.x) * this->zoom),
-                     ((rough_buf_y.data[i - 1] - canvas_world_min.y) * this->zoom));
-        ImVec2 end(((rough_buf_x.data[i]     - canvas_world_min.x) * this->zoom),
-                   ((rough_buf_y.data[i]     - canvas_world_min.y) * this->zoom));
+        ImVec2 start(((buf_copy_x.data[i - 1] - canvas_world_min.x) * this->zoom),
+                     ((buf_copy_y.data[i - 1] - canvas_world_min.y) * this->zoom));
+        ImVec2 end(((buf_copy_x.data[i]     - canvas_world_min.x) * this->zoom),
+                   ((buf_copy_y.data[i]     - canvas_world_min.y) * this->zoom));
         start += canvas_screen_min;
         end   += canvas_screen_min;
         if (NodeGraphTool::IsInside(canvas_screen_min, canvas_screen_max, start) &&
             NodeGraphTool::IsInside(canvas_screen_min, canvas_screen_max, end)) // Clipping test
         {
-            drawlist->AddLine(start, end, graph->m_style.display2d_rough_line_color, graph->m_style.display2d_rough_line_width);
+            drawlist->AddLine(start, end, color, line_width);
         }
     }
 }
