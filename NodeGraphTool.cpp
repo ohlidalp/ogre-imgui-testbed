@@ -1186,6 +1186,7 @@ RoR::NodeGraphTool::DisplayNode::DisplayNode(NodeGraphTool* nodegraph, ImVec2 _p
     user_size = ImVec2(250.f, 85.f);
     done = false; // Irrelevant for this node type - no outputs
     plot_extent = 1.5f;
+    is_scalable = true;
 }
 
 static const float DUMMY_PLOT[] = {0,0,0,0,0};
