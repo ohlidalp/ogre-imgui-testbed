@@ -64,6 +64,10 @@ public:
         float display2d_smooth_line_width;
         ImU32 display2d_grid_line_color;
         float display2d_grid_line_width;
+        ImU32 node_arrangebox_color;
+        ImU32 node_arrangebox_mouse_color;
+        float node_arrangebox_thickness;
+        float node_arrangebox_mouse_thickness;
 
         Style();
     };
@@ -104,7 +108,8 @@ public:
 
     struct Node ///< Any node. Doesn't auto-assign ID; allows for special cases like mousedrag-node and UDP-nodes.
     {
-        enum class Type    { INVALID, READING, GENERATOR, MOUSE, SCRIPT, DISPLAY, EULER, UDP, DISPLAY_2D }; // IMPORTANT - serialized to JSON files = add new items at the end!
+        /// IMPORTANT - serialized as `int` to JSON files = add new items at the end!
+        enum class Type    { INVALID, READING, GENERATOR, MOUSE, SCRIPT, DISPLAY, EULER, UDP, DISPLAY_2D };
 
         Node(NodeGraphTool* _graph, Type _type, ImVec2 _pos): graph(_graph), num_inputs(0), num_outputs(0), pos(_pos), type(_type), done(false), is_scalable(false)
         {
@@ -126,6 +131,7 @@ public:
         ImVec2   draw_rect_min; // Updated by `DrawNodeBegin()`
         ImVec2   calc_size;
         ImVec2   user_size;
+        ImVec2   arranged_pos; ///< Screen-absolute position set by user by "arrangement" feature.
         int      id;
         Type     type;
         bool     done; // Are data ready in this processing step?
@@ -347,27 +353,28 @@ private:
         return this->IsInside(min, max, m_nodegraph_mouse_pos);
     }
 
-    std::vector<Node*>              m_nodes;
-    std::vector<Link*>              m_links;
-    std::list<std::string>          m_messages;
-    char       m_directory[300];
-    char       m_filename[100];
-    Style      m_style;
-    ImVec2     m_scroll;             ///< Scroll position of the node graph pane
-    ImVec2     m_scroll_offset;      ///< Offset from screen position to nodegraph pane position
-    ImVec2     m_nodegraph_mouse_pos;
-    Node*      m_hovered_node;
-    Node*      m_context_menu_node;
-    Node*      m_hovered_slot_node;
-    int        m_hovered_slot_input;  // -1 = none
-    int        m_hovered_slot_output; // -1 = none
-    bool       m_is_any_slot_hovered;
-    HeaderMode m_header_mode;
-    Node*      m_mouse_resize_node;    ///< Node with mouse resizing in progress.
-    MouseDragNode  m_fake_mouse_node;     ///< Used while dragging link with mouse.
-    Link*      m_link_mouse_src;      ///< Link being mouse-dragged by it's input end.
-    Link*      m_link_mouse_dst;      ///< Link being mouse-dragged by it's output end.
-    int        m_free_id;
+    std::vector<Node*>      m_nodes;
+    std::vector<Link*>      m_links;
+    std::list<std::string>  m_messages;
+    char                    m_directory[300];
+    char                    m_filename[100];
+    Style                   m_style;
+    ImVec2                  m_scroll;              ///< Scroll position of the node graph pane
+    ImVec2                  m_scroll_offset;       ///< Offset from screen position to nodegraph pane position
+    ImVec2                  m_nodegraph_mouse_pos;
+    Node*                   m_hovered_node;
+    Node*                   m_context_menu_node;
+    Node*                   m_hovered_slot_node;
+    int                     m_hovered_slot_input;  // -1 = none
+    int                     m_hovered_slot_output; // -1 = none
+    bool                    m_is_any_slot_hovered;
+    HeaderMode              m_header_mode;
+    Node*                   m_mouse_resize_node;   ///< Node with mouse resizing in progress.
+    Node*                   m_mouse_arrange_node;  ///< Node whose screen-arrangement box is currently being dragged by mouse.
+    MouseDragNode           m_fake_mouse_node;     ///< Used while dragging link with mouse.
+    Link*                   m_link_mouse_src;      ///< Link being mouse-dragged by it's input end.
+    Link*                   m_link_mouse_dst;      ///< Link being mouse-dragged by it's output end.
+    int                     m_free_id;
 
 public:
     UdpNode udp_position_node;

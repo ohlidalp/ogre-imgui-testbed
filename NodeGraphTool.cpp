@@ -16,6 +16,7 @@ RoR::NodeGraphTool::NodeGraphTool():
     m_scroll(0.0f, 0.0f),
     m_scroll_offset(0.0f, 0.0f),
     m_mouse_resize_node(nullptr),
+    m_mouse_arrange_node(nullptr),
     m_link_mouse_src(nullptr),
     m_link_mouse_dst(nullptr),
     m_hovered_slot_node(nullptr),
@@ -70,14 +71,18 @@ RoR::NodeGraphTool::Style::Style()
     color_output_slot_hover   = ImColor(144,155,222,245);
     node_slots_radius         = 5.f;
     color_link                = ImColor(200,200,100);
-    link_line_width           = 3.f;
-    scaler_size               = ImVec2(20, 20);
+    link_line_width            = 3.f;
+    scaler_size                = ImVec2(20, 20);
     display2d_rough_line_color  = ImColor(225,225,225,255);
     display2d_smooth_line_color = ImColor(125,175,255,255);
-    display2d_rough_line_width  = 1.f;
-    display2d_smooth_line_width = 1.f;
-    display2d_grid_line_color = ImColor(100,125,110,255);
-    display2d_grid_line_width = 1.2f;
+    display2d_rough_line_width   = 1.f;
+    display2d_smooth_line_width  = 1.f;
+    display2d_grid_line_color     = ImColor(100,125,110,255);
+    display2d_grid_line_width     = 1.2f;
+    node_arrangebox_color          = ImColor(66,222,111,255);
+    node_arrangebox_mouse_color    = ImColor(222,122,88,255);
+    node_arrangebox_thickness       = 4.f;
+    node_arrangebox_mouse_thickness = 2.2f;
 }
 
 RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkBySource(Node* node, const int slot)
@@ -647,19 +652,22 @@ void RoR::NodeGraphTool::AddMessage(const char* format, ...)
 
 void RoR::NodeGraphTool::NodeToJson(rapidjson::Value& j_data, Node* node, rapidjson::Document& doc)
 {
-    j_data.AddMember("pos_x",       node->pos.x,       doc.GetAllocator());
-    j_data.AddMember("pos_y",       node->pos.y,       doc.GetAllocator());
-    j_data.AddMember("user_size_x", node->user_size.x, doc.GetAllocator());
-    j_data.AddMember("user_size_y", node->user_size.y, doc.GetAllocator());
-    j_data.AddMember("id",          node->id,          doc.GetAllocator());
-    j_data.AddMember("type_id",     static_cast<int>(node->type),  doc.GetAllocator());
+    j_data.AddMember("pos_x",           node->pos.x,           doc.GetAllocator());
+    j_data.AddMember("pos_y",           node->pos.y,           doc.GetAllocator());
+    j_data.AddMember("arranged_pos_x",  node->arranged_pos.x,  doc.GetAllocator());
+    j_data.AddMember("arranged_pos_y",  node->arranged_pos.y,  doc.GetAllocator());
+    j_data.AddMember("user_size_x",     node->user_size.x,     doc.GetAllocator());
+    j_data.AddMember("user_size_y",     node->user_size.y,     doc.GetAllocator());
+    j_data.AddMember("id",              node->id,              doc.GetAllocator());
+    j_data.AddMember("type_id",         static_cast<int>(node->type),  doc.GetAllocator());
 }
 
 void RoR::NodeGraphTool::JsonToNode(Node* node, const rapidjson::Value& j_object)
 {
-    node->pos = ImVec2(j_object["pos_x"].GetFloat(), j_object["pos_y"].GetFloat());
-    node->user_size = ImVec2(j_object["user_size_x"].GetFloat(), j_object["user_size_y"].GetFloat());
-    node->id = j_object["id"].GetInt();
+    node->pos          = ImVec2(j_object["pos_x"]         .GetFloat(), j_object["pos_y"]         .GetFloat());
+    node->arranged_pos = ImVec2(j_object["arranged_pos_x"].GetFloat(), j_object["arranged_pos_y"].GetFloat());
+    node->user_size    = ImVec2(j_object["user_size_x"]   .GetFloat(), j_object["user_size_y"]   .GetFloat());
+    node->id           = j_object["id"].GetInt();
     this->UpdateFreeId(node->id);
 }
 
