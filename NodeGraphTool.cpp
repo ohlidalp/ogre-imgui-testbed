@@ -1138,7 +1138,10 @@ void RoR::NodeGraphTool::Display2DNode::Draw()
     }
     else
     {
-        ImGui::Text("~~ No scroll input! ~~");
+        if (this->zoom == 0.f)
+            ImGui::Text("~~ Invalid zoom! ~~");
+        else
+            ImGui::Text("~~ No scroll input! ~~");
     }
 
     // ---- Close sub panel ----
