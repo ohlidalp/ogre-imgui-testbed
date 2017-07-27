@@ -81,6 +81,7 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
     void DrawGui()
     {
         m_editor_gui.Draw();
+        ImGui::ShowTestWindow();
     }
 
 
@@ -158,6 +159,21 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
 
         mMouse->setEventCallback(this);
         mKeyboard->setEventCallback(this);
+
+        // ============= create test RigEditor project ==================== //
+
+        RigEditor::SoftbodyNode::Selection& sel = m_editor_project.softbody.node_selection;
+        sel.num_selected = 1;
+        sel.id.Clear();
+        sel.id << "n123";
+        sel.options_values.option_c_no_ground_contact = true;
+        sel.options_uniform.option_c_no_ground_contact = true;
+        sel.options_values.option_l_load_weight = true;
+        sel.options_uniform.option_l_load_weight = true;
+        sel.weight_override = 44.44f;
+        sel.weight_override_is_uniform = true;
+
+        m_editor_gui.UpdateNodeSelection(sel);
 
         mRoot->startRendering();
 
@@ -270,6 +286,7 @@ private:
 
     OgreImGui                   m_imgui;
     RigEditor::Gui              m_editor_gui;
+    RigEditor::Project          m_editor_project;
 };
 
 

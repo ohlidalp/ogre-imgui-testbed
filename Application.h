@@ -25,28 +25,51 @@
 
 #pragma once
 
+#include <cstring>
+
 
 namespace RoR {
 
-template<size_t L> struct GStr /// Wrapper for classic c-string
+/// Wrapper for classic c-string. Why 'G'string? Because it was originally written for use with our GVars (global vars).
+template<size_t L> class GStr
 {
-    inline             GStr()                                { std::memset(buffer, 0, L); }
-    inline             GStr(GStr<L> & other)                 { std::memcpy(buffer, other, L); }
+public:
+    // Constructors
+    inline             GStr()                                { std::memset(m_buffer, 0, L); }
+    inline             GStr(GStr<L> const & src)             { this->Assign(src); }
     inline             GStr(const char* src)                 { this->Assign(src); }
 
-    inline             operator const char*() const          { return buffer; }
-    inline bool        operator= (GStr const & other)        { this->Assign(other); }
-    inline GStr&       operator<< (std::string const & s)    { this->operator<<(s.c_str()); return *this; }
-    inline bool        IsEmpty() const                       { return buffer[0] == '\0'; }
-    inline int         Compare(const char* other) const      { return std::strncmp(buffer, other, buf_len); }
-    inline bool        operator==(const char* other) const   { return (this->Compare(other) == 0); }
-    inline GStr&       Clear()                               { buffer[0] = '\0'; return *this; }
-    GStr&              Assign(const char* src);
-    GStr&              operator<< (const char c);
-    GStr&              operator<< (const char* input);
+    // Reading
+    inline const char* ToCStr() const                        { return m_buffer; }
+    inline bool        IsEmpty() const                       { return m_buffer[0] == '\0'; }
+    inline char*       GetBuffer()                           { return m_buffer; }
+    inline size_t      GetCapacity() const                   { return m_capacity; }
+    inline int         Compare(const char* str) const        { return std::strncmp(m_buffer, str, L); }
+    inline size_t      GetLength() const                     { return std::strlen(m_buffer); }
 
-    char         buffer[L];
-    const size_t buf_len = L;
+    // Writing
+    inline GStr&       Clear()                               { m_buffer[0] = '\0'; return *this; }
+    inline GStr&       Assign(const char* src)               { std::strncpy(m_buffer, src, L); return *this; }
+    inline GStr&       Append(const char* src)               { std::strncat(m_buffer, src, (L-(strlen(src)+1))); return *this; }
+    inline GStr&       Append(float f)                       { char buf[50]; std::snprintf(buf, 50, "%f", f); this->Append(buf); return *this; }
+    inline GStr&       Append(int i)                         { char buf[50]; std::snprintf(buf, 50, "%d", i); this->Append(buf); return *this; }
+    inline GStr&       Append(size_t z)                      { char buf[50]; std::snprintf(buf, 50, "%lu", static_cast<unsigned long>(z)); this->Append(buf); return *this; }
+    inline GStr&       Append(char c)                        { char buf[2] = {}; buf[0] = c; this->Append(buf); return *this; }
+
+    // Operators
+    inline             operator const char*() const          { return this->ToCStr(); }
+    inline GStr&       operator=  (const char* src)          { return this->Assign(src); }
+    inline GStr&       operator=  (GStr<L> g_src)            { return this->Assign(g_src.GetBuffer()); }
+    inline GStr&       operator<< (const char* src)          { return this->Append(src); }
+    inline GStr&       operator<< (float f)                  { return this->Append(f); }
+    inline GStr&       operator<< (int i)                    { return this->Append(i); }
+    inline GStr&       operator<< (size_t z)                 { return this->Append(z); }
+    inline GStr&       operator<< (char c)                   { return this->Append(c); }
+    inline bool        operator== (const char* other) const  { return (this->Compare(other) == 0); }
+
+private:
+    char         m_buffer[L];
+    const size_t m_capacity = L;
 };
 
 
@@ -354,21 +377,6 @@ extern GVarPod<int>            gfx_fps_limit;
 
 } // namespace App
 
-template <size_t L> GStr<L>& GStr<L>::Assign(const char* src)
-{
-    const size_t src_len = std::strlen(src) + 1;
-    if (src_len > L)
-    {
-        std::memcpy(buffer, src, L);
-        buffer[L-1] = '\0';
-    }
-    else
-    {
-        std::strcpy(buffer, src);
-    }
-    return *this;
-}
-
 template <typename T> void GVarPod<T>::SetPending(T val)
 {
     if (val != m_value_pending)
@@ -437,21 +445,6 @@ template <typename T> void GVarEnum<T>::SetActive(T val)
     }
 }
 
-template <size_t L> GStr<L>& GStr<L>::operator<< (const char c)
-{
-    size_t pos = strlen(buffer);
-    if (pos < (L-1))
-    {
-        buffer[pos] = c; buffer[pos+1] = '\0';
-    }
-    return *this;
-}
 
-template <size_t L> GStr<L>& GStr<L>::operator<< (const char* input)
-{
-    size_t pos = strlen(buffer);
-    strcat_s(buffer + pos, buf_len - pos, input);
-    return *this;
-}
 
 } // namespace RoR

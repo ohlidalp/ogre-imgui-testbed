@@ -15,9 +15,12 @@ struct Theme ///< All visual styles, including both GUI and the project visualiz
 class Gui
 {
 public:
+    static const float TOP_MENUBAR_HEIGHT;
+
     Gui();
 
     void                 Draw();
+    void                 UpdateNodeSelection(SoftbodyNode::Selection& sel) { m_node_sel = sel; }
 
 private:
     void                 DrawTopMenubar();
