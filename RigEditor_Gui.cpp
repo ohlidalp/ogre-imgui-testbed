@@ -120,6 +120,47 @@ bool RigEditor::Gui::DrawAggregateCheckbox(const char* title, bool *value, bool*
     return false;
 }
 
+void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
+{
+    RoR::GStr<64> nodes_title;
+    nodes_title << "Nodes [" << m_node_sel.num_selected << "]";
+    if (!ImGui::CollapsingHeader(nodes_title))
+        return; // Section is collapsed -> nothing to do
+
+    if (m_node_sel.num_selected == 0)
+    {
+        ImGui::TextDisabled("None selected");
+        return;
+    }
+
+    if (m_node_sel.num_selected == 1)
+    {
+        if (ImGui::InputText("Name", m_node_sel.name.GetBuffer(), m_node_sel.name.GetCapacity(), ImGuiInputTextFlags_EnterReturnsTrue))
+        {
+            //TODO: commit update
+        }
+    }
+
+    this->DrawAggregateCheckbox("[m] No mouse grab",      &m_node_sel.options_values.option_m_no_mouse_grab,     &m_node_sel.options_uniform.option_m_no_mouse_grab);
+    this->DrawAggregateCheckbox("[c] No ground contact",  &m_node_sel.options_values.option_c_no_ground_contact, &m_node_sel.options_uniform.option_c_no_ground_contact);
+    this->DrawAggregateCheckbox("[h] Is hook point",      &m_node_sel.options_values.option_h_hook_point,        &m_node_sel.options_uniform.option_h_hook_point);
+    this->DrawAggregateCheckbox("[b] Extra buoyancy",     &m_node_sel.options_values.option_b_extra_buoyancy,    &m_node_sel.options_uniform.option_b_extra_buoyancy);
+    this->DrawAggregateCheckbox("[l] Override weight",    &m_node_sel.options_values.option_l_load_weight,       &m_node_sel.options_uniform.option_l_load_weight);
+    if (m_node_sel.options_values.option_l_load_weight)
+    {
+        ImGui::PushItemWidth(100.f);
+        if (ImGui::InputFloat("Load weight (Kg)", &m_node_sel.weight_override, 0.f, 0.f, -1, ImGuiInputTextFlags_EnterReturnsTrue))
+        {
+            //TODO: commit update
+        }
+        ImGui::PopItemWidth();
+    }
+    this->DrawAggregateCheckbox("[f] Gfx: No sparks",     &m_node_sel.options_values.option_f_no_sparks,         &m_node_sel.options_uniform.option_f_no_sparks);
+    this->DrawAggregateCheckbox("[x] Gfx: Exhaust point", &m_node_sel.options_values.option_x_exhaust_point,     &m_node_sel.options_uniform.option_x_exhaust_point);
+    this->DrawAggregateCheckbox("[y] Gfx: Exhaust dir.",  &m_node_sel.options_values.option_y_exhaust_direction, &m_node_sel.options_uniform.option_y_exhaust_direction);
+    this->DrawAggregateCheckbox("[p] Gfx: No particles",  &m_node_sel.options_values.option_p_no_particles,      &m_node_sel.options_uniform.option_p_no_particles);
+}
+
 void RigEditor::Gui::DrawSoftbodyPanel()
 {
     const float WIDTH = 250.f;
@@ -131,48 +172,7 @@ void RigEditor::Gui::DrawSoftbodyPanel()
     ImGui::Begin("Softbody", nullptr, FLAGS);
     ImGui::PopStyleVar();
 
-    // ---------- Nodes ---------- //
-
-    RoR::GStr<64> nodes_title;
-    nodes_title << "Nodes [" << m_node_sel.num_selected << "]";
-    if (ImGui::CollapsingHeader(nodes_title))
-    {
-        if (m_node_sel.num_selected > 0)
-        {
-            if (m_node_sel.num_selected == 1)
-            {
-                if (ImGui::InputText("ID", m_node_sel.id.GetBuffer(), m_node_sel.id.GetCapacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                {
-                    //TODO: commit update
-                }
-            }
-
-            this->DrawAggregateCheckbox("[m] No mouse grab",      &m_node_sel.options_values.option_m_no_mouse_grab,     &m_node_sel.options_uniform.option_m_no_mouse_grab);
-            this->DrawAggregateCheckbox("[c] No ground contact",  &m_node_sel.options_values.option_c_no_ground_contact, &m_node_sel.options_uniform.option_c_no_ground_contact);
-            this->DrawAggregateCheckbox("[h] Is hook point",      &m_node_sel.options_values.option_h_hook_point,        &m_node_sel.options_uniform.option_h_hook_point);
-            this->DrawAggregateCheckbox("[b] Extra buoyancy",     &m_node_sel.options_values.option_b_extra_buoyancy,    &m_node_sel.options_uniform.option_b_extra_buoyancy);
-            this->DrawAggregateCheckbox("[l] Override weight",    &m_node_sel.options_values.option_l_load_weight,       &m_node_sel.options_uniform.option_l_load_weight);
-            if (m_node_sel.options_values.option_l_load_weight)
-            {
-                ImGui::PushItemWidth(100.f);
-                if (ImGui::InputFloat("Load weight (Kg)", &m_node_sel.weight_override, 0.f, 0.f, -1, ImGuiInputTextFlags_EnterReturnsTrue))
-                {
-                    //TODO: commit update
-                }
-                ImGui::PopItemWidth();
-            }
-            this->DrawAggregateCheckbox("[f] Gfx: No sparks",     &m_node_sel.options_values.option_f_no_sparks,         &m_node_sel.options_uniform.option_f_no_sparks);
-            this->DrawAggregateCheckbox("[x] Gfx: Exhaust point", &m_node_sel.options_values.option_x_exhaust_point,     &m_node_sel.options_uniform.option_x_exhaust_point);
-            this->DrawAggregateCheckbox("[y] Gfx: Exhaust dir.",  &m_node_sel.options_values.option_y_exhaust_direction, &m_node_sel.options_uniform.option_y_exhaust_direction);
-            this->DrawAggregateCheckbox("[p] Gfx: No particles",  &m_node_sel.options_values.option_p_no_particles,      &m_node_sel.options_uniform.option_p_no_particles);
-        }
-        else
-        {
-            ImGui::TextDisabled("None selected");
-        }
-    }
-
-
+    this->DrawSoftbodyPanelNodesSection();
 
     // ---------- Beams ---------- //
 

@@ -26,6 +26,7 @@ private:
     void                 DrawTopMenubar();
     void                 DrawHelpWindow();
     void                 DrawSoftbodyPanel(); // Static position: right side of screen, all the way
+    void                 DrawSoftbodyPanelNodesSection();
     bool                 DrawAggregateCheckbox(const char* title, bool *value, bool* is_uniform);
 
     bool                      m_is_help_window_open;

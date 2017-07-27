@@ -164,8 +164,8 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
 
         RigEditor::SoftbodyNode::Selection& sel = m_editor_project.softbody.node_selection;
         sel.num_selected = 1;
-        sel.id.Clear();
-        sel.id << "n123";
+        sel.name.Clear();
+        sel.name << "n123";
         sel.options_values.option_c_no_ground_contact = true;
         sel.options_uniform.option_c_no_ground_contact = true;
         sel.options_values.option_l_load_weight = true;

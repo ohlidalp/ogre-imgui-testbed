@@ -43,20 +43,21 @@ struct SoftbodyNode
     {
         Options() { memset(this, 0, sizeof(Options)); }
 
-        bool      option_m_no_mouse_grab     ;
-        bool      option_f_no_sparks         ;
-        bool      option_x_exhaust_point     ; ///< Legacy; use truckfile section 'exhausts'.
-        bool      option_y_exhaust_direction ; ///< Legacy; use truckfile section 'exhausts'.
-        bool      option_c_no_ground_contact ;
-        bool      option_h_hook_point        ;
-        bool      option_b_extra_buoyancy    ;
-        bool      option_p_no_particles      ;
-        bool      option_L_log               ;
-        bool      option_l_load_weight       ;
+        bool      option_m_no_mouse_grab;
+        bool      option_f_no_sparks;
+        bool      option_x_exhaust_point;       ///< Legacy; use truckfile section 'exhausts'.
+        bool      option_y_exhaust_direction;   ///< Legacy; use truckfile section 'exhausts'.
+        bool      option_c_no_ground_contact;
+        bool      option_h_hook_point;
+        bool      option_b_extra_buoyancy;
+        bool      option_p_no_particles;
+        bool      option_L_log;
+        bool      option_l_load_weight;
     };
 
     struct Preset ///< Actor data
     {
+        IdStr     name;
         float     load_weight;
         float     friction;
         float     volume;
@@ -68,7 +69,7 @@ struct SoftbodyNode
     {
         // Metadata
         int                    num_selected;
-        SoftbodyNode::IdStr    id;              ///< Only valid if 1 node is selected.
+        SoftbodyNode::IdStr    name;              ///< Only valid if 1 node is selected.
 
         // Aggregates, with uniformity states
         Options                options_values;
@@ -88,7 +89,7 @@ struct SoftbodyNode
         state_is_hovered(false), state_is_selected(false)
     {}
 
-    IdStr                  id;
+    IdStr                  name;
     RoR::Vec3              position;
     Options                options;
     float                  weight_override;    ///< -1 means 'not set'
