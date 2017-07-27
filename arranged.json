@@ -1,0 +1,92 @@
+{
+    "nodes": [
+        {
+            "pos_x": 414.0,
+            "pos_y": 25.0,
+            "arranged_pos_x": 10.0,
+            "arranged_pos_y": 33.0,
+            "user_size_x": 200.0,
+            "user_size_y": 200.0,
+            "id": 0,
+            "type_id": 8,
+            "zoom": 1.5,
+            "grid_size": 10.0
+        },
+        {
+            "pos_x": 92.0,
+            "pos_y": 61.0,
+            "arranged_pos_x": -2.0,
+            "arranged_pos_y": -2.0,
+            "user_size_x": 0.0,
+            "user_size_y": 0.0,
+            "id": 1,
+            "type_id": 1,
+            "softbody_node_id": -1
+        },
+        {
+            "pos_x": 64.0,
+            "pos_y": 195.0,
+            "arranged_pos_x": -2.0,
+            "arranged_pos_y": -2.0,
+            "user_size_x": 0.0,
+            "user_size_y": 0.0,
+            "id": 2,
+            "type_id": 2,
+            "amplitude": 1.0,
+            "frequency": 1.0,
+            "noise_max": 0
+        },
+        {
+            "pos_x": 374.0,
+            "pos_y": 327.0,
+            "arranged_pos_x": 22.0,
+            "arranged_pos_y": 247.0,
+            "user_size_x": 250.0,
+            "user_size_y": 85.0,
+            "id": 4,
+            "type_id": 5,
+            "scale": 1.5
+        }
+    ],
+    "links": [],
+    "udp_pos_node": {
+        "pos_x": -300.0,
+        "pos_y": 100.0,
+        "arranged_pos_x": -2.0,
+        "arranged_pos_y": -2.0,
+        "user_size_x": 0.0,
+        "user_size_y": 0.0,
+        "id": -2147483646,
+        "type_id": 7
+    },
+    "udp_acc_node": {
+        "pos_x": -300.0,
+        "pos_y": 300.0,
+        "arranged_pos_x": -2.0,
+        "arranged_pos_y": -2.0,
+        "user_size_x": 0.0,
+        "user_size_y": 0.0,
+        "id": -2147483644,
+        "type_id": 7
+    },
+    "udp_orient_node": {
+        "pos_x": -300.0,
+        "pos_y": 400.0,
+        "arranged_pos_x": -2.0,
+        "arranged_pos_y": -2.0,
+        "user_size_x": 0.0,
+        "user_size_y": 0.0,
+        "id": -2147483643,
+        "type_id": 7
+    },
+    "udp_velo_node": {
+        "pos_x": -300.0,
+        "pos_y": 200.0,
+        "arranged_pos_x": -2.0,
+        "arranged_pos_y": -2.0,
+        "user_size_x": 0.0,
+        "user_size_y": 0.0,
+        "id": -2147483645,
+        "type_id": 7
+    }
+}

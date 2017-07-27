@@ -12,6 +12,9 @@
 
 // ====================================================================================================================
 
+static inline bool operator!=(const ImVec2& lhs, const ImVec2& rhs)              { return (lhs.x != rhs.x) && (lhs.y != rhs.y); }
+static inline bool operator==(const ImVec2& lhs, const ImVec2& rhs)              { return (lhs.x == rhs.x) && (lhs.y == rhs.y); }
+
 RoR::NodeGraphTool::NodeGraphTool():
     m_scroll(0.0f, 0.0f),
     m_scroll_offset(0.0f, 0.0f),
@@ -71,18 +74,25 @@ RoR::NodeGraphTool::Style::Style()
     color_output_slot_hover   = ImColor(144,155,222,245);
     node_slots_radius         = 5.f;
     color_link                = ImColor(200,200,100);
-    link_line_width            = 3.f;
-    scaler_size                = ImVec2(20, 20);
-    display2d_rough_line_color  = ImColor(225,225,225,255);
-    display2d_smooth_line_color = ImColor(125,175,255,255);
-    display2d_rough_line_width   = 1.f;
-    display2d_smooth_line_width  = 1.f;
-    display2d_grid_line_color     = ImColor(100,125,110,255);
-    display2d_grid_line_width     = 1.2f;
-    node_arrangebox_color          = ImColor(66,222,111,255);
-    node_arrangebox_mouse_color    = ImColor(222,122,88,255);
+    link_line_width                 = 3.f;
+    scaler_size                     = ImVec2(20, 20);
+    display2d_rough_line_color      = ImColor(225,225,225,255);
+    display2d_smooth_line_color     = ImColor(125,175,255,255);
+    display2d_rough_line_width      = 1.f;
+    display2d_smooth_line_width     = 1.f;
+    display2d_grid_line_color       = ImColor(100,125,110,255);
+    display2d_grid_line_width       = 1.2f;
+    node_arrangebox_color           = ImColor(66,222,111,255);
+    node_arrangebox_mouse_color     = ImColor(222,122,88,255);
     node_arrangebox_thickness       = 4.f;
-    node_arrangebox_mouse_thickness = 2.2f;
+    node_arrangebox_mouse_thickness = 3.2f;
+    arrange_widget_color            = ImColor(22,175,75,255);
+    arrange_widget_color_hover      = ImColor(111,255,148,255);
+    arrange_widget_size             = ImVec2(20.f, 15.f);
+    arrange_widget_margin           = ImVec2(5.f, 5.f);
+    arrange_widget_thickness        = 2.f;
+    node_arrangebox_inner_color     = ImColor(22,11,11,255);
+    node_arrangebox_inner_thickness = 1.4f;
 }
 
 RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkBySource(Node* node, const int slot)
@@ -123,6 +133,10 @@ void RoR::NodeGraphTool::Draw(int net_send_state)
     {
         m_header_mode = HeaderMode::CLEAR_ALL;
     }
+
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 25.f);
+    ImGui::Checkbox("Preview arrangement", &m_mouse_arrange_show);
 
     ImGui::SameLine();
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 100.f);
@@ -184,8 +198,9 @@ void RoR::NodeGraphTool::Draw(int net_send_state)
 
     this->DrawNodeGraphPane();
 
-    // Finalize the window
-    ImGui::End();
+    ImGui::End(); // Finalize the window
+
+    this->DrawNodeArrangementBoxes(); // Full display drawing
 }
 
 void RoR::NodeGraphTool::PhysicsTick(Beam* actor)
@@ -220,6 +235,38 @@ void RoR::NodeGraphTool::PhysicsTick(Beam* actor)
    // RoR     }
     }
     this->CalcGraph();
+}
+
+void RoR::NodeGraphTool::DrawNodeArrangementBoxes()
+{
+    // Check if we should draw
+    if (!m_mouse_arrange_show && (m_mouse_arrange_node == nullptr))
+        return;
+
+    // Dummy fullscreen window to draw to
+    int window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar| ImGuiWindowFlags_NoInputs 
+                     | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing;
+    ImGui::SetNextWindowFocus(); // Necessary to keep window drawn on top of others
+    ImGui::Begin("RoR-SoftBodyView", NULL, ImGui::GetIO().DisplaySize, 0, window_flags);
+    ImDrawList* drawlist = ImGui::GetWindowDrawList();
+    ImGui::End();
+
+    // Iterate nodes and draw boxes if applicable
+    for (Node* node: m_nodes)
+    {
+        if (node->arranged_pos == Node::ARRANGE_DISABLED || node->arranged_pos == Node::ARRANGE_EMPTY)
+            continue;
+
+        // Outer rectangle
+        const bool highlight = (m_mouse_arrange_show && (m_hovered_node == node)) || (m_mouse_arrange_node == node);
+        float outer_thick = (highlight) ? m_style.node_arrangebox_thickness : m_style.node_arrangebox_mouse_thickness;
+        ImU32 outer_color = (highlight) ? m_style.node_arrangebox_color     : m_style.node_arrangebox_mouse_color;
+        drawlist->AddRect(node->arranged_pos, node->arranged_pos + node->user_size, outer_color, 0.f, -1, outer_thick);
+
+        // Inner rectangle
+        drawlist->AddRect(node->arranged_pos, node->arranged_pos + node->user_size,
+            m_style.node_arrangebox_inner_color, 0.f, -1, m_style.node_arrangebox_inner_thickness);
+    }
 }
 
 void RoR::NodeGraphTool::DrawGrid()
@@ -358,7 +405,7 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
 
     // Handle mouse dragging
     bool is_hovered = false;
-    if (!m_is_any_slot_hovered && (m_mouse_resize_node == nullptr))
+    if (!m_is_any_slot_hovered && (m_mouse_resize_node == nullptr) && (m_mouse_arrange_node == nullptr))
     {
         ImGui::SetCursorScreenPos(node->draw_rect_min);
         ImGui::InvisibleButton("node", node->calc_size);
@@ -387,7 +434,8 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
         ImVec2 scaler_mouse_max = node->pos + node->calc_size;
         ImVec2 scaler_mouse_min = scaler_mouse_max - m_style.scaler_size;
         bool scaler_hover = false;
-        if ((m_mouse_resize_node == nullptr) && this->IsInside(scaler_mouse_min, scaler_mouse_max, m_nodegraph_mouse_pos)) // Ignore this scaler if another node is already scaled
+        if ((m_mouse_resize_node == nullptr) && (m_mouse_arrange_node == nullptr) // Ignore this scaler if another node is already being scaled or arranged
+            && this->IsInside(scaler_mouse_min, scaler_mouse_max, m_nodegraph_mouse_pos))
         {
             scaler_hover = true;
             if (ImGui::IsMouseDragging(0))
@@ -403,9 +451,30 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
             scaler_color = ImGui::GetStyle().Colors[ImGuiCol_ButtonActive];
         }
         drawlist->AddTriangleFilled(draw_rect_max,
-                                    ImVec2(draw_rect_max.x, draw_rect_max.y - m_style.scaler_size.y), 
+                                    ImVec2(draw_rect_max.x, draw_rect_max.y - m_style.scaler_size.y),
                                     ImVec2(draw_rect_max.x - m_style.scaler_size.x, draw_rect_max.y),
                                     scaler_color);
+    }
+
+    // Handle arranging
+    if (node->arranged_pos != Node::ARRANGE_DISABLED)
+    {
+        ImVec2 ara_mouse_min, ara_mouse_max;
+        ara_mouse_max.x = (node->pos.x + node->calc_size.x) - m_style.arrange_widget_margin.x;
+        ara_mouse_min.x = ara_mouse_max.x - m_style.arrange_widget_size.x;
+        ara_mouse_min.y = node->pos.y + m_style.arrange_widget_margin.y;
+        ara_mouse_max.y = ara_mouse_min.y + m_style.arrange_widget_size.y;
+        const bool ara_hover = ((m_mouse_resize_node == nullptr) && (m_mouse_arrange_node == nullptr) // Ignore this arrange-widget if another node is already being scaled or arranged
+                               && this->IsInside(ara_mouse_min, ara_mouse_max, m_nodegraph_mouse_pos));
+        if (ara_hover && ImGui::IsMouseDragging(0))
+        {
+            m_mouse_arrange_node = node;
+            node->arranged_pos = node->pos + m_scroll_offset; // Initialize the screen position
+        }
+
+        // Draw arrange widget
+        const ImU32 ara_color = (ara_hover) ? m_style.arrange_widget_color_hover : m_style.arrange_widget_color;
+        drawlist->AddRect(ara_mouse_min + m_scroll_offset, ara_mouse_max + m_scroll_offset, ara_color, 0.5f, -1, m_style.arrange_widget_thickness);
     }
 
     ImGui::PopID();
@@ -494,6 +563,16 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
     else // Resize ended
     {
         m_mouse_resize_node = nullptr;
+    }
+
+    // Update node screen arranging
+    if (ImGui::IsMouseDragging(0) && m_mouse_arrange_node != nullptr)
+    {
+        m_mouse_arrange_node->arranged_pos += ImGui::GetIO().MouseDelta;
+    }
+    else // Arranging ended
+    {
+        m_mouse_arrange_node = nullptr;
     }
 
     // Draw grid
@@ -990,6 +1069,9 @@ void RoR::NodeGraphTool::DetachAndDeleteNode(Node* node)
     this->DeleteNode(node);
 }
 
+const ImVec2 RoR::NodeGraphTool::Node::ARRANGE_EMPTY = ImVec2(-1.f, -1.f);    // Static member
+const ImVec2 RoR::NodeGraphTool::Node::ARRANGE_DISABLED = ImVec2(-2.f, -2.f); // Static member
+
 // -------------------------------- Buffer object -----------------------------------
 
 void RoR::NodeGraphTool::Buffer::CopyKeepOffset(Buffer* src) // Copies source buffer as-is, including the offset; fastest
@@ -1029,6 +1111,7 @@ RoR::NodeGraphTool::Display2DNode::Display2DNode(NodeGraphTool* nodegraph, ImVec
     user_size = ImVec2(200.f, 200.f);
     done = false; // Irrelevant for this node type - no outputs
     is_scalable = true;
+    arranged_pos = Node::ARRANGE_EMPTY; // Enables arranging
 }
 
 void RoR::NodeGraphTool::Display2DNode::DetachLink(Link* link)
@@ -1193,6 +1276,7 @@ RoR::NodeGraphTool::DisplayNode::DisplayNode(NodeGraphTool* nodegraph, ImVec2 _p
     done = false; // Irrelevant for this node type - no outputs
     plot_extent = 1.5f;
     is_scalable = true;
+    arranged_pos = Node::ARRANGE_EMPTY; // Enables arranging
 }
 
 static const float DUMMY_PLOT[] = {0,0,0,0,0};
