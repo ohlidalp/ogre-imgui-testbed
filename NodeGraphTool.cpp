@@ -91,8 +91,8 @@ RoR::NodeGraphTool::Style::Style()
     arrange_widget_size             = ImVec2(20.f, 15.f);
     arrange_widget_margin           = ImVec2(5.f, 5.f);
     arrange_widget_thickness        = 2.f;
-    node_arrangebox_inner_color     = ImColor(22,11,11,255);
-    node_arrangebox_inner_thickness = 1.4f;
+    node_arrangebox_inner_color     = ImColor(244,244,244,255);
+    node_arrangebox_inner_thickness = 1.6f;
 }
 
 RoR::NodeGraphTool::Link* RoR::NodeGraphTool::FindLinkBySource(Node* node, const int slot)
