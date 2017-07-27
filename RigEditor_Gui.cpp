@@ -8,7 +8,9 @@ RigEditor::Gui::Gui():
 void RigEditor::Gui::Draw()
 {
     if (m_is_help_window_open)
-        this->
+        this->DrawHelpWindow();
+
+    this->DrawTopMenubar();
 }
 
 void RigEditor::Gui::DrawHelpWindow()
