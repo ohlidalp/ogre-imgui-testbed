@@ -49,6 +49,9 @@
     <ClInclude Include="RigEditor_Gui.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="RigEditor_Project.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="lib\DearIMGUI\imgui.cpp">

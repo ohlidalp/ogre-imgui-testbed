@@ -26,7 +26,7 @@ struct SoftbodyBeam
     //TODO
     };
 
-    struct SelectionInfo
+    struct Selection
     {
     //TODO
     };
@@ -43,16 +43,16 @@ struct SoftbodyNode
     {
         Options() { memset(this, 0, sizeof(Options)); }
 
-        bool      option_m_no_mouse_grab     :1;
-        bool      option_f_no_sparks         :1;
-        bool      option_x_exhaust_point     :1; ///< Legacy; use truckfile section 'exhausts'.
-        bool      option_y_exhaust_direction :1; ///< Legacy; use truckfile section 'exhausts'.
-        bool      option_c_no_ground_contact :1;
-        bool      option_h_hook_point        :1;
-        bool      option_b_extra_buoyancy    :1;
-        bool      option_p_no_particles      :1;
-        bool      option_L_log               :1;
-        bool      option_l_load_weight       :1;
+        bool      option_m_no_mouse_grab     ;
+        bool      option_f_no_sparks         ;
+        bool      option_x_exhaust_point     ; ///< Legacy; use truckfile section 'exhausts'.
+        bool      option_y_exhaust_direction ; ///< Legacy; use truckfile section 'exhausts'.
+        bool      option_c_no_ground_contact ;
+        bool      option_h_hook_point        ;
+        bool      option_b_extra_buoyancy    ;
+        bool      option_p_no_particles      ;
+        bool      option_L_log               ;
+        bool      option_l_load_weight       ;
     };
 
     struct Preset ///< Actor data
@@ -64,7 +64,7 @@ struct SoftbodyNode
         Options   options;
     };
 
-    struct SelectionInfo ///< Editor state: aggregate info about selected nodes in the actor project.
+    struct Selection ///< Editor state: aggregate info about selected nodes in the actor project.
     {
         // Metadata
         int                    num_selected;
@@ -107,11 +107,11 @@ struct Project
     {
         std::vector<SoftbodyNode*>            nodes;
         std::vector<SoftbodyNode::Preset*>    node_presets;
-        SoftbodyNode::SelectionInfo           node_selection;
+        SoftbodyNode::Selection               node_selection;
 
         std::vector<SoftbodyBeam*>            beams;
         std::vector<SoftbodyBeam::Preset*>    beam_presets;
-        SoftbodyBeam::SelectionInfo           beam_selection;
+        SoftbodyBeam::Selection               beam_selection;
     };
 
     Softbody softbody;
