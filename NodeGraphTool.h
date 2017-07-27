@@ -128,7 +128,7 @@ public:
         int      num_inputs;
         int      num_outputs;
         ImVec2   pos;
-        ImVec2   draw_rect_min; // Updated by `DrawNodeBegin()`
+        ImVec2   draw_rect_min; // Updated by `ClipTestNode()`
         ImVec2   calc_size;
         ImVec2   user_size;
         ImVec2   arranged_pos; ///< Screen-absolute position set by user by "arrangement" feature.
