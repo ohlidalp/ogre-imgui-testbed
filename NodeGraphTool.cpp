@@ -627,15 +627,13 @@ void RoR::NodeGraphTool::CalcGraph()
 
 void RoR::NodeGraphTool::ScriptMessageCallback(const AngelScript::asSMessageInfo *msg, void *param)
 {
-    const char *type = "ERR ";
-    if( msg->type == AngelScript::asMSGTYPE_WARNING ) 
-        type = "WARN";
-    else if( msg->type == AngelScript::asMSGTYPE_INFORMATION ) 
-        type = "INFO";
+    const char *type = "error  ";
+    if( msg->type == AngelScript::asMSGTYPE_WARNING )
+        type = "warning";
+    else if( msg->type == AngelScript::asMSGTYPE_INFORMATION )
+        type = "info   ";
 
-    char buf[500];
-    snprintf(buf, 500, "%s (%d, %d) : %s : %s\n", msg->section, msg->row, msg->col, type, msg->message);
-    std::cout << buf; // TODO: show in nodegraph window!!
+    this->AddMessage("[Script %s] %s (line: %d, pos: %d)", type, msg->message, msg->row, msg->col);
 }
 
 void RoR::NodeGraphTool::AddMessage(const char* format, ...)
@@ -1550,7 +1548,7 @@ void RoR::NodeGraphTool::ScriptNode::InitScripting()
         return;
     }
 
-    int result = script_engine->SetMessageCallback(AngelScript::asMETHOD(NodeGraphTool, ScriptMessageCallback), this, AngelScript::asCALL_THISCALL);
+    int result = script_engine->SetMessageCallback(AngelScript::asMETHOD(NodeGraphTool, ScriptMessageCallback), graph, AngelScript::asCALL_THISCALL);
     if (result < 0)
     {
         graph->AddMessage("%s: failed to register message callback function, res: %d", node_name, result);
@@ -1595,7 +1593,7 @@ void RoR::NodeGraphTool::ScriptNode::Apply()
     result = module->Build();
     if (result < 0)
     {
-        graph->AddMessage("%s: failed to `Build()`, res: %d", node_name, result);
+        graph->AddMessage("%s: failed to compile the script.", node_name); // Details provided by script via message callback fn.
         module->Discard();
         return;
     }
