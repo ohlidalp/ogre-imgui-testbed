@@ -15,6 +15,9 @@ namespace RoR
 
 namespace RigEditor {
 
+// Types
+typedef RoR::GStr<64> IdStr;
+
 // Forward declarations
 struct SoftbodyNode;
 struct SoftbodyBeam;
@@ -31,14 +34,11 @@ struct SoftbodyBeam
     //TODO
     };
 
-    SoftbodyNode* node_src; // NOTE: RoR's nodes don't have orientation - I'm adding it to the editor just in case ~ only_a_ptr, 07/2017
-    SoftbodyNode* node_dst;
+    SoftbodyNode* nodes[2];
 };
 
 struct SoftbodyNode
 {
-    typedef RoR::GStr<64> IdStr;
-
     struct Options ///< Actor data
     {
         Options() { memset(this, 0, sizeof(Options)); }
@@ -57,6 +57,9 @@ struct SoftbodyNode
 
     struct Preset ///< Actor data
     {
+        Preset(): load_weight(0.f), friction(0.f), volume(0.f), surface(0.f)
+        {}
+
         IdStr     name;
         float     load_weight;
         float     friction;
@@ -69,11 +72,11 @@ struct SoftbodyNode
     {
         // Metadata
         int                    num_selected;
-        SoftbodyNode::IdStr    name;              ///< Only valid if 1 node is selected.
+        IdStr                  name;              ///< Only valid if 1 node is selected.
 
         // Aggregates, with uniformity states
-        Options                options_values;
-        Options                options_uniform;
+        SoftbodyNode::Options  options_values;
+        SoftbodyNode::Options  options_uniform;
         float                  weight_override;
         bool                   weight_override_is_uniform;
         int                    detacher_group_id;
@@ -91,7 +94,7 @@ struct SoftbodyNode
 
     IdStr                  name;
     RoR::Vec3              position;
-    Options                options;
+    SoftbodyNode::Options  options;
     float                  weight_override;    ///< -1 means 'not set'
     SoftbodyNode::Preset*  node_preset;
     SoftbodyBeam::Preset*  beam_preset;        ///< Needed for truckfile feature 'hooks'
@@ -113,6 +116,17 @@ struct Project
         std::vector<SoftbodyBeam*>            beams;
         std::vector<SoftbodyBeam::Preset*>    beam_presets;
         SoftbodyBeam::Selection               beam_selection;
+
+        int GetNodePresetArrayIndex(SoftbodyNode::Preset* query)
+        {
+            int num_presets = static_cast<int>(node_presets.size());
+            for (int i = 0; i < num_presets; ++i)
+            {
+                if (query == node_presets[i])
+                    return i;
+            }
+            return -1;
+        }
     };
 
     Softbody softbody;

@@ -2,6 +2,8 @@
 #include "RigEditor_Gui.h"
 #include "Application.h"
 
+// ------------------------------------ Basics ------------------------------------ //
+
 const float RigEditor::Gui::TOP_MENUBAR_HEIGHT = 20.f;
 
 RigEditor::Gui::Gui():
@@ -16,6 +18,48 @@ void RigEditor::Gui::Draw()
     this->DrawTopMenubar();
     this->DrawSoftbodyPanel();
 }
+
+// ------------------------------------ Utilities ------------------------------------ //
+
+bool RigEditor::Gui::DrawAggregateCheckbox(const char* title, bool *value, bool* is_uniform)
+{
+    // TODO: change text color when non-uniform
+    if (ImGui::Checkbox(title, value))
+    {
+        *is_uniform = true;
+        return true;
+    }
+    return false;
+}
+
+static bool NodePresetComboItemGetter(void* data, int index, const char** out_text)
+{
+    auto* softbody = reinterpret_cast<RigEditor::Project::Softbody*>(data);
+    if (index >= 0 && index < static_cast<int>(softbody->node_presets.size()))
+    {
+        (*out_text) = softbody->node_presets[index]->name.GetBuffer();
+        return true;
+    }
+    (*out_text) = nullptr;
+    return false;
+}
+
+RigEditor::SoftbodyNode::Preset* RigEditor::Gui::DrawNodePresetCombo(const char* title, SoftbodyNode::Preset* current_preset, bool current_is_uniform)
+{
+    int preset_index = (current_is_uniform && (current_preset != nullptr)) ? m_project->softbody.GetNodePresetArrayIndex(current_preset) : -1;
+    int num_presets = static_cast<int>(m_project->softbody.node_presets.size());
+    if (ImGui::Combo(title, &preset_index, NodePresetComboItemGetter, &m_project->softbody, num_presets))
+    {
+        SoftbodyNode::Preset* pick = m_project->softbody.node_presets[preset_index];
+        if ((current_is_uniform && (pick != current_preset)) || (!current_is_uniform))
+        {
+            return pick;
+        }
+    }
+    return nullptr;
+}
+
+// ------------------------------------ Windows ------------------------------------ //
 
 void RigEditor::Gui::DrawHelpWindow()
 {
@@ -109,17 +153,6 @@ void RigEditor::Gui::DrawTopMenubar()
     ImGui::EndMainMenuBar();
 }
 
-bool RigEditor::Gui::DrawAggregateCheckbox(const char* title, bool *value, bool* is_uniform)
-{
-    // TODO: change text color when non-uniform
-    if (ImGui::Checkbox(title, value))
-    {
-        *is_uniform = true;
-        return true;
-    }
-    return false;
-}
-
 void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
 {
     RoR::GStr<64> nodes_title;
@@ -137,7 +170,7 @@ void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
     {
         if (ImGui::InputText("Name", m_node_sel.name.GetBuffer(), m_node_sel.name.GetCapacity(), ImGuiInputTextFlags_EnterReturnsTrue))
         {
-            //TODO: commit update
+            //TODO: commit update to project
         }
     }
 
@@ -151,7 +184,7 @@ void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
         ImGui::PushItemWidth(100.f);
         if (ImGui::InputFloat("Load weight (Kg)", &m_node_sel.weight_override, 0.f, 0.f, -1, ImGuiInputTextFlags_EnterReturnsTrue))
         {
-            //TODO: commit update
+            //TODO: commit update to project
         }
         ImGui::PopItemWidth();
     }
@@ -159,6 +192,14 @@ void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
     this->DrawAggregateCheckbox("[x] Gfx: Exhaust point", &m_node_sel.options_values.option_x_exhaust_point,     &m_node_sel.options_uniform.option_x_exhaust_point);
     this->DrawAggregateCheckbox("[y] Gfx: Exhaust dir.",  &m_node_sel.options_values.option_y_exhaust_direction, &m_node_sel.options_uniform.option_y_exhaust_direction);
     this->DrawAggregateCheckbox("[p] Gfx: No particles",  &m_node_sel.options_values.option_p_no_particles,      &m_node_sel.options_uniform.option_p_no_particles);
+
+    SoftbodyNode::Preset* new_preset = this->DrawNodePresetCombo("Preset", m_node_sel.node_preset, m_node_sel.node_preset_is_uniform);
+    if (new_preset != nullptr)
+    {
+        m_node_sel.node_preset_is_uniform = true;
+        m_node_sel.node_preset = new_preset;
+        //TODO: commit update to project
+    }
 }
 
 void RigEditor::Gui::DrawSoftbodyPanel()

@@ -5,6 +5,7 @@
 #include "Application.h" // Debugging - copy of RoR
 
 #include "RigEditor_Gui.h"
+#include "RigEditor_Project.h"
 
 #include <memory>    // std::unique_ptr
 #include <algorithm> // std::min()
@@ -162,6 +163,38 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
 
         // ============= create test RigEditor project ==================== //
 
+        // Some node presets
+        auto* np1 = new RigEditor::SoftbodyNode::Preset();
+        np1->name = "Node preset 1";
+        np1->friction = 11.11f;
+        np1->volume = 10.10f;
+        np1->options.option_m_no_mouse_grab = true;
+        np1->options.option_y_exhaust_direction = true;
+
+        auto* np2 = new RigEditor::SoftbodyNode::Preset();
+        np2->name = "NP2 (node preset with stupidly long name)";
+        np2->options.option_h_hook_point = true;
+        np2->friction = 22.22f;
+        np2->volume = 20.20f;
+
+        auto* np3 = new RigEditor::SoftbodyNode::Preset();
+        np3->name = "NODE PRESET 3";
+        np3->options.option_x_exhaust_point = true;
+        np3->friction = 33.33f;
+        np3->volume = 30.30f;
+
+        auto* np4 = new RigEditor::SoftbodyNode::Preset();
+        np4->name = "node_preset_4";
+        np4->options.option_l_load_weight = true;
+        np4->friction = 44.44f;
+        np4->volume = 40.40f;
+        np4->load_weight = 400.f;
+
+        m_editor_project.softbody.node_presets.push_back(np1);
+        m_editor_project.softbody.node_presets.push_back(np2);
+        m_editor_project.softbody.node_presets.push_back(np3);
+        m_editor_project.softbody.node_presets.push_back(np4);
+
         RigEditor::SoftbodyNode::Selection& sel = m_editor_project.softbody.node_selection;
         sel.num_selected = 1;
         sel.name.Clear();
@@ -172,7 +205,10 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
         sel.options_uniform.option_l_load_weight = true;
         sel.weight_override = 44.44f;
         sel.weight_override_is_uniform = true;
+        sel.node_preset = np3;
+        sel.node_preset_is_uniform = true;
 
+        m_editor_gui.SetProject(&m_editor_project);
         m_editor_gui.UpdateNodeSelection(sel);
 
         mRoot->startRendering();
