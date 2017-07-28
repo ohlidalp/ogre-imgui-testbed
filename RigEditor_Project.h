@@ -26,12 +26,15 @@ struct SoftbodyBeam
 {
     struct Preset
     {
+        IdStr     name;
     //TODO
     };
 
     struct Selection
     {
-    //TODO
+        // Metadata
+        int                    num_selected;
+        IdStr                  name;              ///< Only valid if 1 beam is selected.
     };
 
     SoftbodyNode* nodes[2];
@@ -123,6 +126,17 @@ struct Project
             for (int i = 0; i < num_presets; ++i)
             {
                 if (query == node_presets[i])
+                    return i;
+            }
+            return -1;
+        }
+
+        int GetBeamPresetArrayIndex(SoftbodyBeam::Preset* query)
+        {
+            int num_presets = static_cast<int>(beam_presets.size());
+            for (int i = 0; i < num_presets; ++i)
+            {
+                if (query == beam_presets[i])
                     return i;
             }
             return -1;

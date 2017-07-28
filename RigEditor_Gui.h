@@ -11,12 +11,12 @@
 ///
 /// RigEditor's display is partitioned into panels with given roles:
 /// +-------------------------------------------------+
-/// |                   [TopMenubar]                  |
+/// |                  [TopMenubar]                   |
 /// |-------------------------------------------------|
 /// |            |                      |  Node/Beam  |
 /// |    List    |                      |  Selections |
 /// |            |                      |    form     |
-/// |            |      { 3D VIEW }     |             |
+/// |            |     { 3D VIEW }      |             |
 /// [ElementPanel]                      [SoftbodyPanel]
 /// |            |                      |             |
 /// |            |                      |  Node/Beam  |
@@ -57,14 +57,20 @@ private:
 
     // GUI - partial drawing
     void                   DrawSoftbodyPanelNodesSection();
+    void                   DrawSoftbodyPanelBeamsSection();
+    void                   DrawSoftbodyPanelNodePresetsSection();
+    void                   DrawSoftbodyPanelBeamPresetsSection();
 
     // GUI - utilities
-    bool                   DrawAggregateCheckbox(const char* title, bool *value, bool* is_uniform);
-    SoftbodyNode::Preset*  DrawNodePresetCombo(const char* title, SoftbodyNode::Preset* current, bool current_is_uniform); ///< Returns new selection (only if differs from previous)
+    bool                   DrawAggregateCheckbox(const char* title, bool *value, bool* is_uniform = nullptr);
+    SoftbodyNode::Preset*  DrawNodePresetCombo(const char* title, SoftbodyNode::Preset* current, bool cur_is_uniform); ///< Returns new selection (only if differs from previous)
+    SoftbodyBeam::Preset*  DrawBeamPresetCombo(const char* title, SoftbodyBeam::Preset* current, bool cur_is_uniform); ///< Returns new selection (only if differs from previous)
 
     bool                      m_is_help_window_open;
     SoftbodyNode::Selection   m_node_sel;
-    SoftbodyNode::Preset*     m_selected_node_preset; ///< Item edited in SoftbodyPanel/
+    SoftbodyNode::Preset*     m_node_preset_edit; ///< Item edited in SoftbodyPanel/NodePresetForm
+    SoftbodyBeam::Selection   m_beam_sel;
+    SoftbodyBeam::Preset*     m_beam_preset_edit; ///< Item edited in SoftbodyPanel/BeamPresetForm
 
     Theme           m_theme;
     Project*        m_project;
