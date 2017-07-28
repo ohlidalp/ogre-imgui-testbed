@@ -21,8 +21,15 @@
 /// |            |                      |             |
 /// |            |                      |  Node/Beam  |
 /// |   Detail   | -------------------- |   Presets   |
-/// |            |  [Mouse hover info]  |  List&Form  |
+/// |            |  [Mouse hover info]  |    form     |
 /// +-------------------------------------------------+
+///
+/// * TopMenubar:      Classic open/save/export/import menu; Help menu; Also editor mode selection - determines content of ElementPanel
+/// * ElementPanel:    List & edit form for truckfile elements (i.e. wheels, wings, videocameras, props/flexbodies, flares...)
+/// * MouseHoverInfo:  Details or hints for current mouse-pointed item in 3D view. May also display hints for GUI items.
+/// * SoftbodyPanel:
+///   - Selections form: Displays aggregate info of selections from 3D view. Provides bulk editing of the selection. Can assign preset to the selection.
+///   - Presets form:    Allows editing individual presets.
 
 namespace RigEditor {
 
