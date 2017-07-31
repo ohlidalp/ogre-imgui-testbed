@@ -186,7 +186,7 @@ void RigEditor::Gui::DrawTopMenubar()
 void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
 {
     RoR::GStr<64> nodes_title;
-    nodes_title << "Nodes [" << m_node_sel.num_selected << "]";
+    nodes_title << "Nodes [" << m_node_sel.num_selected << "]###idNodes";
     if (!ImGui::CollapsingHeader(nodes_title))
         return; // Section is collapsed -> nothing to do
 
@@ -195,6 +195,8 @@ void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
         ImGui::TextDisabled("None selected");
         return;
     }
+
+    ImGui::PushID("idNodes_");
 
     if (m_node_sel.num_selected == 1)
     {
@@ -230,12 +232,14 @@ void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
         m_node_sel.node_preset = new_preset;
         //TODO: commit update to project
     }
+
+    ImGui::PopID();
 }
 
 void RigEditor::Gui::DrawSoftbodyPanelBeamsSection()
 {
     RoR::GStr<64> title;
-    title << "Beams [" << m_beam_sel.num_selected << "]";
+    title << "Beams [" << m_beam_sel.num_selected << "]###idBeams";
     if (!ImGui::CollapsingHeader(title.GetBuffer()))
         return; // Section is collapsed -> nothing to do.
 
@@ -261,7 +265,9 @@ void RigEditor::Gui::DrawSoftbodyPanelNodePresetsSection()
     if (!ImGui::CollapsingHeader("Node presets"))
         return; // Section collapsed -> nothing to draw.
 
-    SoftbodyNode::Preset* pick = this->DrawNodePresetCombo("Preset##np-edit", m_node_preset_edit, true);
+    ImGui::PushID("idNPresets_");
+
+    SoftbodyNode::Preset* pick = this->DrawNodePresetCombo("Preset", m_node_preset_edit, true);
     if (pick != nullptr)
         m_node_preset_edit = pick;
 
@@ -271,14 +277,14 @@ void RigEditor::Gui::DrawSoftbodyPanelNodePresetsSection()
         return;
     }
 
-    ImGui::InputText("Name##np-edit", m_node_preset_edit->name.GetBuffer(), m_node_preset_edit->name.GetCapacity());
+    ImGui::InputText("Name", m_node_preset_edit->name.GetBuffer(), m_node_preset_edit->name.GetCapacity());
 
     ImGui::InputFloat("Friction", &m_node_preset_edit->friction);
     ImGui::InputFloat("Volume",   &m_node_preset_edit->volume  );
     ImGui::InputFloat("Surface",  &m_node_preset_edit->surface );
 
     bool dummy_uniformity = true;
-    this->DrawAggregateCheckbox("[m] No mouse grab",      &m_node_preset_edit->options.option_m_no_mouse_grab    );
+    this->DrawAggregateCheckbox("[m] No mouse grab",      &m_node_preset_edit->options.option_m_no_mouse_grab    ); // TODO: Use widget IDs instead of "" trick
     this->DrawAggregateCheckbox("[c] No ground contact",  &m_node_preset_edit->options.option_c_no_ground_contact);
     this->DrawAggregateCheckbox("[h] Is hook point",      &m_node_preset_edit->options.option_h_hook_point       );
     this->DrawAggregateCheckbox("[b] Extra buoyancy",     &m_node_preset_edit->options.option_b_extra_buoyancy   );
@@ -293,6 +299,8 @@ void RigEditor::Gui::DrawSoftbodyPanelNodePresetsSection()
     this->DrawAggregateCheckbox("[x] Gfx: Exhaust point", &m_node_preset_edit->options.option_x_exhaust_point    );
     this->DrawAggregateCheckbox("[y] Gfx: Exhaust dir.",  &m_node_preset_edit->options.option_y_exhaust_direction);
     this->DrawAggregateCheckbox("[p] Gfx: No particles",  &m_node_preset_edit->options.option_p_no_particles     );
+
+    ImGui::PopID();
 }
 
 void RigEditor::Gui::DrawSoftbodyPanelBeamPresetsSection()
@@ -314,7 +322,8 @@ void RigEditor::Gui::DrawSoftbodyPanelBeamPresetsSection()
 void RigEditor::Gui::DrawSoftbodyPanel()
 {
     const float WIDTH = 250.f;
-    const int FLAGS = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar;
+    const int FLAGS = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse
+                      | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysVerticalScrollbar;
 
     ImGui::SetNextWindowSize(ImVec2(WIDTH, ImGui::GetIO().DisplaySize.y));
     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - WIDTH, TOP_MENUBAR_HEIGHT));
