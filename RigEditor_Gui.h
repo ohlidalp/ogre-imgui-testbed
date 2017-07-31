@@ -63,8 +63,8 @@ private:
 
     // GUI - utilities
     bool                   DrawAggregateCheckbox(const char* title, bool *value, bool* is_uniform = nullptr);
-    SoftbodyNode::Preset*  DrawNodePresetCombo(const char* title, SoftbodyNode::Preset* current, bool cur_is_uniform); ///< Returns new selection (only if differs from previous)
-    SoftbodyBeam::Preset*  DrawBeamPresetCombo(const char* title, SoftbodyBeam::Preset* current, bool cur_is_uniform); ///< Returns new selection (only if differs from previous)
+    bool                   DrawNodePresetCombo(SoftbodyNode::Preset*& out_preset, const char* title,
+                                               SoftbodyNode::Preset* current, bool cur_is_uniform); ///< Returns true if new selection was made
 
     bool                      m_is_help_window_open;
     SoftbodyNode::Selection   m_node_sel;

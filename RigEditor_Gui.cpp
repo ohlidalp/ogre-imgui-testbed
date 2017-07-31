@@ -6,6 +6,8 @@
 
 const float RigEditor::Gui::TOP_MENUBAR_HEIGHT = 20.f;
 
+static const char* COMBO_ENTRY_NO_PRESET = "~ No preset ~";
+
 RigEditor::Gui::Gui():
     m_is_help_window_open(false),
     m_node_preset_edit(nullptr),
@@ -49,44 +51,51 @@ static bool StdVectorComboItemGetter(std::vector<T>& vec, int index, const char*
 
 static bool NodePresetComboItemGetter(void* data, int index, const char** out_text)
 {
+    if (index == 0)
+    {
+        *out_text = COMBO_ENTRY_NO_PRESET;
+        return true;
+    }
     auto* softbody = reinterpret_cast<RigEditor::Project::Softbody*>(data);
-    return StdVectorComboItemGetter<RigEditor::SoftbodyNode::Preset*>(softbody->node_presets, index, out_text);
+    return StdVectorComboItemGetter<RigEditor::SoftbodyNode::Preset*>(softbody->node_presets, index - 1, out_text);
 }
 
-RigEditor::SoftbodyNode::Preset* RigEditor::Gui::DrawNodePresetCombo(const char* title, SoftbodyNode::Preset* current_preset, bool current_is_uniform)
+bool RigEditor::Gui::DrawNodePresetCombo(RigEditor::SoftbodyNode::Preset*& out_preset, const char* title, SoftbodyNode::Preset* current_preset, bool current_is_uniform)
 {
-    int preset_index = (current_is_uniform && (current_preset != nullptr)) ? m_project->softbody.GetNodePresetArrayIndex(current_preset) : -1;
-    int num_presets = static_cast<int>(m_project->softbody.node_presets.size());
-    if (ImGui::Combo(title, &preset_index, NodePresetComboItemGetter, &m_project->softbody, num_presets))
+    // Important: we add a dummy item "~ No preset ~" with index 0. Thus, all other indices are shifted by 1.
+
+    int entry_index = (current_is_uniform && (current_preset != nullptr)) ? (m_project->softbody.GetNodePresetArrayIndex(current_preset) + 1) : -1;
+    int num_entries = static_cast<int>(m_project->softbody.node_presets.size()) + 1; // Add 1 to make space for dummy "~ No preset~"
+    if (ImGui::Combo(title, &entry_index, NodePresetComboItemGetter, &m_project->softbody, num_entries))
     {
-        SoftbodyNode::Preset* pick = m_project->softbody.node_presets[preset_index];
+        if (entry_index == 0) // Index 0 is the dummy "~ No preset ~" item
+        {
+            if ((current_is_uniform && (nullptr != current_preset)) || (!current_is_uniform))
+            {
+                out_preset = nullptr;
+                return true;
+            }
+            return false;
+        }
+        SoftbodyNode::Preset* pick = m_project->softbody.node_presets[entry_index - 1];
         if ((current_is_uniform && (pick != current_preset)) || (!current_is_uniform))
         {
-            return pick;
+            out_preset = pick;
+            return true;
         }
     }
-    return nullptr;
+    return false;
 }
 
 static bool BeamPresetComboItemGetter(void* data, int index, const char** out_text)
 {
+    if (index == 0)
+    {
+        out_text = &COMBO_ENTRY_NO_PRESET;
+        return true;
+    }
     auto* softbody = reinterpret_cast<RigEditor::Project::Softbody*>(data);
     return StdVectorComboItemGetter<RigEditor::SoftbodyBeam::Preset*>(softbody->beam_presets, index, out_text);
-}
-
-RigEditor::SoftbodyBeam::Preset* RigEditor::Gui::DrawBeamPresetCombo(const char* title, SoftbodyBeam::Preset* current_preset, bool current_is_uniform)
-{
-    int preset_index = (current_is_uniform && (current_preset != nullptr)) ? m_project->softbody.GetBeamPresetArrayIndex(current_preset) : -1;
-    int num_presets = static_cast<int>(m_project->softbody.beam_presets.size());
-    if (ImGui::Combo(title, &preset_index, NodePresetComboItemGetter, &m_project->softbody, num_presets))
-    {
-        SoftbodyBeam::Preset* pick = m_project->softbody.beam_presets[preset_index];
-        if ((current_is_uniform && (pick != current_preset)) || (!current_is_uniform))
-        {
-            return pick;
-        }
-    }
-    return nullptr;
 }
 
 // ------------------------------------ Windows ------------------------------------ //
@@ -225,12 +234,9 @@ void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
     this->DrawAggregateCheckbox("[y] Gfx: Exhaust dir.",  &m_node_sel.options_values.option_y_exhaust_direction, &m_node_sel.options_uniform.option_y_exhaust_direction);
     this->DrawAggregateCheckbox("[p] Gfx: No particles",  &m_node_sel.options_values.option_p_no_particles,      &m_node_sel.options_uniform.option_p_no_particles);
 
-    SoftbodyNode::Preset* new_preset = this->DrawNodePresetCombo("Preset##np-link", m_node_sel.node_preset, m_node_sel.node_preset_is_uniform);
-    if (new_preset != nullptr)
+    if (this->DrawNodePresetCombo(m_node_sel.node_preset, "Preset", m_node_sel.node_preset, m_node_sel.node_preset_is_uniform))
     {
-        m_node_sel.node_preset_is_uniform = true;
-        m_node_sel.node_preset = new_preset;
-        //TODO: commit update to project
+        m_node_sel.node_preset_is_uniform = true;        //TODO: commit update to project
     }
 
     ImGui::PopID();
@@ -267,9 +273,7 @@ void RigEditor::Gui::DrawSoftbodyPanelNodePresetsSection()
 
     ImGui::PushID("idNPresets_");
 
-    SoftbodyNode::Preset* pick = this->DrawNodePresetCombo("Preset", m_node_preset_edit, true);
-    if (pick != nullptr)
-        m_node_preset_edit = pick;
+    this->DrawNodePresetCombo(m_node_preset_edit, "Preset", m_node_preset_edit, true);
 
     if (m_node_preset_edit == nullptr)
     {
@@ -308,9 +312,9 @@ void RigEditor::Gui::DrawSoftbodyPanelBeamPresetsSection()
     if (!ImGui::CollapsingHeader("Beam presets"))
         return; // Section collapsed -> nothing to draw.
 
-    SoftbodyBeam::Preset* pick = this->DrawBeamPresetCombo("Preset", m_beam_preset_edit, true);
-    if (pick != nullptr)
-        m_beam_preset_edit = pick;
+    // TODO SoftbodyBeam::Preset* pick = this->DrawBeamPresetCombo("Preset", m_beam_preset_edit, true);
+   // if (pick != nullptr)
+   //     m_beam_preset_edit = pick;
 
     if (m_beam_preset_edit == nullptr)
     {
