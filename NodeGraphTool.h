@@ -133,6 +133,7 @@ public:
         virtual void    BindDst(Link* link, int slot)          {} ///< Binds node input to link's DST end.
         virtual void    DetachLink(Link* link)                 {}
         virtual void    Draw()                                 {}
+        virtual void    DrawLockedMode()                       {} ///< Only for display nodes with "arrangement" enabled.
 
         NodeGraphTool* graph;
         int      num_inputs;
@@ -266,6 +267,7 @@ public:
         virtual void BindDst(Link* link, int slot) override;
         virtual void DetachLink(Link* link) override; // FINAL
         virtual void Draw() override;
+        virtual void DrawLockedMode() override;
 
         Link* link_in;
         float plot_extent; // both min and max
@@ -280,6 +282,7 @@ public:
         virtual void BindDst(Link* link, int slot) override;
         virtual void DetachLink(Link* link) override; // FINAL
         virtual void Draw() override;
+        virtual void DrawLockedMode() override;
 
         void DrawPath(Buffer* const buff_x, Buffer* const buff_y, float width, ImU32 color, ImVec2 canvas_world_min, ImVec2 canvas_screen_min, ImVec2 canvas_screen_max);
 
@@ -315,6 +318,7 @@ public:
     NodeGraphTool();
 
     void            Draw(int net_send_state);
+    void            DrawLockedMode();
     void            PhysicsTick(Beam* actor);
     void            CalcGraph();
     void            SaveAsJson();                                                        ///< Filename specified by `m_filename`

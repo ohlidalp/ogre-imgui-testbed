@@ -283,6 +283,30 @@ void RoR::NodeGraphTool::DrawGrid()
         draw_list->AddLine(ImVec2(0.0f,y)+win_pos, ImVec2(canvasSize.x,y)+win_pos, m_style.color_grid, m_style.grid_line_width);
 }
 
+void RoR::NodeGraphTool::DrawLockedMode()
+{
+    // Dummy fullscreen window to draw to    // TODO: refactor the copypaste
+    int window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar| ImGuiWindowFlags_NoInputs 
+                     | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing;
+    ImGui::SetNextWindowFocus(); // Necessary to keep window drawn on top of others
+    ImGui::Begin("RoR-NodegraphLocked", NULL, ImGui::GetIO().DisplaySize, 0, window_flags);
+    ImDrawList* drawlist = ImGui::GetWindowDrawList();
+    drawlist->ChannelsSplit(2); // 0= backgrounds, 1=items.
+
+    for (Node* node: m_nodes) // Iterate nodes and draw contents if applicable
+    {
+        if (node->arranged_pos == Node::ARRANGE_DISABLED || node->arranged_pos == Node::ARRANGE_EMPTY 
+            || (node->type != Node::Type::DISPLAY && node->type != Node::Type::DISPLAY_2D))
+        {
+            continue;
+        }
+
+        node->DrawLockedMode();
+    }
+    drawlist->ChannelsMerge();
+    ImGui::End();
+}
+
 bool RoR::NodeGraphTool::ClipTest(ImRect r)
 {
     return ImGui::GetCurrentWindow()->Rect().Overlaps(r);
@@ -1243,6 +1267,70 @@ void RoR::NodeGraphTool::Display2DNode::Draw()
     graph->DrawNodeFinalize(this);
 }
 
+void RoR::NodeGraphTool::Display2DNode::DrawLockedMode()
+{
+    // ## TODO: This is a copypaste of `Draw()` - refactor and unify!
+    ImDrawList* drawlist = ImGui::GetWindowDrawList();
+
+    // --- background ---
+    drawlist->ChannelsSetCurrent(0);
+    drawlist->AddRectFilled(this->arranged_pos, this->arranged_pos+this->user_size, ImColor(ImGui::GetStyle().Colors[ImGuiCol_FrameBg]));
+
+    if (graph->IsLinkAttached(input_scroll_x) && graph->IsLinkAttached(input_scroll_y) && this->zoom != 0)
+    {
+        drawlist->ChannelsSetCurrent(1);
+        const ImVec2 canvas_screen_min    = this->arranged_pos;
+        const ImVec2 canvas_screen_max    = canvas_screen_min + this->user_size;
+        const ImVec2 canvas_world_center  = ImVec2(input_scroll_x->buff_src->Read(), input_scroll_y->buff_src->Read());
+        const ImVec2 canvas_world_min     = canvas_world_center - ((this->user_size / 2.f) / this->zoom);
+
+        // --- Draw grid ----
+        if (this->grid_size != 0)
+        {
+            const float grid_screen_spacing = this->grid_size * this->zoom;
+            ImVec2 grid_screen_min(((this->grid_size - fmodf(canvas_world_center.x, this->grid_size)) * this->zoom),
+                                   ((this->grid_size - fmodf(canvas_world_center.y, this->grid_size)) * this->zoom));
+            if (grid_screen_min.x < 0.f)
+                grid_screen_min.x += grid_screen_spacing;
+            if (grid_screen_min.y < 0.f)
+                grid_screen_min.y += grid_screen_spacing;
+            grid_screen_min += canvas_screen_min;
+
+            for (float x = grid_screen_min.x; x < canvas_screen_max.x; x += grid_screen_spacing)
+            {
+                drawlist->AddLine(ImVec2(x, canvas_screen_min.y),               ImVec2(x, canvas_screen_max.y),
+                                  graph->m_style.display2d_grid_line_color,     graph->m_style.display2d_grid_line_width);
+            }
+            for (float y = grid_screen_min.y; y < canvas_screen_max.y; y += grid_screen_spacing)
+            {
+                drawlist->AddLine(ImVec2(canvas_screen_min.x, y),               ImVec2(canvas_screen_max.x, y),
+                                  graph->m_style.display2d_grid_line_color,     graph->m_style.display2d_grid_line_width);
+            }
+        }
+
+        if (graph->IsLinkAttached(input_rough_x) && graph->IsLinkAttached(input_rough_y))
+        {
+            this->DrawPath(input_rough_x->buff_src, input_rough_y->buff_src, graph->m_style.display2d_rough_line_width,
+                           graph->m_style.display2d_rough_line_color, canvas_world_min, canvas_screen_min, canvas_screen_max);
+        }
+
+        if (graph->IsLinkAttached(input_smooth_x) && graph->IsLinkAttached(input_smooth_y))
+        {
+            this->DrawPath(input_smooth_x->buff_src, input_smooth_y->buff_src, graph->m_style.display2d_smooth_line_width,
+                           graph->m_style.display2d_smooth_line_color, canvas_world_min, canvas_screen_min, canvas_screen_max);
+        }
+
+    }
+    else
+    {
+        if (this->zoom == 0.f)
+            ImGui::Text("~~ Invalid zoom! ~~");
+        else
+            ImGui::Text("~~ No scroll input! ~~");
+    }
+
+}
+
 void RoR::NodeGraphTool::Display2DNode::DrawPath(Buffer* const buff_x, Buffer* const buff_y, float line_width, ImU32 color, ImVec2 canvas_world_min, ImVec2 canvas_screen_min, ImVec2 canvas_screen_max)
 {
     ImDrawList* const drawlist = ImGui::GetWindowDrawList();
@@ -1304,6 +1392,27 @@ void RoR::NodeGraphTool::DisplayNode::Draw()
     ImGui::InputFloat("Scale", &this->plot_extent);
 
     graph->DrawNodeFinalize(this);
+}
+
+void RoR::NodeGraphTool::DisplayNode::DrawLockedMode()
+{
+    // ## TODO: this is a copypaste of `Draw()` - refactor and unify!
+    ImGui::SetCursorPos(ImVec2(this->arranged_pos.x, this->arranged_pos.y));
+
+    const float* data_ptr = DUMMY_PLOT;;
+    int data_length = IM_ARRAYSIZE(DUMMY_PLOT);
+    int data_offset = 0;
+    int stride = sizeof(float);
+    const char* title = "~~ disconnected ~~";
+    if (this->link_in != nullptr)
+    {
+        data_ptr    = this->link_in->buff_src->data;
+        data_offset = this->link_in->buff_src->offset;
+        stride = sizeof(float);
+        title = "";
+        data_length = Buffer::SIZE;
+    }
+    ImGui::PlotLines("", data_ptr, data_length, data_offset, title, -this->plot_extent, this->plot_extent, this->user_size, stride);
 }
 
 void RoR::NodeGraphTool::DisplayNode::DetachLink(Link* link)

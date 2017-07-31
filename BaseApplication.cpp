@@ -28,31 +28,40 @@
 class DemoApp: public Ogre::FrameListener, public OIS::KeyListener, public OIS::MouseListener,  public Ogre::WindowEventListener
 {
 public:
+    DemoApp()
+    {
+        m_show_nodegraph = false;
+        m_show_nodegraph_locked = false;
+        m_show_test = false;
+    }
+
     void DrawGui()
     {
-        static bool show_nodegraph = false;
-        static bool show_test = false;
-
-
         if (ImGui::BeginMainMenuBar())
         {
             ImVec2 pos = ImGui::GetCursorPos();
-            ImGui::Checkbox("Test", &show_test);
+            ImGui::Checkbox("Test", &m_show_test);
             ImGui::SameLine();
-            ImGui::Checkbox("Nodegraph", &show_nodegraph);
+            ImGui::Checkbox("Nodegraph-edit", &m_show_nodegraph);
+            ImGui::SameLine();
+            ImGui::Checkbox("Nodegraph-locked", &m_show_nodegraph_locked);
 
             ImGui::EndMainMenuBar();
         }
 
-        if (show_test)
+        if (m_show_test)
         {
-            ImGui::ShowTestWindow(&show_test);
+            ImGui::ShowTestWindow(&m_show_test);
         }
 
-        if (show_nodegraph)
+        if (m_show_nodegraph_locked)
+        {
+            m_nodegraph.DrawLockedMode();
+        }
+        else if (m_show_nodegraph)
+        {
             m_nodegraph.Draw(0); // 0 = dummy network status
-
-
+        }
     }
 
     void Go()
@@ -241,6 +250,9 @@ private:
     Ogre::RenderWindow*         mWindow  ;
 
     bool                        mShutDown;
+    bool                        m_show_nodegraph;
+    bool                        m_show_nodegraph_locked;
+    bool                        m_show_test;
 
     //OIS Input devices
     OIS::InputManager*          mInputManager;
