@@ -22,8 +22,61 @@ typedef RoR::GStr<64> IdStr;
 struct SoftbodyNode;
 struct SoftbodyBeam;
 
+/// NOTE ON DESIGN: RoR has many 'beam' types with various arguments, but RigEditor has only `SoftbodyBeam` with all these parameters mixed. Reason: I think RoR needs
+///      to have only 1 beam type + external modifiers which read/update it's properties (to simulate hydros/shocks/commands and whatever). My plan is to rewrite
+///      physics code with this approach in the future, and I'm preparing grounds for it in the editor: one unified beam class, temporarily carrying other parameters.
+///      ~ only_a_ptr, 07/2017
 struct SoftbodyBeam
 {
+    static const char* TypeAsStr[];
+
+    enum class Type
+    {
+        PLAIN,
+        STEERING_HYDRO,   ///< Truckfile section 'hydro'
+        COMMAND_HYDRO,    ///< Truckfile section 'command' or 'command2'
+        SHOCK_ABSORBER,   ///< Truckfile section 'shock'
+        SHOCK_ABSORBER_2, ///< Truckfile section 'shocks2'
+        ROPE,             ///< Truckfile section 'ropes'
+        TRIGGER,          ///< Truckfile section 'triggers'
+        GENERATED         ///< Generated, i.e. from section 'cinecam'
+    };
+
+    struct Options ///< Actor data; all beam types merged.
+    {
+        Options() { memset(this, 0, sizeof(Options)); }
+
+        bool alltypes_i_invisible;
+
+        bool plain_r_rope;
+        bool plain_s_support;
+
+        bool hydro_s_disable_on_high_speed;
+        bool hydro_a_input_aileron;
+        bool hydro_r_input_rudder;
+        bool hydro_e_input_elevator;
+        bool hydro_u_input_aileron_elevator;
+        bool hydro_v_input_invaileron_elevator;
+        bool hydro_x_input_aileron_rudder;
+        bool hydro_y_input_invaileron_rudder;
+        bool hydro_g_input_elevator_rudder;
+        bool hydro_h_input_invelevator_rudder;
+
+        bool command_r_rope;
+        bool command_c_auto_center;
+        bool command_f_not_faster;
+        bool command_p_1press;
+        bool command_o_1press_center;
+
+        bool shock_L_active_left;
+        bool shock_R_active_right;
+        bool shock_m_metric;
+
+        bool shock2_s_soft_bump_bounds;
+        bool shock2_m_metric;
+        bool shock2_M_absolute_metric;
+    };
+
     struct Preset
     {
         IdStr     name;
@@ -35,9 +88,27 @@ struct SoftbodyBeam
         // Metadata
         int                    num_selected;
         IdStr                  name;              ///< Only valid if 1 beam is selected.
+
+        // Aggregate data, with uniformity states
+        Type                   type;
+        bool                   type_is_uniform;
+        int                    detacher_group;
+        bool                   detacher_group_is_uniform;
+        Options                option_values;
+        Options                option_uniformity;
+        // * Plain beam
+        float                  support_break_limit; ///< Extension break limit in %
+        bool                   support_break_limit_is_uniform;
+        // * Steer hydro
+        float                  extension; ///< Max. extension in %
+        bool                   extension_is_uniform;
+
+        // TODO: other types
     };
 
-    SoftbodyNode* nodes[2];
+    SoftbodyNode* base_node;
+    SoftbodyNode* tip_node;
+    Type          type;
 };
 
 struct SoftbodyNode

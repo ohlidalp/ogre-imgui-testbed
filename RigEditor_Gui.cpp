@@ -194,8 +194,10 @@ void RigEditor::Gui::DrawTopMenubar()
 
 void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
 {
+    ImGui::PushID("Nodes");
+
     RoR::GStr<64> nodes_title;
-    nodes_title << "Nodes [" << m_node_sel.num_selected << "]###idNodes";
+    nodes_title << "Nodes [" << m_node_sel.num_selected << "]";
     if (!ImGui::CollapsingHeader(nodes_title))
         return; // Section is collapsed -> nothing to do
 
@@ -204,8 +206,6 @@ void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
         ImGui::TextDisabled("None selected");
         return;
     }
-
-    ImGui::PushID("idNodes_");
 
     if (m_node_sel.num_selected == 1)
     {
@@ -244,8 +244,10 @@ void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
 
 void RigEditor::Gui::DrawSoftbodyPanelBeamsSection()
 {
+    ImGui::PushID("Beams");
+
     RoR::GStr<64> title;
-    title << "Beams [" << m_beam_sel.num_selected << "]###idBeams";
+    title << "Beams [" << m_beam_sel.num_selected << "]";
     if (!ImGui::CollapsingHeader(title.GetBuffer()))
         return; // Section is collapsed -> nothing to do.
 
@@ -263,7 +265,9 @@ void RigEditor::Gui::DrawSoftbodyPanelBeamsSection()
         }
     }
 
-    // +++ TODO +++
+    
+
+    ImGui::PopID();
 }
 
 void RigEditor::Gui::DrawSoftbodyPanelNodePresetsSection()
@@ -271,7 +275,7 @@ void RigEditor::Gui::DrawSoftbodyPanelNodePresetsSection()
     if (!ImGui::CollapsingHeader("Node presets"))
         return; // Section collapsed -> nothing to draw.
 
-    ImGui::PushID("idNPresets_");
+    ImGui::PushID("nPresets");
 
     this->DrawNodePresetCombo(m_node_preset_edit, "Preset", m_node_preset_edit, true);
 
