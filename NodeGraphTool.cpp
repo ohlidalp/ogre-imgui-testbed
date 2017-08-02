@@ -20,6 +20,7 @@ RoR::NodeGraphTool::NodeGraphTool():
     m_scroll_offset(0.0f, 0.0f),
     m_mouse_resize_node(nullptr),
     m_mouse_arrange_node(nullptr),
+    m_mouse_move_node(nullptr),
     m_link_mouse_src(nullptr),
     m_link_mouse_dst(nullptr),
     m_hovered_slot_node(nullptr),
@@ -30,6 +31,7 @@ RoR::NodeGraphTool::NodeGraphTool():
     m_hovered_slot_output(-1),
     m_free_id(0),
     m_fake_mouse_node(this, ImVec2()), // Used for dragging links with mouse
+    m_mouse_arrange_show(false),
 
     udp_position_node(this, ImVec2(-300.f, 100.f), "UDP position", "(world XYZ)"),
     udp_velocity_node(this, ImVec2(-300.f, 200.f), "UDP velocity", "(world XYZ)"),
@@ -237,18 +239,22 @@ void RoR::NodeGraphTool::PhysicsTick(Beam* actor)
     this->CalcGraph();
 }
 
+ImDrawList* DummyWholeDisplayWindowBegin(const char* window_name) // Internal helper
+{
+    int window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar| ImGuiWindowFlags_NoInputs 
+                     | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing;
+    ImGui::SetNextWindowFocus(); // Necessary to keep window drawn on top of others
+    ImGui::Begin(window_name, NULL, ImGui::GetIO().DisplaySize, 0, window_flags);
+    return ImGui::GetWindowDrawList();
+}
+
 void RoR::NodeGraphTool::DrawNodeArrangementBoxes()
 {
     // Check if we should draw
     if (!m_mouse_arrange_show && (m_mouse_arrange_node == nullptr))
         return;
 
-    // Dummy fullscreen window to draw to
-    int window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar| ImGuiWindowFlags_NoInputs 
-                     | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing;
-    ImGui::SetNextWindowFocus(); // Necessary to keep window drawn on top of others
-    ImGui::Begin("RoR-SoftBodyView", NULL, ImGui::GetIO().DisplaySize, 0, window_flags);
-    ImDrawList* drawlist = ImGui::GetWindowDrawList();
+    ImDrawList* drawlist = DummyWholeDisplayWindowBegin("RoR/Nodegraph/arrange");
     ImGui::End();
 
     // Iterate nodes and draw boxes if applicable
@@ -285,12 +291,7 @@ void RoR::NodeGraphTool::DrawGrid()
 
 void RoR::NodeGraphTool::DrawLockedMode()
 {
-    // Dummy fullscreen window to draw to    // TODO: refactor the copypaste
-    int window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar| ImGuiWindowFlags_NoInputs 
-                     | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing;
-    ImGui::SetNextWindowFocus(); // Necessary to keep window drawn on top of others
-    ImGui::Begin("RoR-NodegraphLocked", NULL, ImGui::GetIO().DisplaySize, 0, window_flags);
-    ImDrawList* drawlist = ImGui::GetWindowDrawList();
+    ImDrawList* drawlist = DummyWholeDisplayWindowBegin("RoR/Nodegraph/locked");
     drawlist->ChannelsSplit(2); // 0= backgrounds, 1=items.
 
     for (Node* node: m_nodes) // Iterate nodes and draw contents if applicable
@@ -352,7 +353,10 @@ void RoR::NodeGraphTool::DrawSlotUni(Node* node, const int index, const bool inp
 
     ImGui::SetCursorScreenPos((slot_center_pos + m_scroll_offset) - m_style.slot_hoverbox_extent);
     ImU32 color = (input) ? m_style.color_input_slot : m_style.color_output_slot;
-    if (this->IsSlotHovered(slot_center_pos))
+
+    DragType drag = this->DetermineActiveDragType();
+    if (((drag == DragType::NONE) || (this->IsLinkDragInProgress() && ((drag == DragType::LINK_DST) == input)))
+        && this->IsSlotHovered(slot_center_pos))
     {
         m_is_any_slot_hovered = true;
         m_hovered_slot_node = node;
@@ -361,7 +365,7 @@ void RoR::NodeGraphTool::DrawSlotUni(Node* node, const int index, const bool inp
         else
             m_hovered_slot_output = static_cast<int>(index);
         color = (input) ? m_style.color_input_slot_hover : m_style.color_output_slot_hover;
-        if (ImGui::IsMouseDragging(0) && !this->IsLinkDragInProgress())
+        if (ImGui::IsMouseDragging(0) && (this->DetermineActiveDragType() == DragType::NONE))
         {
             // Start link drag!
             Link* link = (input) ? this->FindLinkByDestination(node, index) : this->FindLinkBySource(node, index);
@@ -429,17 +433,17 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
 
     // Handle mouse dragging
     bool is_hovered = false;
-    if (!m_is_any_slot_hovered && (m_mouse_resize_node == nullptr) && (m_mouse_arrange_node == nullptr))
+    bool start_mouse_drag = false;
+    if (!m_is_any_slot_hovered && (this->DetermineActiveDragType() == DragType::NONE))
     {
         ImGui::SetCursorScreenPos(node->draw_rect_min);
         ImGui::InvisibleButton("node", node->calc_size);
             // NOTE: Using 'InvisibleButton' enables dragging by node body but not by contained widgets
             // NOTE: This MUST be done AFTER widgets are drawn, otherwise their input is blocked by the invis. button
         is_hovered = ImGui::IsItemHovered();
-        bool node_moving_active = ImGui::IsItemActive();
-        if (node_moving_active && ImGui::IsMouseDragging(0))
+        if (ImGui::IsItemActive())
         {
-            node->pos += ImGui::GetIO().MouseDelta;
+            start_mouse_drag = true;
         }
     }
     // Draw outline
@@ -458,9 +462,9 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
         ImVec2 scaler_mouse_max = node->pos + node->calc_size;
         ImVec2 scaler_mouse_min = scaler_mouse_max - m_style.scaler_size;
         bool scaler_hover = false;
-        if ((m_mouse_resize_node == nullptr) && (m_mouse_arrange_node == nullptr) // Ignore this scaler if another node is already being scaled or arranged
-            && this->IsInside(scaler_mouse_min, scaler_mouse_max, m_nodegraph_mouse_pos))
+        if ((this->DetermineActiveDragType() == DragType::NONE) && this->IsInside(scaler_mouse_min, scaler_mouse_max, m_nodegraph_mouse_pos))
         {
+            start_mouse_drag = false;
             scaler_hover = true;
             if (ImGui::IsMouseDragging(0))
             {
@@ -488,12 +492,15 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
         ara_mouse_min.x = ara_mouse_max.x - m_style.arrange_widget_size.x;
         ara_mouse_min.y = node->pos.y + m_style.arrange_widget_margin.y;
         ara_mouse_max.y = ara_mouse_min.y + m_style.arrange_widget_size.y;
-        const bool ara_hover = ((m_mouse_resize_node == nullptr) && (m_mouse_arrange_node == nullptr) // Ignore this arrange-widget if another node is already being scaled or arranged
-                               && this->IsInside(ara_mouse_min, ara_mouse_max, m_nodegraph_mouse_pos));
+        const bool ara_hover = ((this->DetermineActiveDragType() == DragType::NONE) && this->IsInside(ara_mouse_min, ara_mouse_max, m_nodegraph_mouse_pos));
+        if (ara_hover)
+            start_mouse_drag = false;
+
         if (ara_hover && ImGui::IsMouseDragging(0))
         {
             m_mouse_arrange_node = node;
             node->arranged_pos = node->pos + m_scroll_offset; // Initialize the screen position
+            start_mouse_drag = false;
         }
 
         // Draw arrange widget
@@ -502,6 +509,9 @@ void RoR::NodeGraphTool::DrawNodeFinalize(Node* node)
     }
 
     ImGui::PopID();
+
+    if (start_mouse_drag)
+        m_mouse_move_node = node;
 
     if (is_hovered)
         m_hovered_node = node;
@@ -547,6 +557,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
 
     // Update mouse drag
     m_nodegraph_mouse_pos = (ImGui::GetIO().MousePos - m_scroll_offset);
+    const DragType active_drag = this->DetermineActiveDragType();
     if (ImGui::IsMouseDragging(0) && this->IsLinkDragInProgress())
     {
         m_fake_mouse_node.pos = m_nodegraph_mouse_pos;
@@ -580,7 +591,7 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
     }
 
     // Update node resize
-    if (ImGui::IsMouseDragging(0) && m_mouse_resize_node != nullptr)
+    if (ImGui::IsMouseDragging(0) && (active_drag == DragType::NODE_RESIZE))
     {
         m_mouse_resize_node->user_size += ImGui::GetIO().MouseDelta;
     }
@@ -590,13 +601,23 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
     }
 
     // Update node screen arranging
-    if (ImGui::IsMouseDragging(0) && m_mouse_arrange_node != nullptr)
+    if (ImGui::IsMouseDragging(0) && (active_drag == DragType::NODE_ARRANGE))
     {
         m_mouse_arrange_node->arranged_pos += ImGui::GetIO().MouseDelta;
     }
     else // Arranging ended
     {
         m_mouse_arrange_node = nullptr;
+    }
+
+    // Update node positioning
+    if (ImGui::IsMouseDragging(0) && (active_drag == DragType::NODE_MOVE))
+    {
+        m_mouse_move_node->pos += ImGui::GetIO().MouseDelta;
+    }
+    else // Move ended
+    {
+        m_mouse_move_node = nullptr;
     }
 
     // Draw grid
@@ -703,6 +724,17 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
 
     ImGui::EndChild();
     drawlist->ChannelsMerge();
+}
+
+RoR::NodeGraphTool::DragType RoR::NodeGraphTool::DetermineActiveDragType()
+{
+    if      (m_link_mouse_src != nullptr)     { return DragType::LINK_SRC;     }
+    else if (m_link_mouse_dst != nullptr)     { return DragType::LINK_DST;     }
+    else if (m_mouse_resize_node != nullptr)  { return DragType::NODE_RESIZE;  }
+    else if (m_mouse_arrange_node != nullptr) { return DragType::NODE_ARRANGE; }
+    else if (m_mouse_move_node != nullptr)    { return DragType::NODE_MOVE;    }
+
+    return DragType::NONE;
 }
 
 void RoR::NodeGraphTool::CalcGraph()
