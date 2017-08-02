@@ -130,7 +130,7 @@ public:
 
         virtual bool    Process()                              { this->done = true; return true; }
         virtual void    BindSrc(Link* link, int slot)          {} ///< Binds node output to link's SRC end.
-        virtual void    BindDst(Link* link, int slot)          {} ///< Binds node input to link's DST end.
+        virtual bool    BindDst(Link* link, int slot)          { return false; } ///< Binds node input to link's DST end.
         virtual void    DetachLink(Link* link)                 {}
         virtual void    Draw()                                 {}
         virtual void    DrawLockedMode()                       {} ///< Only for display nodes with "arrangement" enabled.
@@ -207,7 +207,7 @@ public:
 
         virtual bool Process() override;                          ///< @return false if waiting for data, true if processed/nothing to process.
         virtual void BindSrc(Link* link, int slot) override;
-        virtual void BindDst(Link* link, int slot) override;
+        virtual bool BindDst(Link* link, int slot) override;
         virtual void DetachLink(Link* link) override;
         virtual void Draw() override;
 
@@ -235,7 +235,7 @@ public:
         
         virtual bool Process() override;                          ///< @return false if waiting for data, true if processed/nothing to process.
         virtual void BindSrc(Link* link, int slot) override;
-        virtual void BindDst(Link* link, int slot) override;
+        virtual bool BindDst(Link* link, int slot) override;
         virtual void DetachLink(Link* link) override;
         virtual void Draw() override;
 
@@ -250,7 +250,7 @@ public:
 
         //           Process() override                          --- Nothing to do here.
         virtual void BindSrc(Link* link, int slot) override      { assert(slot == 0); if (slot == 0) { link->node_src = this; link->buff_src = &buffer_out; } }
-        virtual void BindDst(Link* link, int slot) override      { assert(slot == 0); if (slot == 0) { link->node_dst = this; link->slot_dst = slot; link_in = link; } }
+        virtual bool BindDst(Link* link, int slot) override      { if (slot == 0 && link_in == nullptr) { link->node_dst = this; link->slot_dst = slot; link_in = link; return true; } return false; }
         virtual void DetachLink(Link* link) override; // FINAL
         virtual void Draw() override;
 
@@ -264,7 +264,7 @@ public:
 
         //           Process() override                          --- Nothing to do here.
         virtual void BindSrc(Link* link, int slot) override         { graph->Assert(false, "Called DisplayNode::BindSrc() - node has no outputs!"); }
-        virtual void BindDst(Link* link, int slot) override;
+        virtual bool BindDst(Link* link, int slot) override;
         virtual void DetachLink(Link* link) override; // FINAL
         virtual void Draw() override;
         virtual void DrawLockedMode() override;
@@ -279,12 +279,13 @@ public:
 
         //           Process() override                          --- Nothing to do here.
         virtual void BindSrc(Link* link, int slot) override         { graph->Assert(false, "Called Display2DNode::BindSrc() - node has no outputs!"); }
-        virtual void BindDst(Link* link, int slot) override;
+        virtual bool BindDst(Link* link, int slot) override;
         virtual void DetachLink(Link* link) override; // FINAL
         virtual void Draw() override;
         virtual void DrawLockedMode() override;
 
         void DrawPath(Buffer* const buff_x, Buffer* const buff_y, float width, ImU32 color, ImVec2 canvas_world_min, ImVec2 canvas_screen_min, ImVec2 canvas_screen_max);
+        bool BindDstSingle(Link*& slot_ptr, int slot_index, Link* link);
 
         Link* input_rough_x;
         Link* input_rough_y;
@@ -303,7 +304,7 @@ public:
 
         //           Process() override                          --- Nothing to do here.
         virtual void BindSrc(Link* link, int slot) override         { graph->Assert(false, "Called UdpNode::BindSrc() - node has no outputs!"); }
-        virtual void BindDst(Link* link, int slot) override;
+        virtual bool BindDst(Link* link, int slot) override;
         virtual void DetachLink(Link* link) override;
         virtual void Draw() override;
 

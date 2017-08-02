@@ -375,8 +375,19 @@ void RoR::NodeGraphTool::DrawSlotUni(Node* node, const int index, const bool inp
                 node->DetachLink(link);
                 if (input)
                 {
-                    m_fake_mouse_node.BindDst(link, 0);
-                    m_link_mouse_dst = link;
+                    if (!m_fake_mouse_node.BindDst(link, 0))
+                    {
+                        this->AddMessage("DEBUG: NodeGraphTool::DrawSlotUni() failed to BindDst() link to fake_mouse_node");
+                        // cancel drag = re-bind the link
+                        if (input)
+                            node->BindDst(link, index);
+                        else
+                            node->BindSrc(link, index);
+                    }
+                    else
+                    {
+                        m_link_mouse_dst = link;
+                    }
                 }
                 else
                 {
@@ -404,8 +415,13 @@ void RoR::NodeGraphTool::DrawSlotUni(Node* node, const int index, const bool inp
 RoR::NodeGraphTool::Link* RoR::NodeGraphTool::AddLink(Node* src, Node* dst, int src_slot, int dst_slot)
 {
     Link* link = new Link();
+    if (!dst->BindDst(link, dst_slot))
+    {
+        this->AddMessage("DEBUG: NodeGraphTool::AddLink(): Failed to BindDst() to node %d", dst->id);
+        delete link;
+        return nullptr;
+    }
     src->BindSrc(link, src_slot);
-    dst->BindDst(link, dst_slot);
     m_links.push_back(link);
     return link;
 }
@@ -568,7 +584,8 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         {
             if (m_hovered_slot_node != nullptr && m_hovered_slot_output != -1)
             {
-                m_hovered_slot_node->BindSrc(m_link_mouse_src, m_hovered_slot_output);
+                m_fake_mouse_node.DetachLink(m_link_mouse_src); // Detach from mouse node
+                m_hovered_slot_node->BindSrc(m_link_mouse_src, m_hovered_slot_output); // Bind to target
             }
             else
             {
@@ -578,11 +595,9 @@ void RoR::NodeGraphTool::DrawNodeGraphPane()
         }
         else if (m_link_mouse_dst != nullptr)
         {
-            if (m_hovered_slot_node != nullptr && m_hovered_slot_input != -1)
-            {
-                m_hovered_slot_node->BindDst(m_link_mouse_dst, m_hovered_slot_input);
-            }
-            else
+            m_fake_mouse_node.DetachLink(m_link_mouse_dst); // Detach from mouse node
+            const bool should_bind = (m_hovered_slot_node != nullptr && m_hovered_slot_input != -1);
+            if (!should_bind || !m_hovered_slot_node->BindDst(m_link_mouse_dst, m_hovered_slot_input)) // Try binding to target
             {
                 this->DetachAndDeleteLink(m_link_mouse_dst);
             }
@@ -1054,8 +1069,15 @@ void RoR::NodeGraphTool::LoadFromJson()
                 continue;
             }
             src_node->BindSrc(link, (*l_itor)["slot_src"].GetInt());
-            dst_node->BindDst(link, (*l_itor)["slot_dst"].GetInt());
-            m_links.push_back(link);
+            if (!dst_node->BindDst(link, (*l_itor)["slot_dst"].GetInt()))
+            {
+                this->AddMessage("JSON load FATAL ERROR: link %d --> %d failed to bind.",src_id, dst_id);
+                delete link;
+            }
+            else
+            {
+                m_links.push_back(link);
+            }
         }
     }
     else this->Assert(false, "LoadFromJson(): No 'links' array in JSON");
@@ -1190,20 +1212,36 @@ void RoR::NodeGraphTool::Display2DNode::DetachLink(Link* link)
     graph->Assert(false, "Display2DNode::DetachLink() discrepancy in link: node_dst attached, link_in not");
 }
 
-void RoR::NodeGraphTool::Display2DNode::BindDst(Link* link, int slot)
-{ 
-    graph->Assert((slot >= 0 && slot <= num_inputs), "DisplayNode::BindDst() called with bad slot");
+bool RoR::NodeGraphTool::Display2DNode::BindDstSingle(Link*& slot_ptr, int slot_index, Link* link)
+{
+    if (slot_ptr != nullptr)
+        return false; // Occupied!
+
+    slot_ptr = link;
+    link->node_dst = this;
+    link->slot_dst = slot_index;
+    return true;
+}
+
+bool RoR::NodeGraphTool::Display2DNode::BindDst(Link* link, int slot)
+{
+    const bool slot_ok = (slot >= 0 && slot <= num_inputs);
+    if (!slot_ok)
+    {
+        graph->Assert(false , "Display2DNode::BindDst() called with bad slot");
+        return false;
+    }
 
     switch (slot)
     {
-        //Check -- Attach link                                 ---- Attach node     -----  done
-        case 0:    link->node_dst = this; link->slot_dst = slot;    input_rough_x  = link; return;
-        case 1:    link->node_dst = this; link->slot_dst = slot;    input_rough_y  = link; return;
-        case 2:    link->node_dst = this; link->slot_dst = slot;    input_smooth_x = link; return;
-        case 3:    link->node_dst = this; link->slot_dst = slot;    input_smooth_y = link; return;
-        case 4:    link->node_dst = this; link->slot_dst = slot;    input_scroll_x = link; return;
-        case 5:    link->node_dst = this; link->slot_dst = slot;    input_scroll_y = link; return;
+        case 0: return this->BindDstSingle(input_rough_x , slot, link);
+        case 1: return this->BindDstSingle(input_rough_y , slot, link);
+        case 2: return this->BindDstSingle(input_smooth_x, slot, link);
+        case 3: return this->BindDstSingle(input_smooth_y, slot, link);
+        case 4: return this->BindDstSingle(input_scroll_x, slot, link);
+        case 5: return this->BindDstSingle(input_scroll_y, slot, link);
     }
+    return false;
 }
 
 #define TOOLTIP_NODE_DISPLAY_2D \
@@ -1461,16 +1499,18 @@ void RoR::NodeGraphTool::DisplayNode::DetachLink(Link* link)
     else graph->Assert (false, "DisplayNode::DetachLink() called with unrelated link");
 }
 
-void RoR::NodeGraphTool::DisplayNode::BindDst(Link* link, int slot)
-{ 
+bool RoR::NodeGraphTool::DisplayNode::BindDst(Link* link, int slot)
+{
     graph->Assert(slot == 0, "DisplayNode::BindDst() called with bad slot");
 
-    if (slot == 0)
-    { 
-        link->node_dst = this; 
-        link->slot_dst = slot; 
-        link_in = link; 
+    if ((slot == 0) && (link_in == nullptr))
+    {
+        link->node_dst = this;
+        link->slot_dst = slot;
+        link_in = link;
+        return true;
     }
+    return false;
 }
 
 // -------------------------------- UDP node -----------------------------------
@@ -1518,12 +1558,21 @@ void RoR::NodeGraphTool::UdpNode::DetachLink(Link* link)
     }
 }
 
-void RoR::NodeGraphTool::UdpNode::BindDst(Link* link, int slot)
+bool RoR::NodeGraphTool::UdpNode::BindDst(Link* link, int slot)
 {
-    assert(slot >= 0 && slot < num_inputs);
-    inputs[slot] = link;
-    link->node_dst = this;
-    link->slot_dst = slot;
+    const bool slot_ok = (slot >= 0 && slot < num_inputs);
+    if (slot_ok && inputs[slot] == nullptr)
+    {
+        inputs[slot] = link;
+        link->node_dst = this;
+        link->slot_dst = slot;
+        return true;
+    }
+    else
+    {
+        this->graph->AddMessage("UdpNode::BindDst() called with bad slot");
+        return false;
+    }
 }
 
 // -------------------------------- Generator node -----------------------------------
@@ -1651,11 +1700,23 @@ void RoR::NodeGraphTool::EulerNode::BindSrc(Link* link, int slot)
     link->buff_src = &outputs[slot];
 }
 
-void RoR::NodeGraphTool::EulerNode::BindDst(Link* link, int slot)
+bool RoR::NodeGraphTool::EulerNode::BindDst(Link* link, int slot)
 {
-    inputs[slot] = link;
-    link->node_dst = this;
-    link->slot_dst = slot;
+    const bool slot_ok = (slot >= 0 && slot < this->num_inputs);
+    if (!slot_ok)
+    {
+        this->graph->AddMessage("EulerNode::BindDst(): bad slot number");
+        return false;
+    }
+
+    if (inputs[slot] == nullptr)
+    {
+        inputs[slot] = link;
+        link->node_dst = this;
+        link->slot_dst = slot;
+        return true;
+    }
+    return false;
 }
 
 void RoR::NodeGraphTool::EulerNode::DetachLink(Link* link)
@@ -1918,13 +1979,23 @@ void RoR::NodeGraphTool::ScriptNode::BindSrc(Link* link, int slot)
     link->buff_src = &outputs[slot];
 }
 
-void RoR::NodeGraphTool::ScriptNode::BindDst(Link* link, int slot)
+bool RoR::NodeGraphTool::ScriptNode::BindDst(Link* link, int slot)
 {
-    assert(slot >= 0 && slot < num_inputs); // Check input
-    assert(link != nullptr); // Check input
-    inputs[slot] = link;
-    link->node_dst = this;
-    link->slot_dst = slot;
+    const bool slot_ok = (slot >= 0 && slot < num_inputs);
+    if (!slot_ok)
+    {
+        this->graph->AddMessage("ScriptNode::BindDst(): bad slot number");
+        return false;
+    }
+
+    if (inputs[slot] == nullptr)
+    {
+        inputs[slot] = link;
+        link->node_dst = this;
+        link->slot_dst = slot;
+        return true;
+    }
+    return false;
 }
 
 void RoR::NodeGraphTool::ScriptNode::DetachLink(Link* link)
@@ -1962,7 +2033,7 @@ void RoR::NodeGraphTool::ScriptNode::Draw()
     graph->DrawNodeFinalize(this);
 }
 
-// -------------------------------- Transform node -----------------------------------
+// -------------------------------- MouseDragNode -----------------------------------
 
 RoR::NodeGraphTool::MouseDragNode::MouseDragNode(NodeGraphTool* _graph, ImVec2 _pos):
     Node(_graph, Type::MOUSE, _pos), buffer_out(0), link_in(nullptr)
@@ -1987,7 +2058,7 @@ void RoR::NodeGraphTool::MouseDragNode::DetachLink(Link* link)
 {
     if (link->node_dst == this)
     {
-        assert(this->link_in == link); // Check discrepancy
+        if (this->link_in != link)
         link->node_dst = nullptr;
         link->slot_dst = -1;
         this->link_in = nullptr;
