@@ -188,10 +188,10 @@ void RoR::NodeGraphTool::Draw(int net_send_state)
             {
                 ImGui::BulletText(msg.c_str());
             }
-            if (ImGui::Button("Clear messages"))
-            {
-                m_messages.clear();
-            }
+        }
+        if (ImGui::Button("Clear messages"))
+        {
+            m_messages.clear();
         }
     }
 
