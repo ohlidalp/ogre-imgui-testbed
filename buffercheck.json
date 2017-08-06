@@ -1,0 +1,154 @@
+{
+    "nodes": [
+        {
+            "pos_x": -46.0,
+            "pos_y": 39.0,
+            "arranged_pos_x": -2.0,
+            "arranged_pos_y": -2.0,
+            "user_size_x": 250.0,
+            "user_size_y": 200.0,
+            "id": 7,
+            "type_id": 4,
+            "source_code": "float a=0;\n\n\nvoid step() {\n\nWrite(0,a);\n\na+=0.001;\n}"
+        },
+        {
+            "pos_x": 572.0,
+            "pos_y": -17.0,
+            "arranged_pos_x": -1.0,
+            "arranged_pos_y": -1.0,
+            "user_size_x": 100.0,
+            "user_size_y": 30.0,
+            "id": 8,
+            "type_id": 9
+        },
+        {
+            "pos_x": 266.0,
+            "pos_y": 97.0,
+            "arranged_pos_x": -2.0,
+            "arranged_pos_y": -2.0,
+            "user_size_x": 250.0,
+            "user_size_y": 200.0,
+            "id": 9,
+            "type_id": 4,
+            "source_code": "// Static variables here\n\n// Update func. (mandatory)\nvoid step() {\n    // Pass-thru\n    Write(0,Read(0,0));\n\n// ====== checks========\nWrite(1,Read(0,0)-Read(0,-1));\nWrite(2,Read(0,0)-Read(0,-2));\nWrite(3,Read(0,0)-Read(0,-3));\n}"
+        },
+        {
+            "pos_x": 574.0,
+            "pos_y": 23.0,
+            "arranged_pos_x": -1.0,
+            "arranged_pos_y": -1.0,
+            "user_size_x": 100.0,
+            "user_size_y": 30.0,
+            "id": 10,
+            "type_id": 9
+        },
+        {
+            "pos_x": 620.0,
+            "pos_y": 73.0,
+            "arranged_pos_x": -1.0,
+            "arranged_pos_y": -1.0,
+            "user_size_x": 100.0,
+            "user_size_y": 30.0,
+            "id": 11,
+            "type_id": 9
+        },
+        {
+            "pos_x": 622.0,
+            "pos_y": 111.0,
+            "arranged_pos_x": -1.0,
+            "arranged_pos_y": -1.0,
+            "user_size_x": 100.0,
+            "user_size_y": 30.0,
+            "id": 12,
+            "type_id": 9
+        },
+        {
+            "pos_x": 622.0,
+            "pos_y": 149.0,
+            "arranged_pos_x": -1.0,
+            "arranged_pos_y": -1.0,
+            "user_size_x": 100.0,
+            "user_size_y": 30.0,
+            "id": 13,
+            "type_id": 9
+        }
+    ],
+    "links": [
+        {
+            "node_src_id": 7,
+            "node_dst_id": 8,
+            "slot_src": 0,
+            "slot_dst": 0
+        },
+        {
+            "node_src_id": 7,
+            "node_dst_id": 9,
+            "slot_src": 0,
+            "slot_dst": 0
+        },
+        {
+            "node_src_id": 9,
+            "node_dst_id": 10,
+            "slot_src": 0,
+            "slot_dst": 0
+        },
+        {
+            "node_src_id": 9,
+            "node_dst_id": 11,
+            "slot_src": 1,
+            "slot_dst": 0
+        },
+        {
+            "node_src_id": 9,
+            "node_dst_id": 12,
+            "slot_src": 2,
+            "slot_dst": 0
+        },
+        {
+            "node_src_id": 9,
+            "node_dst_id": 13,
+            "slot_src": 3,
+            "slot_dst": 0
+        }
+    ],
+    "udp_pos_node": {
+        "pos_x": -1378.0,
+        "pos_y": 562.0,
+        "arranged_pos_x": -2.0,
+        "arranged_pos_y": -2.0,
+        "user_size_x": 0.0,
+        "user_size_y": 0.0,
+        "id": -2147483646,
+        "type_id": 7
+    },
+    "udp_acc_node": {
+        "pos_x": -1402.0,
+        "pos_y": 642.0,
+        "arranged_pos_x": -2.0,
+        "arranged_pos_y": -2.0,
+        "user_size_x": 0.0,
+        "user_size_y": 0.0,
+        "id": -2147483644,
+        "type_id": 7
+    },
+    "udp_orient_node": {
+        "pos_x": -1408.0,
+        "pos_y": 380.0,
+        "arranged_pos_x": -2.0,
+        "arranged_pos_y": -2.0,
+        "user_size_x": 0.0,
+        "user_size_y": 0.0,
+        "id": -2147483643,
+        "type_id": 7
+    },
+    "udp_velo_node": {
+        "pos_x": -1384.0,
+        "pos_y": 454.0,
+        "arranged_pos_x": -2.0,
+        "arranged_pos_y": -2.0,
+        "user_size_x": 0.0,
+        "user_size_y": 0.0,
+        "id": -2147483645,
+        "type_id": 7
+    }
+}
