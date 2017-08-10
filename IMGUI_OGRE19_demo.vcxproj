@@ -162,7 +162,6 @@
     <ClInclude Include="lib\DearIMGUI\stb_textedit.h" />
     <ClInclude Include="lib\DearIMGUI\stb_truetype.h" />
     <ClInclude Include="lib\DearIMGUI_OGRE\ImguiManager.h" />
-    <ClInclude Include="lib\imguinodegrapheditor\imguinodegrapheditor.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -173,8 +172,6 @@
     <ClCompile Include="lib\DearIMGUI\imgui_demo.cpp" />
     <ClCompile Include="lib\DearIMGUI\imgui_draw.cpp" />
     <ClCompile Include="lib\DearIMGUI_OGRE\ImguiManager.cpp" />
-    <ClCompile Include="lib\imguinodegrapheditor\imguinodegrapheditor.cpp" />
-    <ClCompile Include="lib\imguinodegrapheditor\ocornut_gist_node_editor.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

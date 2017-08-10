@@ -3,14 +3,11 @@
 
 #include "ImguiManager.h"
 #include "Application.h" // Debugging - copy of RoR
-#include "lib/imguinodegrapheditor/imguinodegrapheditor.h"
 
 #include <memory>    // std::unique_ptr
 #include <algorithm> // std::min()
 
 #define ROR_ARRAYLEN(_BUF)  (sizeof(_BUF)/sizeof(*_BUF))
-
-void ShowExampleAppCustomNodeGraph(bool* opened);
 
 // ================================== MP selector prototype ================================================
 namespace RoR
@@ -356,17 +353,16 @@ void DrawSkeletonView()
 
 //// -------------------------------------- APP ------------------------------------------
 
-struct GuiState
-{
-    bool test_window_visible;
-    bool style_editor_visible;
-    bool multiplayer_visible;
-    bool console_visible;
-};
-
 class DemoApp: public Ogre::FrameListener, public OIS::KeyListener, public OIS::MouseListener,  public Ogre::WindowEventListener
 {
 public:
+    DemoApp():
+        m_is_test_window_visible(false),
+        m_is_style_editor_visible(false),
+        m_is_multiplayer_visible(false),
+        m_is_console_visible(false)
+        {}
+
     void RoR_SetGuiStyle()
     {
 // Exported colors
@@ -437,55 +433,38 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
 
     void DrawGui()
     {
-        static bool show_node_editor_test = false;
-        static bool show_node_editor_ocornut = false;
 
         if (ImGui::BeginMainMenuBar())
         {
-            ImGui::Checkbox("Test", &m_gui_state.test_window_visible);
+            ImGui::Checkbox("Test", &m_is_test_window_visible);
             ImGui::SameLine();
-            ImGui::Checkbox("Styles", &m_gui_state.style_editor_visible);
+            ImGui::Checkbox("Styles", &m_is_style_editor_visible);
             ImGui::SameLine();
-            ImGui::Checkbox("Multiplayer", &m_gui_state.multiplayer_visible);
+            ImGui::Checkbox("Multiplayer", &m_is_multiplayer_visible);
             ImGui::SameLine();
-            ImGui::Checkbox("Console", &m_gui_state.console_visible);
-            ImGui::SameLine();
-            ImGui::Checkbox("Node-test", &show_node_editor_test);
-            ImGui::SameLine();
-            ImGui::Checkbox("Node-ocornut", &show_node_editor_ocornut);
+            ImGui::Checkbox("Console", &m_is_console_visible);
 
             ImGui::EndMainMenuBar();
         }
 
-        if (m_gui_state.test_window_visible)
+        if (m_is_test_window_visible)
         {
-            ImGui::ShowTestWindow(&m_gui_state.test_window_visible);
+            ImGui::ShowTestWindow(&m_is_test_window_visible);
         }
 
-        if (m_gui_state.style_editor_visible)
+        if (m_is_style_editor_visible)
         {
             ImGui::ShowStyleEditor();
         }
 
-        if (m_gui_state.console_visible)
+        if (m_is_console_visible)
         {
             this->RoR_DrawConsole();
         }
 
-        if (m_gui_state.multiplayer_visible)
+        if (m_is_multiplayer_visible)
         {
             m_multiplayer.Draw();
-        }
-
-        
-        if (show_node_editor_test)
-        {
-            ImGui::TestNodeGraphEditor();   // see its code for further info
-        }
-
-        if (show_node_editor_ocornut)
-        {
-            ShowExampleAppCustomNodeGraph(nullptr);
         }
 
     //    DrawSkeletonView();
@@ -495,7 +474,6 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
 
     void Go()
     {
-        memset(&m_gui_state, 0, sizeof(GuiState));
 #ifdef _DEBUG
         static const std::string mPluginsCfg = "plugins_d.cfg";
 #else
@@ -700,8 +678,11 @@ private:
     OIS::Mouse*                 mMouse       ;
     OIS::Keyboard*              mKeyboard    ;
 
-    GuiState                    m_gui_state;
-    RoR::MultiplayerSelector         m_multiplayer;
+    bool                        m_is_test_window_visible;
+    bool                        m_is_style_editor_visible;
+    bool                        m_is_multiplayer_visible;
+    bool                        m_is_console_visible;
+    RoR::MultiplayerSelector    m_multiplayer;
     OgreImGui                   m_imgui;
 };
 
