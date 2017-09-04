@@ -77,10 +77,33 @@ struct SoftbodyBeam
         bool shock2_M_absolute_metric;
     };
 
+    /// Represents directive 'set_beam_defaults_scale' in Truckfile - allows fine-tuning many presets at once, used frequently by content creators
+    struct PresetScaler
+    {
+        PresetScaler(): spring(1.f), damp(1.f), deform_threshold(1.f), strength(1.f) {}
+
+        float         spring;
+        float         damp;
+        float         deform_threshold;
+        float         strength; ///< a.k.a. 'breaking threshold'
+    };
+
+    /// Represents directive 'set_beam_defaults' in Truckfile.
     struct Preset
     {
-        IdStr     name;
-    //TODO
+        IdStr         name;
+        PresetScaler* scaler;
+
+        float         spring;
+        float         damp;
+        float         deform_threshold;
+        float         strength;
+        float         plastic_deform;
+        bool          enable_advanced_deform; ///< Is this preset affected by Truckfile directive 'enable_advanced_deformation'?
+
+        // TODO: Gfx attrs shouldn't be here, but it eases Truckfile import/export.
+        float         visual_diameter; ///< in meters
+        std::string   material_name;
     };
 
     struct Selection
@@ -109,6 +132,37 @@ struct SoftbodyBeam
     SoftbodyNode* base_node;
     SoftbodyNode* tip_node;
     Type          type;
+    int           detacher_group;
+    float         extension_break_limit; ///< Type: PLAIN; -1 means 'not set'
+    float         max_extension;         ///< Types: hydro, command[2], shock[2], triggers
+    float         max_contraction;       ///< Types: command[2], shock[2], triggers
+    // TODO: STEERING_HYDRO/COMMAND_HYDRO inertia!
+
+    // Command2 (unified) attrs;
+    float         command_shorten_rate;
+    float         command_lengthen_rate;
+    int           command_contract_key;
+    int           command_extend_key;
+    std::string   command_description;
+    float         command_affect_engine;
+    bool          command_needs_engine;
+    bool          command_plays_sound;
+
+    // Shock2 attrs
+    float         shock_precompression;
+    float         shock_spring_in;           ///< Spring value applied when the shock is compressing.
+    float         shock_damp_in;             ///< Damping value applied when the shock is compressing. 
+    float         shock_spring_in_progress;  ///< Progression factor for springin. A value of 0 disables this option. 1...x as multipliers, example:maximum springrate == springrate + (factor*springrate)
+    float         shock_damp_in_progress;    ///< Progression factor for dampin. 0 = disabled, 1...x as multipliers, example:maximum dampingrate == springrate + (factor*dampingrate)
+    float         shock_spring_out;          ///< spring value applied when shock extending
+    float         shock_damp_out;            ///< damping value applied when shock extending
+    float         shock_spring_out_progress; ///< Progression factor springout, 0 = disabled, 1...x as multipliers, example:maximum springrate == springrate + (factor*springrate)
+    float         shock_damp_out_progress;   ///< Progression factor dampout, 0 = disabled, 1...x as multipliers, example:maximum dampingrate == springrate + (factor*dampingrate)
+
+    // Trigger attrs
+    float         trigger_boundary_timer;
+    int           trigger_shortlimit_action;
+    int           trigger_longlimit_action;
 };
 
 struct SoftbodyNode

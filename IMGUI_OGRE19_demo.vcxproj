@@ -164,6 +164,14 @@
     <ClInclude Include="lib\DearIMGUI_OGRE\ImguiManager.h" />
     <ClInclude Include="RigEditor_Gui.h" />
     <ClInclude Include="RigEditor_Project.h" />
+    <ClInclude Include="rig_def_fileformat\RigDef_File.h" />
+    <ClInclude Include="rig_def_fileformat\RigDef_Node.h" />
+    <ClInclude Include="rig_def_fileformat\RigDef_Parser.h" />
+    <ClInclude Include="rig_def_fileformat\RigDef_Prerequisites.h" />
+    <ClInclude Include="rig_def_fileformat\RigDef_Regexes.h" />
+    <ClInclude Include="rig_def_fileformat\RigDef_SequentialImporter.h" />
+    <ClInclude Include="rig_def_fileformat\RigDef_Serializer.h" />
+    <ClInclude Include="rig_def_fileformat\RigDef_Validator.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -175,6 +183,12 @@
     <ClCompile Include="lib\DearIMGUI\imgui_draw.cpp" />
     <ClCompile Include="lib\DearIMGUI_OGRE\ImguiManager.cpp" />
     <ClCompile Include="RigEditor_Gui.cpp" />
+    <ClCompile Include="rig_def_fileformat\RigDef_File.cpp" />
+    <ClCompile Include="rig_def_fileformat\RigDef_Node.cpp" />
+    <ClCompile Include="rig_def_fileformat\RigDef_Parser.cpp" />
+    <ClCompile Include="rig_def_fileformat\RigDef_SequentialImporter.cpp" />
+    <ClCompile Include="rig_def_fileformat\RigDef_Serializer.cpp" />
+    <ClCompile Include="rig_def_fileformat\RigDef_Validator.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

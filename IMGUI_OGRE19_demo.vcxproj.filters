@@ -11,6 +11,9 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
+    <Filter Include="truckfile">
+      <UniqueIdentifier>{45940d28-df8c-417e-8c6f-8430a39aaf46}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -52,6 +55,30 @@
     <ClInclude Include="RigEditor_Project.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="rig_def_fileformat\RigDef_File.h">
+      <Filter>truckfile</Filter>
+    </ClInclude>
+    <ClInclude Include="rig_def_fileformat\RigDef_Node.h">
+      <Filter>truckfile</Filter>
+    </ClInclude>
+    <ClInclude Include="rig_def_fileformat\RigDef_Parser.h">
+      <Filter>truckfile</Filter>
+    </ClInclude>
+    <ClInclude Include="rig_def_fileformat\RigDef_Prerequisites.h">
+      <Filter>truckfile</Filter>
+    </ClInclude>
+    <ClInclude Include="rig_def_fileformat\RigDef_Regexes.h">
+      <Filter>truckfile</Filter>
+    </ClInclude>
+    <ClInclude Include="rig_def_fileformat\RigDef_SequentialImporter.h">
+      <Filter>truckfile</Filter>
+    </ClInclude>
+    <ClInclude Include="rig_def_fileformat\RigDef_Serializer.h">
+      <Filter>truckfile</Filter>
+    </ClInclude>
+    <ClInclude Include="rig_def_fileformat\RigDef_Validator.h">
+      <Filter>truckfile</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="lib\DearIMGUI\imgui.cpp">
@@ -77,6 +104,24 @@
     </ClCompile>
     <ClCompile Include="RigEditor_Gui.cpp">
       <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="rig_def_fileformat\RigDef_File.cpp">
+      <Filter>truckfile</Filter>
+    </ClCompile>
+    <ClCompile Include="rig_def_fileformat\RigDef_Node.cpp">
+      <Filter>truckfile</Filter>
+    </ClCompile>
+    <ClCompile Include="rig_def_fileformat\RigDef_Parser.cpp">
+      <Filter>truckfile</Filter>
+    </ClCompile>
+    <ClCompile Include="rig_def_fileformat\RigDef_SequentialImporter.cpp">
+      <Filter>truckfile</Filter>
+    </ClCompile>
+    <ClCompile Include="rig_def_fileformat\RigDef_Serializer.cpp">
+      <Filter>truckfile</Filter>
+    </ClCompile>
+    <ClCompile Include="rig_def_fileformat\RigDef_Validator.cpp">
+      <Filter>truckfile</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
