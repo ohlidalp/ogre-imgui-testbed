@@ -119,20 +119,45 @@ struct SoftbodyBeam
         bool                   detacher_group_is_uniform;
         Options                option_values;
         Options                option_uniformity;
-        // * Plain beam
-        float                  support_break_limit; ///< Extension break limit in %
-        bool                   support_break_limit_is_uniform;
-        // * Steer hydro
-        float                  extension; ///< Max. extension in %
-        bool                   extension_is_uniform;
 
-        // TODO: other types
+        float         extension_break_limit;          bool   extension_break_limit_is_uniform;
+        float         max_extension;                  bool   max_extension_is_uniform;
+        float         max_contraction;                bool   max_contraction_is_uniform;
+
+        // TODO: STEERING_HYDRO/COMMAND_HYDRO inertia!
+
+        // Command2 (unified) attrs;
+        float         command_shorten_rate;           bool   command_shorten_rate_is_uniform;
+        float         command_lengthen_rate;          bool   command_lengthen_rate_is_uniform;
+        int           command_contract_key;           bool   command_contract_key_is_uniform;
+        int           command_extend_key;             bool   command_extend_key_is_uniform;
+        std::string   command_description;
+        float         command_affect_engine;          bool   command_affect_engine_is_uniform;
+        bool          command_needs_engine;           bool   command_needs_engine_is_uniform;
+        bool          command_plays_sound;            bool   command_plays_sound_is_uniform;
+
+        // Shock2 attrs
+        float         shock_precompression;           bool   shock_precompression_is_uniform;
+        float         shock_spring_in;                bool   shock_spring_in_is_uniform;
+        float         shock_damp_in;                  bool   shock_damp_in_is_uniform;
+        float         shock_spring_in_progress;       bool   shock_spring_in_progress_is_uniform;
+        float         shock_damp_in_progress;         bool   shock_damp_in_progress_is_uniform;
+        float         shock_spring_out;               bool   shock_spring_out_is_uniform;
+        float         shock_damp_out;                 bool   shock_damp_out_is_uniform;
+        float         shock_spring_out_progress;      bool   shock_spring_out_progress_is_uniform;
+        float         shock_damp_out_progress;        bool   shock_damp_out_progress_is_uniform;
+
+        // Trigger attrs
+        float         trigger_boundary_timer;         bool   trigger_boundary_timer_is_uniform;
+        int           trigger_shortlimit_action;      bool   trigger_shortlimit_action_is_uniform;
+        int           trigger_longlimit_action;       bool   trigger_longlimit_action_is_uniform;
     };
 
     SoftbodyNode* base_node;
     SoftbodyNode* tip_node;
     Type          type;
     int           detacher_group;
+    Options       options;
     float         extension_break_limit; ///< Type: PLAIN; -1 means 'not set'
     float         max_extension;         ///< Types: hydro, command[2], shock[2], triggers
     float         max_contraction;       ///< Types: command[2], shock[2], triggers
@@ -241,9 +266,10 @@ struct Project
         std::vector<SoftbodyNode::Preset*>    node_presets;
         SoftbodyNode::Selection               node_selection;
 
-        std::vector<SoftbodyBeam*>            beams;
-        std::vector<SoftbodyBeam::Preset*>    beam_presets;
-        SoftbodyBeam::Selection               beam_selection;
+        std::vector<SoftbodyBeam*>               beams;
+        std::vector<SoftbodyBeam::Preset*>       beam_presets;
+        std::vector<SoftbodyBeam::PresetScaler*> beam_preset_scalers;
+        SoftbodyBeam::Selection                  beam_selection;
 
         int GetNodePresetArrayIndex(SoftbodyNode::Preset* query)
         {
