@@ -88,7 +88,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>lib\DearIMGUI_OGRE;lib\DearIMGUI;C:\Lib\boost-1.61-vc140-x86-12.03.2016;c:\Lib\OGRE-SDK-1.9.0-vc140-x86-12.03.2016\include\OIS;c:\Lib\OGRE-SDK-1.9.0-vc140-x86-12.03.2016\include\OGRE\Overlay;c:\Lib\OGRE-SDK-1.9.0-vc140-x86-12.03.2016\include\OGRE;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);lib\DearIMGUI_OGRE;lib\DearIMGUI;C:\Lib\boost-1.61-vc140-x86-12.03.2016;c:\Lib\OGRE-SDK-1.9.0-vc140-x86-12.03.2016\include\OIS;c:\Lib\OGRE-SDK-1.9.0-vc140-x86-12.03.2016\include\OGRE\Overlay;c:\Lib\OGRE-SDK-1.9.0-vc140-x86-12.03.2016\include\OGRE;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
     </ClCompile>
     <Link>
@@ -120,7 +120,7 @@
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;NO_IMGUIFILESYSTEM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\ois;C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\ogre;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OiS;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;lib\DearIMGUI_OGRE;lib\DearIMGUI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\ois;C:\Builds\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\ogre;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OiS;D:\Build\ror-dependencies-upstream\Dependencies_Windows_Visual-Studio-14-2015\include\OGRE;lib\DearIMGUI_OGRE;lib\DearIMGUI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
     </ClCompile>
