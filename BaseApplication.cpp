@@ -360,7 +360,8 @@ public:
         m_is_test_window_visible(false),
         m_is_style_editor_visible(false),
         m_is_multiplayer_visible(false),
-        m_is_console_visible(false)
+        m_is_console_visible(false),
+        m_is_skeleton_visible(false)
         {}
 
     void RoR_SetGuiStyle()
@@ -443,6 +444,8 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
             ImGui::Checkbox("Multiplayer", &m_is_multiplayer_visible);
             ImGui::SameLine();
             ImGui::Checkbox("Console", &m_is_console_visible);
+            ImGui::SameLine();
+            ImGui::Checkbox("Skeleton", &m_is_skeleton_visible);
 
             ImGui::EndMainMenuBar();
         }
@@ -467,8 +470,11 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
             m_multiplayer.Draw();
         }
 
-    //    DrawSkeletonView();
-        
+        if (m_is_skeleton_visible)
+        {
+            DrawSkeletonView();
+        }
+
     }
 
 
@@ -682,6 +688,7 @@ private:
     bool                        m_is_style_editor_visible;
     bool                        m_is_multiplayer_visible;
     bool                        m_is_console_visible;
+    bool                        m_is_skeleton_visible;
     RoR::MultiplayerSelector    m_multiplayer;
     OgreImGui                   m_imgui;
 };
