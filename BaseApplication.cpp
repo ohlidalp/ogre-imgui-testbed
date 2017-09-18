@@ -110,12 +110,20 @@ void MultiplayerSelector::Draw()
         next_mode = Mode::SETUP;
     }
 
+    ImGui::Separator();
+
     if (next_mode != m_mode) // Handle switching window modes
     {
         if (m_mode == Mode::SETUP) // If leaving SETUP mode, reset 'pending' values of GVars
         {
-            App::mp_player_name.GetPending()     = App::mp_player_name.GetActive();
-            App::mp_server_password.GetPending() = App::mp_server_password.GetActive();
+            App::mp_player_name    .SetPending(App::mp_player_name.GetActive()); // TODO: implement 'ResetPending()' ?
+            App::mp_server_password.SetPending(App::mp_server_password.GetActive());
+        }
+        if (m_mode == Mode::DIRECT) // If leaving DIRECT mode, reset 'pending' values of GVars
+        {
+            App::mp_server_password.SetPending(App::mp_server_password.GetActive()); // TODO: implement 'ResetPending()' ?
+            App::mp_server_host    .SetPending(App::mp_server_host.GetActive());
+            App::mp_server_port    .SetPending(App::mp_server_port.GetActive());
         }
     }
     m_mode = next_mode;
@@ -124,12 +132,46 @@ void MultiplayerSelector::Draw()
     {
         ImGui::PushID("setup");
 
+        ImGui::PushItemWidth(250.f);
         ImGui::InputText("Player nickname",         App::mp_player_name.GetPending().buffer,        App::mp_player_name.GetPending().buf_len);
         ImGui::InputText("Default server password", App::mp_server_password.GetPending().buffer,    App::mp_server_password.GetPending().buf_len);
+        ImGui::PopItemWidth();
 
         if (ImGui::Button("Save"))
         {
             App::mp_player_name.ApplyPending();
+            App::mp_server_password.ApplyPending();
+        }
+
+        ImGui::PopID();
+    }
+    else if (m_mode == Mode::DIRECT)
+    {
+        ImGui::PushID("direct");
+
+        ImGui::PushItemWidth(250.f);
+        ImGui::InputText("Server host", App::mp_server_host.GetPending().buffer, App::mp_server_host.GetPending().buf_len);
+        int port = App::mp_server_port.GetPending();
+        if (ImGui::InputInt("Server port", &port))
+        {
+            App::mp_server_port.SetPending(port);
+        }
+        ImGui::InputText("Server password (default)", App::mp_server_password.GetPending().buffer, App::mp_server_password.GetPending().buf_len);
+        ImGui::PopItemWidth();
+
+        if (ImGui::Button("Save & join"))
+        {
+            App::mp_server_host.ApplyPending();
+            App::mp_server_port.ApplyPending();
+            App::mp_server_password.ApplyPending();
+
+            // TODO: perform the join.
+        }
+
+        if (ImGui::Button("Save only"))
+        {
+            App::mp_server_host.ApplyPending();
+            App::mp_server_port.ApplyPending();
             App::mp_server_password.ApplyPending();
         }
 
