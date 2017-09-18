@@ -35,7 +35,7 @@ template<size_t L> struct GStr /// Wrapper for classic c-string
     inline             GStr(const char* src)                 { this->Assign(src); }
 
     inline             operator const char*() const          { return buffer; }
-    inline bool        operator= (GStr const & other)        { this->Assign(other); }
+    inline void        operator= (GStr const & other)        { this->Assign(other); }
     inline GStr&       operator<< (std::string const & s)    { this->operator<<(s.c_str()); return *this; }
     inline bool        IsEmpty() const                       { return buffer[0] == '\0'; }
     inline int         Compare(const char* other) const      { return std::strncmp(buffer, other, buf_len); }

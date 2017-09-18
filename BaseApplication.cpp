@@ -44,7 +44,7 @@ public:
     void Draw();
 
 private:
-    enum class Mode { ONLINE, DIRECT };
+    enum class Mode { ONLINE, DIRECT, SETUP };
 
     std::unique_ptr<ServerListData> m_data;
     int                             m_selected_item;
@@ -89,34 +89,52 @@ void MultiplayerSelector::Draw()
     {
         return;
     }
-    
+
     // Window mode buttons
+    RoR::MultiplayerSelector::Mode next_mode = m_mode;
+
     if (ImGui::Button("Online (refresh)"))
     {
-        m_mode = Mode::ONLINE;
+        next_mode = Mode::ONLINE;
         m_is_refreshing = !m_is_refreshing; // DEBUG
         // TODO: refresh
     }
     ImGui::SameLine();
     if (ImGui::Button("Direct IP"))
     {
-        m_mode = Mode::DIRECT;
+        next_mode = Mode::DIRECT;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Setup"))
+    {
+        next_mode = Mode::SETUP;
     }
 
-    // Player nickname input field; right-aligned
-    ImGui::SameLine();
-    const char* nick_label = "Nickname";
-    float nick_input_width = 200.f;
-    float nick_cursor_x = ImGui::GetWindowContentRegionWidth()
-        - ImGui::CalcTextSize(nick_label).x - (nick_input_width - ImGui::GetStyle().ItemSpacing.x); // Dunno why there's extra "ItemSpacing" to subtract... ~ only_a_ptr, 06/2017
-    ImGui::SetCursorPosX(nick_cursor_x);
-    ImGui::PushItemWidth(nick_input_width);
-  ///  if (ImGui::InputText(nick_label, App::mp_player_name.GetPendingValue().buffer, App::mp_player_name.GetPendingValue().buf_len))
-  ///  {
-  ///      std::cout<<"nickname: " << App::mp_player_name.GetPendingValue().buffer <<std::endl;
-  ///  }
-    ImGui::PopItemWidth();
+    if (next_mode != m_mode) // Handle switching window modes
+    {
+        if (m_mode == Mode::SETUP) // If leaving SETUP mode, reset 'pending' values of GVars
+        {
+            App::mp_player_name.GetPending()     = App::mp_player_name.GetActive();
+            App::mp_server_password.GetPending() = App::mp_server_password.GetActive();
+        }
+    }
+    m_mode = next_mode;
 
+    if (m_mode == Mode::SETUP)
+    {
+        ImGui::PushID("setup");
+
+        ImGui::InputText("Player nickname",         App::mp_player_name.GetPending().buffer,        App::mp_player_name.GetPending().buf_len);
+        ImGui::InputText("Default server password", App::mp_server_password.GetPending().buffer,    App::mp_server_password.GetPending().buf_len);
+
+        if (ImGui::Button("Save"))
+        {
+            App::mp_player_name.ApplyPending();
+            App::mp_server_password.ApplyPending();
+        }
+
+        ImGui::PopID();
+    }
     if (m_mode == Mode::ONLINE && m_is_refreshing)
     {
         const char* refresh_lbl = "... refreshing ...";
@@ -125,13 +143,13 @@ void MultiplayerSelector::Draw()
         ImGui::SetCursorPosY((ImGui::GetWindowSize().y / 2.f) - (refresh_size.y / 2.f));
         ImGui::Text(refresh_lbl);
     }
-    if (m_mode == Mode::ONLINE && !m_is_refreshing)
+    else if (m_mode == Mode::ONLINE && !m_is_refreshing)
     {
         // Setup serverlist table ... the scroll area
         float table_height = ImGui::GetWindowHeight()
             - ((2.f * ImGui::GetStyle().WindowPadding.y) + (3.f * ImGui::GetItemsLineHeightWithSpacing()) - ImGui::GetStyle().ItemSpacing.y);
-        ImGui::BeginChild("scrolling", ImVec2(0.f, table_height), false);
-        // ... the table itself
+        ImGui::BeginChild("scrolling", ImVec2(0.f, table_height), true);
+        // ... and the table itself
         float width_percent = ImGui::GetWindowContentRegionWidth()/100.f;
         ImGui::Columns(4, "mp-selector-columns");
         ImGui::SetColumnOffset(1, 35.f * width_percent);
