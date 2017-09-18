@@ -14,25 +14,31 @@ namespace RoR
 {
 struct MpServerData
 {
-    MpServerData(const char* name, const char* terrn, size_t users, size_t cap, const char* ip, size_t port):
-        num_users(users), max_users(cap), net_port(port)
+    MpServerData(const char* name, const char* terrn, int users, int cap, const char* ip, int port, bool pw, int ping):
+        num_users(users), max_users(cap), net_port(port), has_password(pw)
     {
         strncpy(server_name,  name,  ROR_ARRAYLEN(server_name ));
         strncpy(terrain_name, terrn, ROR_ARRAYLEN(terrain_name));
         strncpy(ip_addr,      ip,    ROR_ARRAYLEN(ip_addr     ));
         
-        snprintf(display_users, ROR_ARRAYLEN(display_users), "%u/%u", num_users, max_users);
-        snprintf(display_addr,  ROR_ARRAYLEN(display_addr ), "%s:%d", ip_addr, net_port);
+        snprintf(display_users,  ROR_ARRAYLEN(display_users),   "%u/%u", num_users, max_users);
+        snprintf(display_addr,   ROR_ARRAYLEN(display_addr ),   "%s:%d", ip_addr, net_port);
+        snprintf(display_ping,   ROR_ARRAYLEN(display_ping ),   "%d",    net_ping);
+        snprintf(display_passwd, ROR_ARRAYLEN(display_passwd ), "%s",    pw ? "Yes" : "No");
     }
 
+    bool        has_password;
+    char        display_passwd[10];
     char        server_name[100];
     char        terrain_name[100];
-    size_t      num_users;
-    size_t      max_users;
+    int         num_users;
+    int         max_users;
     char        display_users[20];
     char        ip_addr[100];
-    size_t      net_port;
+    int         net_port;
+    int         net_ping;
     char        display_addr[50];
+    char        display_ping[20];
 };
 
 struct ServerListData;
@@ -76,14 +82,30 @@ MultiplayerSelector::MultiplayerSelector():
     snprintf(m_window_title, 50, "Multiplayer (Rigs of Rods %s | %s)", ROR_VERSION_STRING, RORNET_VERSION); 
     // test dummies
     m_data = std::make_unique<ServerListData>();
-    m_data->servers.emplace_back("server A", "A.terrn", 5, 15, "1.1.1.1", 1111);
-    m_data->servers.emplace_back("server B", "B.terrn", 4, 14, "2.2.2.2", 2222);
-    m_data->servers.emplace_back("server C", "C.terrn", 3, 13, "3.3.3.3", 3333);
+    m_data->servers.emplace_back("server A", "A.terrn", 5, 15, "1.1.1.1", 1111, true , 1);
+    m_data->servers.emplace_back("server B", "B.terrn", 4, 14, "2.2.2.2", 2222, false, 2);
+    m_data->servers.emplace_back("server C", "C.terrn", 3, 13, "3.3.3.3", 3333, false, 3);
+    m_data->servers.emplace_back("server D", "D.terrn", 2, 13, "3.3.3.3", 3333, false, 3);
+    m_data->servers.emplace_back("server E", "E.terrn", 1, 13, "3.3.3.3", 3333, false, 3);
+    m_data->servers.emplace_back("server F", "F.terrn", 0, 13, "3.3.3.3", 3333, false, 3);
+    m_data->servers.emplace_back("server G", "G.terrn", 1, 13, "3.3.3.3", 3333, false, 3);
+    m_data->servers.emplace_back("server H", "H.terrn", 2, 13, "3.3.3.3", 3333, false, 3);
+    m_data->servers.emplace_back("server I", "I.terrn", 3, 13, "3.3.3.3", 3333, false, 3);
+    m_data->servers.emplace_back("server J", "J.terrn", 4, 13, "3.3.3.3", 3333, false, 3);
+    m_data->servers.emplace_back("server K", "K.terrn", 5, 13, "3.3.3.3", 3333, false, 3);
+    m_data->servers.emplace_back("server L", "L.terrn", 6, 13, "3.3.3.3", 3333, false, 3);
+    m_data->servers.emplace_back("server M", "M.terrn", 7, 13, "3.3.3.3", 3333, false, 3);
+    m_data->servers.emplace_back("server N", "N.terrn", 8, 13, "3.3.3.3", 3333, false, 3);
+    m_data->servers.emplace_back("server O", "O.terrn", 9, 13, "3.3.3.3", 3333, false, 3);
+    m_data->servers.emplace_back("server P", "P.terrn", 0, 13, "3.3.3.3", 3333, false, 3);
 }
 
 
 void MultiplayerSelector::Draw()
 {
+    const float TABS_BOTTOM_PADDING = 4.f; // They're actually buttons in role of tabs.
+    const float BUTTONS_EXTRA_SPACE = 6.f;
+
     int window_flags = ImGuiWindowFlags_NoCollapse;
     if (!ImGui::Begin(m_window_title, nullptr, window_flags))
     {
@@ -110,6 +132,7 @@ void MultiplayerSelector::Draw()
         next_mode = Mode::SETUP;
     }
 
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + TABS_BOTTOM_PADDING);
     ImGui::Separator();
 
     if (next_mode != m_mode) // Handle switching window modes
@@ -137,6 +160,7 @@ void MultiplayerSelector::Draw()
         ImGui::InputText("Default server password", App::mp_server_password.GetPending().buffer,    App::mp_server_password.GetPending().buf_len);
         ImGui::PopItemWidth();
 
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + BUTTONS_EXTRA_SPACE);
         if (ImGui::Button("Save"))
         {
             App::mp_player_name.ApplyPending();
@@ -159,6 +183,7 @@ void MultiplayerSelector::Draw()
         ImGui::InputText("Server password (default)", App::mp_server_password.GetPending().buffer, App::mp_server_password.GetPending().buf_len);
         ImGui::PopItemWidth();
 
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + BUTTONS_EXTRA_SPACE);
         if (ImGui::Button("Save & join"))
         {
             App::mp_server_host.ApplyPending();
@@ -167,7 +192,7 @@ void MultiplayerSelector::Draw()
 
             // TODO: perform the join.
         }
-
+        ImGui::SameLine();
         if (ImGui::Button("Save only"))
         {
             App::mp_server_host.ApplyPending();
@@ -189,21 +214,25 @@ void MultiplayerSelector::Draw()
     {
         // Setup serverlist table ... the scroll area
         float table_height = ImGui::GetWindowHeight()
-            - ((2.f * ImGui::GetStyle().WindowPadding.y) + (3.f * ImGui::GetItemsLineHeightWithSpacing()) - ImGui::GetStyle().ItemSpacing.y);
-        ImGui::BeginChild("scrolling", ImVec2(0.f, table_height), true);
+            - ((2.f * ImGui::GetStyle().WindowPadding.y) + (3.f * ImGui::GetItemsLineHeightWithSpacing()) + TABS_BOTTOM_PADDING - ImGui::GetStyle().ItemSpacing.y);
+        ImGui::BeginChild("scrolling", ImVec2(0.f, table_height), false);
         // ... and the table itself
         float width_percent = ImGui::GetWindowContentRegionWidth()/100.f;
-        ImGui::Columns(4, "mp-selector-columns");
-        ImGui::SetColumnOffset(1, 35.f * width_percent);
-        ImGui::SetColumnOffset(2, 75.f * width_percent);
-        ImGui::SetColumnOffset(3, 85.f * width_percent);
+        ImGui::Columns(6, "mp-selector-columns");        // Col #0: Passwd
+        ImGui::SetColumnOffset(1,  8.f * width_percent); // Col #1: Server name
+        ImGui::SetColumnOffset(2, 35.f * width_percent); // Col #2: Terrain name
+        ImGui::SetColumnOffset(3, 70.f * width_percent); // Col #3: Users/Max
+        ImGui::SetColumnOffset(4, 77.f * width_percent); // Col #4: Ping
+        ImGui::SetColumnOffset(5, 82.f * width_percent); // Col #5: Host/Port
         // Draw table header
-        float table_padding_x = 4.f;
+        const float table_padding_x = 4.f;
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + table_padding_x);
+        DrawTableHeader("Passwd?");
         DrawTableHeader("Name");
         DrawTableHeader("Terrain");
         DrawTableHeader("Users");
-        DrawTableHeader("IP/Port");
+        DrawTableHeader("Ping");
+        DrawTableHeader("Host/Port");
         ImGui::Separator();
         // Draw table body
         int num_servers = static_cast<int>(m_data->servers.size());
@@ -212,15 +241,17 @@ void MultiplayerSelector::Draw()
             // First column - selection control
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + table_padding_x);
             MpServerData& server = m_data->servers[i];
-            if (ImGui::Selectable(server.server_name, m_selected_item == i, ImGuiSelectableFlags_SpanAllColumns))
+            if (ImGui::Selectable(server.display_passwd, m_selected_item == i, ImGuiSelectableFlags_SpanAllColumns))
             {
                 m_selected_item = i;
             }
             ImGui::NextColumn();
 
             // Other collumns
+            ImGui::Text(server.server_name);           ImGui::NextColumn();
             ImGui::Text(server.terrain_name);          ImGui::NextColumn();
             ImGui::Text(server.display_users);         ImGui::NextColumn();
+            ImGui::Text(server.display_ping);          ImGui::NextColumn();
             ImGui::Text(server.display_addr);          ImGui::NextColumn();
         }
         ImGui::Columns(1);
