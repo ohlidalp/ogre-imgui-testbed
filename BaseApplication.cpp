@@ -105,6 +105,7 @@ void MultiplayerSelector::Draw()
 {
     const float TABS_BOTTOM_PADDING = 4.f; // They're actually buttons in role of tabs.
     const float BUTTONS_EXTRA_SPACE = 6.f;
+    const float TABLE_PADDING_LEFT = 4.f;
 
     int window_flags = ImGuiWindowFlags_NoCollapse;
     if (!ImGui::Begin(m_window_title, nullptr, window_flags))
@@ -213,20 +214,20 @@ void MultiplayerSelector::Draw()
     else if (m_mode == Mode::ONLINE && !m_is_refreshing)
     {
         // Setup serverlist table ... the scroll area
-        float table_height = ImGui::GetWindowHeight()
-            - ((2.f * ImGui::GetStyle().WindowPadding.y) + (3.f * ImGui::GetItemsLineHeightWithSpacing()) + TABS_BOTTOM_PADDING - ImGui::GetStyle().ItemSpacing.y);
+        const float table_height = ImGui::GetWindowHeight()
+            - ((2.f * ImGui::GetStyle().WindowPadding.y) + (3.f * ImGui::GetItemsLineHeightWithSpacing())
+                + TABS_BOTTOM_PADDING - ImGui::GetStyle().ItemSpacing.y);
         ImGui::BeginChild("scrolling", ImVec2(0.f, table_height), false);
         // ... and the table itself
-        float width_percent = ImGui::GetWindowContentRegionWidth()/100.f;
-        ImGui::Columns(6, "mp-selector-columns");        // Col #0: Passwd
-        ImGui::SetColumnOffset(1,  8.f * width_percent); // Col #1: Server name
-        ImGui::SetColumnOffset(2, 35.f * width_percent); // Col #2: Terrain name
-        ImGui::SetColumnOffset(3, 70.f * width_percent); // Col #3: Users/Max
-        ImGui::SetColumnOffset(4, 77.f * width_percent); // Col #4: Ping
-        ImGui::SetColumnOffset(5, 82.f * width_percent); // Col #5: Host/Port
+        const float table_width = ImGui::GetWindowContentRegionWidth();
+        ImGui::Columns(6, "mp-selector-columns");         // Col #0: Passwd
+        ImGui::SetColumnOffset(1, 0.08f * table_width);   // Col #1: Server name
+        ImGui::SetColumnOffset(2, 0.35f * table_width);   // Col #2: Terrain name
+        ImGui::SetColumnOffset(3, 0.70f * table_width);   // Col #3: Users/Max
+        ImGui::SetColumnOffset(4, 0.77f * table_width);   // Col #4: Ping
+        ImGui::SetColumnOffset(5, 0.82f * table_width);   // Col #5: Host/Port
         // Draw table header
-        const float table_padding_x = 4.f;
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + table_padding_x);
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + TABLE_PADDING_LEFT);
         DrawTableHeader("Passwd?");
         DrawTableHeader("Name");
         DrawTableHeader("Terrain");
@@ -239,7 +240,7 @@ void MultiplayerSelector::Draw()
         for (int i = 0; i < num_servers; i++)
         {
             // First column - selection control
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + table_padding_x);
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + TABLE_PADDING_LEFT);
             MpServerData& server = m_data->servers[i];
             if (ImGui::Selectable(server.display_passwd, m_selected_item == i, ImGuiSelectableFlags_SpanAllColumns))
             {
