@@ -62,9 +62,7 @@ private:
 
     void createFontTexture();
     void createMaterial();
-    void updateVertexData();
 
-    std::list<ImGUIRenderable*> mRenderables;
     Ogre::SceneManager*         mSceneMgr;
     Ogre::Pass*                 mPass;
     Ogre::TexturePtr            mFontTex;
