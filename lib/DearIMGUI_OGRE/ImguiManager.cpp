@@ -67,8 +67,8 @@ bool OgreImGui::mouseMoved( const OIS::MouseEvent &arg )
 
     ImGuiIO& io = ImGui::GetIO();
 
-    io.MousePos.x = arg.state.X.abs;
-    io.MousePos.y = arg.state.Y.abs;
+    io.MousePos.x = static_cast<float>(arg.state.X.abs);
+    io.MousePos.y = static_cast<float>(arg.state.Y.abs);
 
     return true;
 }
@@ -137,17 +137,46 @@ void OgreImGui::render()
     mPass->getVertexProgramParameters()->setNamedConstant("ProjectionMatrix", projMatrix);
 
     // Instruct ImGui to Render() and process the resulting CmdList-s
+    /// Adopted from https://bitbucket.org/ChaosCreator/imgui-ogre2.1-binding
+    /// ... Commentary on OGRE forums: http://www.ogre3d.org/forums/viewtopic.php?f=5&t=89081#p531059
     ImGui::Render();
     ImDrawData* draw_data = ImGui::GetDrawData();
+    Ogre::Viewport* vp = renderSys->_getViewport();
+    int vpWidth  = vp->getActualWidth();
+    int vpHeight = vp->getActualHeight();
     for (int i = 0; i < draw_data->CmdListsCount; ++i)
     {
-        ImGUIRenderable renderable;
-        renderable.updateVertexData(draw_data, i);
+        const ImDrawList* draw_list = draw_data->CmdLists[i];
+        unsigned int startIdx = 0;
 
-        // TODO: Scissoring!
+        for (int j = 0; j < draw_list->CmdBuffer.Size; ++j)
+        {
+            // Create a renderable and fill it's buffers
+            ImGUIRenderable renderable;
+            const ImDrawCmd *drawCmd = &draw_list->CmdBuffer[j];
+            renderable.updateVertexData(draw_list->VtxBuffer.Data, &draw_list->IdxBuffer.Data[startIdx], draw_list->VtxBuffer.Size, drawCmd->ElemCount);
 
-        mSceneMgr->_injectRenderWithPass(mPass, &renderable, 0, false, false);
+            // Set scissoring
+            int scLeft   = static_cast<int>(drawCmd->ClipRect.x); // Obtain bounds
+            int scTop    = static_cast<int>(drawCmd->ClipRect.y);
+            int scRight  = static_cast<int>(drawCmd->ClipRect.z);
+            int scBottom = static_cast<int>(drawCmd->ClipRect.w);
+
+            scLeft   = scLeft   < 0 ? 0 : (scLeft  > vpWidth ? vpWidth : scLeft); // Clamp bounds to viewport dimensions
+            scRight  = scRight  < 0 ? 0 : (scRight > vpWidth ? vpWidth : scRight);
+            scTop    = scTop    < 0 ? 0 : (scTop    > vpHeight ? vpHeight : scTop);
+            scBottom = scBottom < 0 ? 0 : (scBottom > vpHeight ? vpHeight : scBottom);
+
+            renderSys->setScissorTest(true, scLeft, scTop, scRight, scBottom);
+
+            // Render!
+            mSceneMgr->_injectRenderWithPass(mPass, &renderable, 0, false, false);
+
+            // Update counts
+            startIdx += drawCmd->ElemCount;
+        }
     }
+    renderSys->setScissorTest(false);
 }
 
 void OgreImGui::createMaterial()
@@ -471,6 +500,8 @@ void OgreImGui::ImGUIRenderable::initImGUIRenderable(void)
 OgreImGui::ImGUIRenderable::~ImGUIRenderable()
 {
     OGRE_DELETE mRenderOp.vertexData;
+    OGRE_DELETE mRenderOp.indexData;
+    mMaterial.setNull();
 }
 
 void OgreImGui::ImGUIRenderable::setMaterial( const Ogre::String& matName )
@@ -495,37 +526,38 @@ const Ogre::MaterialPtr& OgreImGui::ImGUIRenderable::getMaterial(void) const
     return mMaterial;
 }
 
-void OgreImGui::ImGUIRenderable::updateVertexData(ImDrawData* draw_data,unsigned int cmdIndex)
+/// @author https://bitbucket.org/ChaosCreator/imgui-ogre2.1-binding/src/8f1a01db510f543a987c3c16859d0a33400d9097/ImguiRenderable.cpp?at=master&fileviewer=file-view-default
+/// Commentary on OGRE forums: http://www.ogre3d.org/forums/viewtopic.php?f=5&t=89081#p531059
+void OgreImGui::ImGUIRenderable::updateVertexData(const ImDrawVert* vtxBuf, const ImDrawIdx* idxBuf, unsigned int vtxCount, unsigned int idxCount)
 {
-    Ogre::VertexBufferBinding* bind   = mRenderOp.vertexData->vertexBufferBinding;
+	Ogre::VertexBufferBinding* bind = mRenderOp.vertexData->vertexBufferBinding;
 
-    const ImDrawList* cmd_list = draw_data->CmdLists[cmdIndex];
+	if (bind->getBindings().empty() || mVertexBufferSize != vtxCount)
+	{
+		mVertexBufferSize = vtxCount;
 
-    if (bind->getBindings().empty() || mVertexBufferSize != cmd_list->VtxBuffer.size())
-    {
-        mVertexBufferSize = cmd_list->VtxBuffer.size();
-        bind->setBinding(0,Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(sizeof(ImDrawVert),mVertexBufferSize,Ogre::HardwareBuffer::HBU_WRITE_ONLY));
-    }
+		bind->setBinding(0, Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(sizeof(ImDrawVert), mVertexBufferSize, Ogre::HardwareBuffer::HBU_WRITE_ONLY));
+	}
+	if (mRenderOp.indexData->indexBuffer.isNull() || mIndexBufferSize != idxCount)
+	{
+		mIndexBufferSize = idxCount;
 
-    if (mRenderOp.indexData->indexBuffer.isNull() || mIndexBufferSize != cmd_list->IdxBuffer.size())
-    {
-        mIndexBufferSize = cmd_list->IdxBuffer.size();
+		mRenderOp.indexData->indexBuffer =
+			Ogre::HardwareBufferManager::getSingleton().createIndexBuffer(Ogre::HardwareIndexBuffer::IT_16BIT, mIndexBufferSize, Ogre::HardwareBuffer::HBU_WRITE_ONLY);
+	}
 
-        mRenderOp.indexData->indexBuffer=
-        Ogre::HardwareBufferManager::getSingleton().createIndexBuffer(Ogre::HardwareIndexBuffer::IT_16BIT,mIndexBufferSize,Ogre::HardwareBuffer::HBU_WRITE_ONLY);
-    }
+	// Copy all vertices
+	ImDrawVert* vtxDst = (ImDrawVert*)(bind->getBuffer(0)->lock(Ogre::HardwareBuffer::HBL_DISCARD));
+	ImDrawIdx* idxDst = (ImDrawIdx*)(mRenderOp.indexData->indexBuffer->lock(Ogre::HardwareBuffer::HBL_DISCARD));
 
-    // Copy all vertices
-    ImDrawVert* vtx_dst = (ImDrawVert*)(bind->getBuffer(0)->lock(Ogre::HardwareBuffer::HBL_DISCARD));
-    ImDrawIdx* idx_dst = (ImDrawIdx*)(mRenderOp.indexData->indexBuffer->lock(Ogre::HardwareBuffer::HBL_DISCARD));
-
-    memcpy(vtx_dst, &cmd_list->VtxBuffer[0], mVertexBufferSize * sizeof(ImDrawVert));
-    memcpy(idx_dst, &cmd_list->IdxBuffer[0], mIndexBufferSize * sizeof(ImDrawIdx));
+	memcpy(vtxDst, vtxBuf, mVertexBufferSize * sizeof(ImDrawVert));
+	memcpy(idxDst, idxBuf, mIndexBufferSize * sizeof(ImDrawIdx));
 
     mRenderOp.vertexData->vertexStart = 0;
-    mRenderOp.vertexData->vertexCount =  cmd_list->VtxBuffer.size();
+    mRenderOp.vertexData->vertexCount = vtxCount;
     mRenderOp.indexData->indexStart = 0;
-    mRenderOp.indexData->indexCount =  cmd_list->IdxBuffer.size();
+    mRenderOp.indexData->indexCount = idxCount;
+
 
     bind->getBuffer(0)->unlock();
     mRenderOp.indexData->indexBuffer->unlock();
