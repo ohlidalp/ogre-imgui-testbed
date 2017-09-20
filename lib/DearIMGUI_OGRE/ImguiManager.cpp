@@ -10,6 +10,7 @@
 #include <OgreString.h>
 #include <OgreStringConverter.h>
 #include <OgreViewport.h>
+#include <OgreHardwareBufferManager.h>
 #include <OgreHighLevelGpuProgramManager.h>
 #include <OgreHighLevelGpuProgram.h>
 #include <OgreUnifiedHighLevelGpuProgram.h>
@@ -21,18 +22,11 @@
 
 OgreImGui::OgreImGui()
     :mSceneMgr(0)
-    ,mLastRenderedFrame(-1)
     ,OIS::MouseListener()
     ,OIS::KeyListener()
     ,mKeyInput(0)
     ,mMouseInput(0)
 {
-}
-
-void OgreImGui::Shutdown()
-{
-    // FIXME: Deleting renderables here causes a segfault for some reason...
-    mSceneMgr->removeRenderQueueListener(this);
 }
 
 void OgreImGui::Init(Ogre::SceneManager * mgr,OIS::Keyboard* keyInput, OIS::Mouse* mouseInput)
@@ -41,7 +35,6 @@ void OgreImGui::Init(Ogre::SceneManager * mgr,OIS::Keyboard* keyInput, OIS::Mous
     mMouseInput= mouseInput;
     mKeyInput = keyInput;
 
-    mSceneMgr->addRenderQueueListener(this);
     ImGuiIO& io = ImGui::GetIO();
 
     io.KeyMap[ImGuiKey_Tab] = OIS::KC_TAB;                       // Keyboard mapping. ImGui will use those indices to peek into the io.KeyDown[] array that we will update during the application lifetime.
@@ -123,13 +116,6 @@ bool OgreImGui::keyReleased( const OIS::KeyEvent &arg )
 
 void OgreImGui::updateVertexData()
 {
-    int currentFrame = ImGui::GetFrameCount();
-    if(currentFrame == mLastRenderedFrame)
-    {
-        return ;
-    }
-    mLastRenderedFrame=currentFrame;
-
     ImDrawData* draw_data = ImGui::GetDrawData();
     while(mRenderables.size()<draw_data->CmdListsCount)
     {
@@ -147,22 +133,16 @@ void OgreImGui::updateVertexData()
     }
 }
 
-void OgreImGui::renderQueueEnded(Ogre::uint8 queueGroupId, const Ogre::String& invocation,bool& repeatThisInvocation)
+void OgreImGui::render()
 {
-    if((queueGroupId != Ogre::RENDER_QUEUE_OVERLAY) || (invocation == "SHADOWS"))
-    {
-        return;
-    }
-
     Ogre::RenderSystem* renderSys = Ogre::Root::getSingletonPtr()->getRenderSystem();
     Ogre::Viewport* vp = renderSys->_getViewport();
 
-    if ((vp == nullptr) || (!vp->getTarget()->isPrimary()) || mFrameEnded)
+    if ((vp == nullptr) || (!vp->getTarget()->isPrimary()))
     {
         return;
     }
 
-    mFrameEnded = true;
     ImGui::Render();
     this->updateVertexData();
     ImGuiIO& io = ImGui::GetIO();
@@ -445,9 +425,8 @@ void OgreImGui::createFontTexture()
     outImage.save("FontTexture_" + Ogre::Root::getSingleton().getRenderSystem()->getName() + ".png");
 }
 
-void OgreImGui::NewFrame(float deltaTime,const Ogre::Rect & windowRect)
+void OgreImGui::NewFrame(float deltaTime, float displayWidth, float displayHeight)
 {
-    mFrameEnded=false;
     ImGuiIO& io = ImGui::GetIO();
     io.DeltaTime = deltaTime;
 
@@ -458,7 +437,7 @@ void OgreImGui::NewFrame(float deltaTime,const Ogre::Rect & windowRect)
     io.KeySuper = false;
 
     // Setup display size (every frame to accommodate for window resizing)
-    io.DisplaySize = ImVec2((float)(windowRect.right - windowRect.left), (float)(windowRect.bottom - windowRect.top));
+    io.DisplaySize = ImVec2(displayWidth, displayHeight);
 
     // Start the frame
     ImGui::NewFrame();
