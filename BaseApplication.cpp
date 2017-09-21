@@ -7,288 +7,6 @@
 #include <memory>    // std::unique_ptr
 #include <algorithm> // std::min()
 
-#define ROR_ARRAYLEN(_BUF)  (sizeof(_BUF)/sizeof(*_BUF))
-
-// ================================== MP selector prototype ================================================
-namespace RoR
-{
-struct MpServerData
-{
-    MpServerData(const char* name, const char* terrn, int users, int cap, const char* ip, int port, bool pw, int ping):
-        num_users(users), max_users(cap), net_port(port), has_password(pw)
-    {
-        strncpy(server_name,  name,  ROR_ARRAYLEN(server_name ));
-        strncpy(terrain_name, terrn, ROR_ARRAYLEN(terrain_name));
-        strncpy(ip_addr,      ip,    ROR_ARRAYLEN(ip_addr     ));
-        
-        snprintf(display_users,  ROR_ARRAYLEN(display_users),   "%u/%u", num_users, max_users);
-        snprintf(display_addr,   ROR_ARRAYLEN(display_addr ),   "%s:%d", ip_addr, net_port);
-        snprintf(display_ping,   ROR_ARRAYLEN(display_ping ),   "%d",    net_ping);
-        snprintf(display_passwd, ROR_ARRAYLEN(display_passwd ), "%s",    pw ? "Yes" : "No");
-    }
-
-    bool        has_password;
-    char        display_passwd[10];
-    char        server_name[100];
-    char        terrain_name[100];
-    int         num_users;
-    int         max_users;
-    char        display_users[20];
-    char        ip_addr[100];
-    int         net_port;
-    int         net_ping;
-    char        display_addr[50];
-    char        display_ping[20];
-};
-
-struct ServerListData;
-
-class MultiplayerSelector
-{
-public:
-    MultiplayerSelector();
-    void Draw();
-
-private:
-    enum class Mode { ONLINE, DIRECT, SETUP };
-
-    std::unique_ptr<ServerListData> m_data;
-    int                             m_selected_item;
-    Mode                            m_mode;
-    bool                            m_is_refreshing;
-    char                            m_window_title[50];
-};
-
-struct ServerListData
-{
-    std::vector<MpServerData> servers;
-};
-
-
-const char* const ROR_VERSION_STRING = "0.5";
-#define RORNET_VERSION              "RoRnet_2.40"
-
-inline void DrawTableHeader(const char* title)
-{
-    float table_padding_y = 4.f;
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + table_padding_y);
-    ImGui::Text(title);
-    ImGui::NextColumn();
-}
-
-MultiplayerSelector::MultiplayerSelector():
-    m_selected_item(-1), m_mode(Mode::ONLINE), m_is_refreshing(false)
-{
-    snprintf(m_window_title, 50, "Multiplayer (Rigs of Rods %s | %s)", ROR_VERSION_STRING, RORNET_VERSION); 
-    // test dummies
-    m_data = std::make_unique<ServerListData>();
-    m_data->servers.emplace_back("server A", "A.terrn", 5, 15, "1.1.1.1", 1111, true , 1);
-    m_data->servers.emplace_back("server B", "B.terrn", 4, 14, "2.2.2.2", 2222, false, 2);
-    m_data->servers.emplace_back("server C", "C.terrn", 3, 13, "3.3.3.3", 3333, false, 3);
-    m_data->servers.emplace_back("server D", "D.terrn", 2, 13, "3.3.3.3", 3333, false, 3);
-    m_data->servers.emplace_back("server E", "E.terrn", 1, 13, "3.3.3.3", 3333, false, 3);
-    m_data->servers.emplace_back("server F", "F.terrn", 0, 13, "3.3.3.3", 3333, false, 3);
-    m_data->servers.emplace_back("server G", "G.terrn", 1, 13, "3.3.3.3", 3333, false, 3);
-    m_data->servers.emplace_back("server H", "H.terrn", 2, 13, "3.3.3.3", 3333, false, 3);
-    m_data->servers.emplace_back("server I", "I.terrn", 3, 13, "3.3.3.3", 3333, false, 3);
-    m_data->servers.emplace_back("server J", "J.terrn", 4, 13, "3.3.3.3", 3333, false, 3);
-    m_data->servers.emplace_back("server K", "K.terrn", 5, 13, "3.3.3.3", 3333, false, 3);
-    m_data->servers.emplace_back("server L", "L.terrn", 6, 13, "3.3.3.3", 3333, false, 3);
-    m_data->servers.emplace_back("server M", "M.terrn", 7, 13, "3.3.3.3", 3333, false, 3);
-    m_data->servers.emplace_back("server N", "N.terrn", 8, 13, "3.3.3.3", 3333, false, 3);
-    m_data->servers.emplace_back("server O", "O.terrn", 9, 13, "3.3.3.3", 3333, false, 3);
-    m_data->servers.emplace_back("server P", "P.terrn", 0, 13, "3.3.3.3", 3333, false, 3);
-}
-
-
-void MultiplayerSelector::Draw()
-{
-    const float TABS_BOTTOM_PADDING = 4.f; // They're actually buttons in role of tabs.
-    const float BUTTONS_EXTRA_SPACE = 6.f;
-    const float TABLE_PADDING_LEFT = 4.f;
-
-    int window_flags = ImGuiWindowFlags_NoCollapse;
-    if (!ImGui::Begin(m_window_title, nullptr, window_flags))
-    {
-        return;
-    }
-
-    // Window mode buttons
-    RoR::MultiplayerSelector::Mode next_mode = m_mode;
-
-    if (ImGui::Button("Online (refresh)"))
-    {
-        next_mode = Mode::ONLINE;
-        m_is_refreshing = !m_is_refreshing; // DEBUG
-        // TODO: refresh
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Direct IP"))
-    {
-        next_mode = Mode::DIRECT;
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Setup"))
-    {
-        next_mode = Mode::SETUP;
-    }
-
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + TABS_BOTTOM_PADDING);
-    ImGui::Separator();
-
-    if (next_mode != m_mode) // Handle switching window modes
-    {
-        if (m_mode == Mode::SETUP) // If leaving SETUP mode, reset 'pending' values of GVars
-        {
-            App::mp_player_name    .SetPending(App::mp_player_name.GetActive()); // TODO: implement 'ResetPending()' ?
-            App::mp_server_password.SetPending(App::mp_server_password.GetActive());
-        }
-        if (m_mode == Mode::DIRECT) // If leaving DIRECT mode, reset 'pending' values of GVars
-        {
-            App::mp_server_password.SetPending(App::mp_server_password.GetActive()); // TODO: implement 'ResetPending()' ?
-            App::mp_server_host    .SetPending(App::mp_server_host.GetActive());
-            App::mp_server_port    .SetPending(App::mp_server_port.GetActive());
-        }
-    }
-    m_mode = next_mode;
-
-    if (m_mode == Mode::SETUP)
-    {
-        ImGui::PushID("setup");
-
-        ImGui::PushItemWidth(250.f);
-        ImGui::InputText("Player nickname",         App::mp_player_name.GetPending().buffer,        App::mp_player_name.GetPending().buf_len);
-        ImGui::InputText("Default server password", App::mp_server_password.GetPending().buffer,    App::mp_server_password.GetPending().buf_len);
-        ImGui::PopItemWidth();
-
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + BUTTONS_EXTRA_SPACE);
-        if (ImGui::Button("Save"))
-        {
-            App::mp_player_name.ApplyPending();
-            App::mp_server_password.ApplyPending();
-        }
-
-        ImGui::PopID();
-    }
-    else if (m_mode == Mode::DIRECT)
-    {
-        ImGui::PushID("direct");
-
-        ImGui::PushItemWidth(250.f);
-        ImGui::InputText("Server host", App::mp_server_host.GetPending().buffer, App::mp_server_host.GetPending().buf_len);
-        int port = App::mp_server_port.GetPending();
-        if (ImGui::InputInt("Server port", &port))
-        {
-            App::mp_server_port.SetPending(port);
-        }
-        ImGui::InputText("Server password (default)", App::mp_server_password.GetPending().buffer, App::mp_server_password.GetPending().buf_len);
-        ImGui::PopItemWidth();
-
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + BUTTONS_EXTRA_SPACE);
-        if (ImGui::Button("Save & join"))
-        {
-            App::mp_server_host.ApplyPending();
-            App::mp_server_port.ApplyPending();
-            App::mp_server_password.ApplyPending();
-
-            // TODO: perform the join.
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Save only"))
-        {
-            App::mp_server_host.ApplyPending();
-            App::mp_server_port.ApplyPending();
-            App::mp_server_password.ApplyPending();
-        }
-
-        ImGui::PopID();
-    }
-    if (m_mode == Mode::ONLINE && m_is_refreshing)
-    {
-        const char* refresh_lbl = "... refreshing ...";
-        const ImVec2 refresh_size = ImGui::CalcTextSize(refresh_lbl);
-        ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.f) - (refresh_size.x / 2.f));
-        ImGui::SetCursorPosY((ImGui::GetWindowSize().y / 2.f) - (refresh_size.y / 2.f));
-        ImGui::Text(refresh_lbl);
-    }
-    else if (m_mode == Mode::ONLINE && !m_is_refreshing)
-    {
-        // Setup serverlist table ... the scroll area
-        const float table_height = ImGui::GetWindowHeight()
-            - ((2.f * ImGui::GetStyle().WindowPadding.y) + (3.f * ImGui::GetItemsLineHeightWithSpacing())
-                + TABS_BOTTOM_PADDING - ImGui::GetStyle().ItemSpacing.y);
-        ImGui::BeginChild("scrolling", ImVec2(0.f, table_height), false);
-        // ... and the table itself
-        const float table_width = ImGui::GetWindowContentRegionWidth();
-        ImGui::Columns(6, "mp-selector-columns");         // Col #0: Passwd
-        ImGui::SetColumnOffset(1, 0.08f * table_width);   // Col #1: Server name
-        ImGui::SetColumnOffset(2, 0.35f * table_width);   // Col #2: Terrain name
-        ImGui::SetColumnOffset(3, 0.70f * table_width);   // Col #3: Users/Max
-        ImGui::SetColumnOffset(4, 0.77f * table_width);   // Col #4: Ping
-        ImGui::SetColumnOffset(5, 0.82f * table_width);   // Col #5: Host/Port
-        // Draw table header
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + TABLE_PADDING_LEFT);
-        DrawTableHeader("Passwd?");
-        DrawTableHeader("Name");
-        DrawTableHeader("Terrain");
-        DrawTableHeader("Users");
-        DrawTableHeader("Ping");
-        DrawTableHeader("Host/Port");
-        ImGui::Separator();
-        // Draw table body
-        int num_servers = static_cast<int>(m_data->servers.size());
-        for (int i = 0; i < num_servers; i++)
-        {
-            // First column - selection control
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + TABLE_PADDING_LEFT);
-            MpServerData& server = m_data->servers[i];
-            if (ImGui::Selectable(server.display_passwd, m_selected_item == i, ImGuiSelectableFlags_SpanAllColumns))
-            {
-                m_selected_item = i;
-            }
-            ImGui::NextColumn();
-
-            // Other collumns
-            ImGui::Text(server.server_name);           ImGui::NextColumn();
-            ImGui::Text(server.terrain_name);          ImGui::NextColumn();
-            ImGui::Text(server.display_users);         ImGui::NextColumn();
-            ImGui::Text(server.display_ping);          ImGui::NextColumn();
-            ImGui::Text(server.display_addr);          ImGui::NextColumn();
-        }
-        ImGui::Columns(1);
-        ImGui::EndChild(); // End of scroll area
-
-        // Simple join button
-        if (ImGui::Button("Join", ImVec2(200.f, 0.f)))
-        {
-            std::cout<< "join btn clicked"<<std::endl;
-        }
-
-        // Password editbox; right-aligned
-        ImGui::SameLine();
-        float pw_width = 200.f;
-        const char* pw_label = "Password";
-        float pw_pos_x = ImGui::GetWindowContentRegionWidth() - (pw_width - ImGui::GetStyle().ItemSpacing.x) - ImGui::CalcTextSize(pw_label).x;
-        int input_pw_flags = ImGuiInputTextFlags_Password;
-        ImGui::PushItemWidth(pw_width);
-        ImGui::SetCursorPosX(pw_pos_x);
-  //      if (ImGui::InputText("Password", App::mp_server_password.GetPendingValue().buffer, App::mp_server_password.GetPendingValue().buf_len, input_pw_flags))
-  //      {
-  //          std::cout << "set password: " << App::mp_server_password.GetPendingValue().buffer <<std::endl; // TEST!!!
-  //      }
-        ImGui::PopItemWidth();        
-    }
-    else if (m_mode == Mode::DIRECT)
-    {
-        float box_width = 300.f;
-    }
-
-    ImGui::End();
-}
-
-} // namespace RoR
-
-
 
 
 
@@ -451,7 +169,6 @@ public:
     DemoApp():
         m_is_test_window_visible(false),
         m_is_style_editor_visible(false),
-        m_is_multiplayer_visible(false),
         m_is_console_visible(false),
         m_is_skeleton_visible(false)
         {}
@@ -533,8 +250,6 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
             ImGui::SameLine();
             ImGui::Checkbox("Styles", &m_is_style_editor_visible);
             ImGui::SameLine();
-            ImGui::Checkbox("Multiplayer", &m_is_multiplayer_visible);
-            ImGui::SameLine();
             ImGui::Checkbox("Console", &m_is_console_visible);
             ImGui::SameLine();
             ImGui::Checkbox("Skeleton", &m_is_skeleton_visible);
@@ -555,11 +270,6 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
         if (m_is_console_visible)
         {
             this->RoR_DrawConsole();
-        }
-
-        if (m_is_multiplayer_visible)
-        {
-            m_multiplayer.Draw();
         }
 
         if (m_is_skeleton_visible)
@@ -782,10 +492,8 @@ private:
 
     bool                        m_is_test_window_visible;
     bool                        m_is_style_editor_visible;
-    bool                        m_is_multiplayer_visible;
     bool                        m_is_console_visible;
     bool                        m_is_skeleton_visible;
-    RoR::MultiplayerSelector    m_multiplayer;
     OgreImGui                   m_imgui;
 };
 
