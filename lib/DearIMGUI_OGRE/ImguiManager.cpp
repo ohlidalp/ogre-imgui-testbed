@@ -1,6 +1,9 @@
-#include <imgui.h>
-#include "ImguiManager.h"
 
+
+
+#include "ImguiManager.h"//TODO: rename 
+
+#include <imgui.h>
 #include <OgreMaterialManager.h>
 #include <OgreMesh.h>
 #include <OgreMeshManager.h>
@@ -10,31 +13,19 @@
 #include <OgreString.h>
 #include <OgreStringConverter.h>
 #include <OgreViewport.h>
-#include <OgreHardwareBufferManager.h>
 #include <OgreHighLevelGpuProgramManager.h>
 #include <OgreHighLevelGpuProgram.h>
 #include <OgreUnifiedHighLevelGpuProgram.h>
 #include <OgreRoot.h>
 #include <OgreTechnique.h>
 #include <OgreViewport.h>
+#include <OgreHardwareBufferManager.h>
 #include <OgreHardwarePixelBuffer.h>
 #include <OgreRenderTarget.h>
 
-OgreImGui::OgreImGui()
-    :mSceneMgr(0)
-    ,OIS::MouseListener()
-    ,OIS::KeyListener()
-    ,mKeyInput(0)
-    ,mMouseInput(0)
+void OgreImGui::Init(Ogre::SceneManager* scenemgr)
 {
-}
-
-void OgreImGui::Init(Ogre::SceneManager * mgr,OIS::Keyboard* keyInput, OIS::Mouse* mouseInput)
-{
-    mSceneMgr  = mgr;
-    mMouseInput= mouseInput;
-    mKeyInput = keyInput;
-
+    mSceneMgr = scenemgr;
     ImGuiIO& io = ImGui::GetIO();
 
     io.KeyMap[ImGuiKey_Tab] = OIS::KC_TAB;                       // Keyboard mapping. ImGui will use those indices to peek into the io.KeyDown[] array that we will update during the application lifetime.
@@ -62,59 +53,52 @@ void OgreImGui::Init(Ogre::SceneManager * mgr,OIS::Keyboard* keyInput, OIS::Mous
 }
 
 //Inherhited from OIS::MouseListener
-bool OgreImGui::mouseMoved( const OIS::MouseEvent &arg )
+void OgreImGui::InjectMouseMoved( const OIS::MouseEvent &arg )
 {
 
     ImGuiIO& io = ImGui::GetIO();
 
-    io.MousePos.x = static_cast<float>(arg.state.X.abs);
-    io.MousePos.y = static_cast<float>(arg.state.Y.abs);
-
-    return true;
+    io.MousePos.x = arg.state.X.abs;
+    io.MousePos.y = arg.state.Y.abs;
 }
 
-bool OgreImGui::mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id )
+void OgreImGui::InjectMousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id )
 {
     ImGuiIO& io = ImGui::GetIO();
-    if(id<5)
+    if (id<5)
     {
         io.MouseDown[id] = true;
     }
-    return true;
 }
 
-bool OgreImGui::mouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID id )
+void OgreImGui::InjectMouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID id )
 {
     ImGuiIO& io = ImGui::GetIO();
-    if(id<5)
+    if (id<5)
     {
         io.MouseDown[id] = false;
     }
-    return true;
 }
 
 // Inherhited from OIS::KeyListener
-bool OgreImGui::keyPressed( const OIS::KeyEvent &arg )
+void OgreImGui::InjectKeyPressed( const OIS::KeyEvent &arg )
 {
     ImGuiIO& io = ImGui::GetIO();
     io.KeysDown[arg.key] = true;
 
-    if(arg.text>0)
+    if (arg.text>0)
     {
         io.AddInputCharacter((unsigned short)arg.text);
     }
-
-    return true;
 }
 
-bool OgreImGui::keyReleased( const OIS::KeyEvent &arg )
+void OgreImGui::InjectKeyReleased( const OIS::KeyEvent &arg )
 {
     ImGuiIO& io = ImGui::GetIO();
     io.KeysDown[arg.key] = false;
-    return true;
 }
 
-void OgreImGui::render()
+void OgreImGui::Render()
 {
     // Construct projection matrix, taking texel offset corrections in account (important for DirectX9)
     // See also:
@@ -427,22 +411,17 @@ void OgreImGui::createFontTexture()
 
     // Unlock
     mFontTex->getBuffer()->unlock();
-
-    // Save the texture for inspection
-    Ogre::Image outImage;
-    mFontTex->convertToImage(outImage);
-    outImage.save("FontTexture_" + Ogre::Root::getSingleton().getRenderSystem()->getName() + ".png");
 }
 
-void OgreImGui::NewFrame(float deltaTime, float displayWidth, float displayHeight)
+void OgreImGui::NewFrame(float deltaTime, float displayWidth, float displayHeight, bool ctrl, bool alt, bool shift)
 {
     ImGuiIO& io = ImGui::GetIO();
     io.DeltaTime = deltaTime;
 
      // Read keyboard modifiers inputs
-    io.KeyCtrl = mKeyInput->isKeyDown(OIS::KC_LCONTROL);
-    io.KeyShift = mKeyInput->isKeyDown(OIS::KC_LSHIFT);
-    io.KeyAlt = mKeyInput->isKeyDown(OIS::KC_LMENU);
+    io.KeyCtrl = ctrl;
+    io.KeyShift = shift;
+    io.KeyAlt = alt;
     io.KeySuper = false;
 
     // Setup display size (every frame to accommodate for window resizing)
@@ -473,16 +452,16 @@ void OgreImGui::ImGUIRenderable::initImGUIRenderable(void)
     mRenderOp.vertexData = OGRE_NEW Ogre::VertexData();
     mRenderOp.indexData  = OGRE_NEW Ogre::IndexData();
 
-    mRenderOp.vertexData->vertexCount   = 0;
-    mRenderOp.vertexData->vertexStart   = 0;
+    mRenderOp.vertexData->vertexCount = 0;
+    mRenderOp.vertexData->vertexStart = 0;
 
     mRenderOp.indexData->indexCount = 0;
     mRenderOp.indexData->indexStart = 0;
-    mRenderOp.operationType             = Ogre::RenderOperation::OT_TRIANGLE_LIST;
-    mRenderOp.useIndexes                                    = true; 
-    mRenderOp.useGlobalInstancingVertexBufferIsAvailable    = false;
+    mRenderOp.operationType = Ogre::RenderOperation::OT_TRIANGLE_LIST;
+    mRenderOp.useIndexes  = true; 
+    mRenderOp.useGlobalInstancingVertexBufferIsAvailable = false;
 
-    Ogre::VertexDeclaration* decl     = mRenderOp.vertexData->vertexDeclaration;
+    Ogre::VertexDeclaration* decl = mRenderOp.vertexData->vertexDeclaration;
         
     // vertex declaration
     size_t offset = 0;
@@ -530,28 +509,28 @@ const Ogre::MaterialPtr& OgreImGui::ImGUIRenderable::getMaterial(void) const
 /// Commentary on OGRE forums: http://www.ogre3d.org/forums/viewtopic.php?f=5&t=89081#p531059
 void OgreImGui::ImGUIRenderable::updateVertexData(const ImDrawVert* vtxBuf, const ImDrawIdx* idxBuf, unsigned int vtxCount, unsigned int idxCount)
 {
-	Ogre::VertexBufferBinding* bind = mRenderOp.vertexData->vertexBufferBinding;
+    Ogre::VertexBufferBinding* bind = mRenderOp.vertexData->vertexBufferBinding;
 
-	if (bind->getBindings().empty() || mVertexBufferSize != vtxCount)
-	{
-		mVertexBufferSize = vtxCount;
+    if (bind->getBindings().empty() || mVertexBufferSize != vtxCount)
+    {
+        mVertexBufferSize = vtxCount;
 
-		bind->setBinding(0, Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(sizeof(ImDrawVert), mVertexBufferSize, Ogre::HardwareBuffer::HBU_WRITE_ONLY));
-	}
-	if (mRenderOp.indexData->indexBuffer.isNull() || mIndexBufferSize != idxCount)
-	{
-		mIndexBufferSize = idxCount;
+        bind->setBinding(0, Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(sizeof(ImDrawVert), mVertexBufferSize, Ogre::HardwareBuffer::HBU_WRITE_ONLY));
+    }
+    if (mRenderOp.indexData->indexBuffer.isNull() || mIndexBufferSize != idxCount)
+    {
+        mIndexBufferSize = idxCount;
 
-		mRenderOp.indexData->indexBuffer =
-			Ogre::HardwareBufferManager::getSingleton().createIndexBuffer(Ogre::HardwareIndexBuffer::IT_16BIT, mIndexBufferSize, Ogre::HardwareBuffer::HBU_WRITE_ONLY);
-	}
+        mRenderOp.indexData->indexBuffer =
+            Ogre::HardwareBufferManager::getSingleton().createIndexBuffer(Ogre::HardwareIndexBuffer::IT_16BIT, mIndexBufferSize, Ogre::HardwareBuffer::HBU_WRITE_ONLY);
+    }
 
-	// Copy all vertices
-	ImDrawVert* vtxDst = (ImDrawVert*)(bind->getBuffer(0)->lock(Ogre::HardwareBuffer::HBL_DISCARD));
-	ImDrawIdx* idxDst = (ImDrawIdx*)(mRenderOp.indexData->indexBuffer->lock(Ogre::HardwareBuffer::HBL_DISCARD));
+    // Copy all vertices
+    ImDrawVert* vtxDst = (ImDrawVert*)(bind->getBuffer(0)->lock(Ogre::HardwareBuffer::HBL_DISCARD));
+    ImDrawIdx* idxDst = (ImDrawIdx*)(mRenderOp.indexData->indexBuffer->lock(Ogre::HardwareBuffer::HBL_DISCARD));
 
-	memcpy(vtxDst, vtxBuf, mVertexBufferSize * sizeof(ImDrawVert));
-	memcpy(idxDst, idxBuf, mIndexBufferSize * sizeof(ImDrawIdx));
+    memcpy(vtxDst, vtxBuf, mVertexBufferSize * sizeof(ImDrawVert));
+    memcpy(idxDst, idxBuf, mIndexBufferSize * sizeof(ImDrawIdx));
 
     mRenderOp.vertexData->vertexStart = 0;
     mRenderOp.vertexData->vertexCount = vtxCount;
@@ -575,6 +554,6 @@ void OgreImGui::ImGUIRenderable::getRenderOperation(Ogre::RenderOperation& op)
 
 const Ogre::LightList& OgreImGui::ImGUIRenderable::getLights(void) const
 {
-    static const Ogre::LightList l;
-    return l;
+    static const Ogre::LightList light_list;
+    return light_list;
 }

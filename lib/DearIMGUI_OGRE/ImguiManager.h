@@ -11,26 +11,27 @@
 #include "OgreRenderable.h"
 #include <OgreRenderOperation.h>
 
-class OgreImGui : public OIS::MouseListener, public OIS::KeyListener
+/// ImGui rendering for OGRE engine; Usage:
+///  1. Call `Init()` after OGRE was started
+///  2. Call `NewFrame()` before each render, otherwise IMGUI will crash.
+///  3. Use `Inject*()` functions to handle inputs.
+///  4. Use any MyGUI functions to create your GUI.
+///  5. Call `Render()` to render the GUI.
+class OgreImGui
 {
 public:
-    OgreImGui();
+    OgreImGui(): mSceneMgr(nullptr) {}
 
-    void Init(Ogre::SceneManager* mgr, OIS::Keyboard* keyInput, OIS::Mouse* mouseInput);
+    void Init(Ogre::SceneManager* scenemgr);
+    void NewFrame(float deltaTime, float vpWidth, float vpHeight, bool ctrl, bool alt, bool shift);
+    void Render();
 
-
-
-    //Inherited from OIS::MouseListener
-    virtual bool mouseMoved( const OIS::MouseEvent &arg ) override;
-    virtual bool mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id ) override;
-    virtual bool mouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID id ) override;
-
-    //Inherited from OIS::KeyListener
-    virtual bool keyPressed( const OIS::KeyEvent &arg ) override;
-    virtual bool keyReleased( const OIS::KeyEvent &arg ) override;
-
-    void render();
-    void NewFrame(float deltaTime, float displayWidth, float displayHeight);
+    // Input-injecting functions
+    void InjectMouseMoved( const OIS::MouseEvent &arg );
+    void InjectMousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id );
+    void InjectMouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID id );
+    void InjectKeyPressed( const OIS::KeyEvent &arg );
+    void InjectKeyReleased( const OIS::KeyEvent &arg );
 
 private:
 
@@ -50,8 +51,8 @@ private:
         virtual void getRenderOperation( Ogre::RenderOperation& op ) override;
         virtual const Ogre::LightList& getLights(void) const override;
 
-        int                      mVertexBufferSize;
-        int                      mIndexBufferSize;
+        int    mVertexBufferSize;
+        int    mIndexBufferSize;
 
     private:
         void initImGUIRenderable(void);
@@ -66,7 +67,5 @@ private:
     Ogre::SceneManager*         mSceneMgr;
     Ogre::Pass*                 mPass;
     Ogre::TexturePtr            mFontTex;
-    OIS::Keyboard*              mKeyInput;
-    OIS::Mouse*                 mMouseInput;
 };
 
