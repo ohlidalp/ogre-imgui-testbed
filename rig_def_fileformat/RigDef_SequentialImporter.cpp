@@ -26,7 +26,7 @@
 #include "RigDef_SequentialImporter.h"
 
 #include "RigDef_Parser.h"
-#include "RoRPrerequisites.h"
+
 
 using namespace RigDef;
 
@@ -168,7 +168,7 @@ Node::Ref SequentialImporter::ResolveNodeByIndex(unsigned int index_in, unsigned
     {
         ++m_num_resolved_to_self; // The happy statistic -> nodes which resolved to the same index.
     }
-    return Node::Ref(TOSTRING(index_out), index_out, Node::Ref::IMPORT_STATE_IS_VALID | Node::Ref::IMPORT_STATE_IS_RESOLVED_NUMBERED, def_line_number);
+    return Node::Ref(Ogre::StringConverter::toString(index_out), index_out, Node::Ref::IMPORT_STATE_IS_VALID | Node::Ref::IMPORT_STATE_IS_RESOLVED_NUMBERED, def_line_number);
 }
 
 Node::Ref SequentialImporter::ResolveNode(Node::Ref const & noderef_in)
@@ -214,7 +214,7 @@ Node::Ref SequentialImporter::ResolveNode(Node::Ref const & noderef_in)
     else if (entry.node_id.IsTypeNumbered())
     {
         unsigned out_index = this->GetNodeArrayOffset(entry.origin_keyword) + entry.node_sub_index;
-        Node::Ref out_ref(TOSTRING(out_index), out_index, Node::Ref::IMPORT_STATE_IS_VALID | Node::Ref::IMPORT_STATE_IS_RESOLVED_NUMBERED, noderef_in.GetLineNumber());
+        Node::Ref out_ref(Ogre::StringConverter::toString(out_index), out_index, Node::Ref::IMPORT_STATE_IS_VALID | Node::Ref::IMPORT_STATE_IS_RESOLVED_NUMBERED, noderef_in.GetLineNumber());
         std::stringstream msg;
         msg << "Node resolved\n\tSource: " << noderef_in.ToString() << "\n\tResult: " << out_ref.ToString()
             << "\n\tOrigin: " << RigDef::File::KeywordToString(entry.origin_keyword) << " SubIndex: " << entry.node_sub_index;

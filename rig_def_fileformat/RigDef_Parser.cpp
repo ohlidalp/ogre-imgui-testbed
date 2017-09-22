@@ -27,12 +27,10 @@
 
 #include "Application.h"
 #include "BeamConstants.h"
-#include "CacheSystem.h"
+
 #include "RigDef_File.h"
 #include "RigDef_Regexes.h"
 #include "BitFlags.h"
-#include "RoRPrerequisites.h"
-#include "Utils.h"
 
 #include <OgreException.h>
 #include <OgreString.h>
@@ -2747,20 +2745,21 @@ void Parser::ParseManagedMaterials()
         return;
     }
 
-    if (!RoR::App::GetCacheSystem()->resourceExistsInAllGroups(managed_mat.diffuse_map))
-    {
-        this->AddMessage(Message::TYPE_WARNING, "Missing texture file: " + managed_mat.diffuse_map);
-    }
-    if (managed_mat.HasDamagedDiffuseMap() && !RoR::App::GetCacheSystem()->resourceExistsInAllGroups(managed_mat.damaged_diffuse_map))
-    {
-        this->AddMessage(Message::TYPE_WARNING, "Missing texture file: " + managed_mat.damaged_diffuse_map);
-        managed_mat.damaged_diffuse_map = "-";
-    }
-    if (managed_mat.HasSpecularMap() && !RoR::App::GetCacheSystem()->resourceExistsInAllGroups(managed_mat.specular_map))
-    {
-        this->AddMessage(Message::TYPE_WARNING, "Missing texture file: " + managed_mat.specular_map);
-        managed_mat.specular_map = "-";
-    }
+    //Disabling for the RigEditor prototype - should be in spawner anyway ~ only_a_ptr, 09/2017
+  ///  if (!RoR::App::GetCacheSystem()->resourceExistsInAllGroups(managed_mat.diffuse_map))
+  ///  {
+  ///      this->AddMessage(Message::TYPE_WARNING, "Missing texture file: " + managed_mat.diffuse_map);
+  ///  }
+  ///  if (managed_mat.HasDamagedDiffuseMap() && !RoR::App::GetCacheSystem()->resourceExistsInAllGroups(managed_mat.damaged_diffuse_map))
+  ///  {
+  ///      this->AddMessage(Message::TYPE_WARNING, "Missing texture file: " + managed_mat.damaged_diffuse_map);
+  ///      managed_mat.damaged_diffuse_map = "-";
+  ///  }
+  ///  if (managed_mat.HasSpecularMap() && !RoR::App::GetCacheSystem()->resourceExistsInAllGroups(managed_mat.specular_map))
+  ///  {
+  ///      this->AddMessage(Message::TYPE_WARNING, "Missing texture file: " + managed_mat.specular_map);
+  ///      managed_mat.specular_map = "-";
+  ///  }
 
     m_current_module->managed_materials.push_back(managed_mat);
 }
@@ -3540,7 +3539,7 @@ void Parser::ProcessRawLine(const char* raw_line_buf)
     // Sanitize UTF-8
     memset(m_current_line, 0, LINE_BUFFER_LENGTH);
     char* out_start = m_current_line;
-    utf8::replace_invalid(raw_start, raw_end, out_start, '?');
+// disabling for RigEditor prototype    utf8::replace_invalid(raw_start, raw_end, out_start, '?');
 
     // Process
     this->ProcessCurrentLine();

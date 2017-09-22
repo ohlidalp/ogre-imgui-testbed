@@ -25,7 +25,7 @@
 
 #include "RigDef_Node.h"
 
-#include "RoRPrerequisites.h"
+#include <OgreStringConverter.h>
 
 using namespace RigDef;
 
@@ -55,7 +55,7 @@ Node::Id::Id(std::string const & id_str):
 void Node::Id::SetNum(unsigned int num)
 {
     m_id_num = num;
-    m_id_str = TOSTRING(num);
+    m_id_str = Ogre::StringConverter::toString(num);
     BITMASK_SET_0(m_flags, IS_TYPE_NAMED);
     BITMASK_SET_1(m_flags, IS_TYPE_NUMBERED | IS_VALID);
 }
