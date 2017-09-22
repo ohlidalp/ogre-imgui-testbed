@@ -219,7 +219,12 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
 private:
     virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt) override
     {
-        return (!mWindow->isClosed() && (!mShutDown)); // False means "exit the application"
+        if (mWindow->isClosed() || (mShutDown)) // Returning false means "exit the application"
+        {
+            return false;
+        }
+        m_imgui.render();
+        return true;
     }
 
     virtual bool frameStarted(const Ogre::FrameEvent& evt) override
@@ -231,7 +236,7 @@ private:
         // ===== Start IMGUI frame =====
         int left, top, width, height;
         mWindow->getViewport(0)->getActualDimensions(left, top, width, height); // output params
-        m_imgui.NewFrame(evt.timeSinceLastFrame, Ogre::Rect(left, top, width, height));
+        m_imgui.NewFrame(evt.timeSinceLastFrame, static_cast<float>(width), static_cast<float>(height));
 
         // ===== Draw IMGUI  ====
         this->DrawGui();
