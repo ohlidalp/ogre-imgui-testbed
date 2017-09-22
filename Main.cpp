@@ -152,7 +152,7 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
         Ogre::WindowEventUtilities::addWindowEventListener(mWindow, this);
 
         // === Create IMGUI ====
-        m_imgui.Init(mSceneMgr, mKeyboard, mMouse); // OIS mouse + keyboard
+        m_imgui.Init(mSceneMgr); // OIS mouse + keyboard
 
         this->RoR_SetGuiStyle();
 
@@ -223,7 +223,7 @@ private:
         {
             return false;
         }
-        m_imgui.render();
+        m_imgui.Render();
         return true;
     }
 
@@ -236,7 +236,10 @@ private:
         // ===== Start IMGUI frame =====
         int left, top, width, height;
         mWindow->getViewport(0)->getActualDimensions(left, top, width, height); // output params
-        m_imgui.NewFrame(evt.timeSinceLastFrame, static_cast<float>(width), static_cast<float>(height));
+        bool ctrl  = mKeyboard->isKeyDown(OIS::KC_LCONTROL);
+        bool shift = mKeyboard->isKeyDown(OIS::KC_LSHIFT);
+        bool alt   = mKeyboard->isKeyDown(OIS::KC_LMENU);
+        m_imgui.NewFrame(evt.timeSinceLastFrame, static_cast<float>(width), static_cast<float>(height), ctrl, alt, shift);
 
         // ===== Draw IMGUI  ====
         this->DrawGui();
@@ -251,31 +254,31 @@ private:
             mShutDown = true;
         }
 
-        m_imgui.keyPressed(arg);
+        m_imgui.InjectKeyPressed(arg);
         return true;
     }
 
     bool keyReleased(const OIS::KeyEvent &arg) override
     {
-        m_imgui.keyReleased(arg);
+        m_imgui.InjectKeyReleased(arg);
         return true;
     }
 
     bool mouseMoved(const OIS::MouseEvent &arg) override
     {
-        m_imgui.mouseMoved(arg);
+        m_imgui.InjectMouseMoved(arg);
         return true;
     }
 
     bool mousePressed(const OIS::MouseEvent &arg, OIS::MouseButtonID id) override
     {
-        m_imgui.mousePressed(arg, id);
+        m_imgui.InjectMousePressed(arg, id);
         return true;
     }
 
     bool mouseReleased(const OIS::MouseEvent &arg, OIS::MouseButtonID id) override
     {
-        m_imgui.mouseReleased(arg, id);
+        m_imgui.InjectMouseReleased(arg, id);
         return true;
     }
 
