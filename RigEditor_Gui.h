@@ -47,7 +47,6 @@ public:
 
     void                   Draw();
     void                   SetProject(Project* proj)                            { m_project = proj; }
-    void                   UpdateNodeSelection(SoftbodyNode::Selection& sel)    { m_node_sel = sel; }
 
 private:
     // GUI - top level drawing
@@ -62,14 +61,13 @@ private:
     void                   DrawSoftbodyPanelBeamPresetsSection();
 
     // GUI - utilities
-    bool                   DrawAggregateCheckbox(const char* title, bool *value, bool* is_uniform = nullptr);
+    bool                   DrawCheckbox(const char* title, bool *value);
+    bool                   DrawAggregateCheckbox(const char* title, bool *value, bool& is_uniform);
     bool                   DrawNodePresetCombo(SoftbodyNode::Preset*& out_preset, const char* title,
                                                SoftbodyNode::Preset* current, bool cur_is_uniform); ///< Returns true if new selection was made
 
     bool                      m_is_help_window_open;
-    SoftbodyNode::Selection   m_node_sel;
     SoftbodyNode::Preset*     m_node_preset_edit; ///< Item edited in SoftbodyPanel/NodePresetForm
-    SoftbodyBeam::Selection   m_beam_sel;
     SoftbodyBeam::Preset*     m_beam_preset_edit; ///< Item edited in SoftbodyPanel/BeamPresetForm
 
     Theme           m_theme;

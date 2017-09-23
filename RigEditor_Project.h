@@ -45,6 +45,7 @@ struct SoftbodyBeam
     struct Options ///< Actor data; all beam types merged.
     {
         Options() { memset(this, 0, sizeof(Options)); }
+        void SetAll(bool value);
 
         bool alltypes_i_invisible;
 
@@ -108,9 +109,12 @@ struct SoftbodyBeam
 
     struct Selection
     {
+        Selection() { num_selected = 0; }
+        void SetSingle(SoftbodyBeam* b);
+        void Merge(SoftbodyBeam* b);
+
         // Metadata
         int                    num_selected;
-        IdStr                  name;              ///< Only valid if 1 beam is selected.
 
         // Aggregate data, with uniformity states
         Type                   type;
@@ -153,14 +157,18 @@ struct SoftbodyBeam
         int           trigger_longlimit_action;       bool   trigger_longlimit_action_is_uniform;
     };
 
-    SoftbodyNode* base_node;
-    SoftbodyNode* tip_node;
-    Type          type;
+    static const char* ConvertTypeToStr(Type t)   { return TypeAsStr[static_cast<int>(t)]; }
+    inline const char* GetTypeAsStr()             { return ConvertTypeToStr(this->type); }
+
+    SoftbodyNode*          base_node;
+    SoftbodyNode*          tip_node;
+    SoftbodyBeam::Preset*  beam_preset;
+    Type                   type;
     int           detacher_group;
     Options       options;
-    float         extension_break_limit; ///< Type: PLAIN; -1 means 'not set'
-    float         max_extension;         ///< Types: hydro, command[2], shock[2], triggers
-    float         max_contraction;       ///< Types: command[2], shock[2], triggers
+    float         extension_break_limit;    ///< Type: PLAIN; -1 means 'not set'
+    float         max_extension;            ///< Types: hydro, command[2], shock[2], triggers
+    float         max_contraction;          ///< Types: command[2], shock[2], triggers
     // TODO: STEERING_HYDRO/COMMAND_HYDRO inertia!
 
     // Command2 (unified) attrs;
@@ -188,13 +196,17 @@ struct SoftbodyBeam
     float         trigger_boundary_timer;
     int           trigger_shortlimit_action;
     int           trigger_longlimit_action;
+
+    // Editor state
+    bool          state_is_selected;     ///< Editor state.
 };
 
 struct SoftbodyNode
 {
     struct Options ///< Actor data
     {
-        Options() { memset(this, 0, sizeof(Options)); }
+        Options() { this->SetAll(false); }
+        void SetAll(bool val);
 
         bool      option_m_no_mouse_grab;
         bool      option_f_no_sparks;
@@ -223,6 +235,9 @@ struct SoftbodyNode
 
     struct Selection ///< Editor state: aggregate info about selected nodes in the actor project.
     {
+        void Reset()                   { memset(this, 0, sizeof(Selection)); }
+        void Merge(SoftbodyNode* n);
+
         // Metadata
         int                    num_selected;
         IdStr                  name;              ///< Only valid if 1 node is selected.
@@ -253,9 +268,10 @@ struct SoftbodyNode
     SoftbodyBeam::Preset*  beam_preset;        ///< Needed for truckfile feature 'hooks'
     int                    detacher_group_id;  ///< -1 means 'not set'
     int                    editor_group_id;    ///< -1 means 'not set'
-    // Bitfields
-    bool                   state_is_hovered:1;
-    bool                   state_is_selected:1;
+    
+    // Editor state
+    bool                   state_is_hovered;
+    bool                   state_is_selected;
 };
 
 struct Project
@@ -271,28 +287,15 @@ struct Project
         std::vector<SoftbodyBeam::PresetScaler*> beam_preset_scalers;
         SoftbodyBeam::Selection                  beam_selection;
 
-        int GetNodePresetArrayIndex(SoftbodyNode::Preset* query)
-        {
-            int num_presets = static_cast<int>(node_presets.size());
-            for (int i = 0; i < num_presets; ++i)
-            {
-                if (query == node_presets[i])
-                    return i;
-            }
-            return -1;
-        }
-
-        int GetBeamPresetArrayIndex(SoftbodyBeam::Preset* query)
-        {
-            int num_presets = static_cast<int>(beam_presets.size());
-            for (int i = 0; i < num_presets; ++i)
-            {
-                if (query == beam_presets[i])
-                    return i;
-            }
-            return -1;
-        }
+        int GetNodePresetArrayIndex(SoftbodyNode::Preset* query);
+        int GetBeamPresetArrayIndex(SoftbodyBeam::Preset* query);
     };
+
+    void RefreshNodeSelectionAggregates();
+    void RefreshBeamSelectionAggregates();
+
+    void PropagateNodeAggregateUpdates();
+    void PropagateBeamAggregateUpdates();
 
     Softbody softbody;
 };

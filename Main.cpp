@@ -82,6 +82,7 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
     void DrawGui()
     {
         m_editor_gui.Draw();
+        this->DrawSelectionTestPanel();
         ImGui::ShowTestWindow();
     }
 
@@ -195,25 +196,95 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
         m_editor_project.softbody.node_presets.push_back(np3);
         m_editor_project.softbody.node_presets.push_back(np4);
 
-        RigEditor::SoftbodyNode::Selection& sel = m_editor_project.softbody.node_selection;
-        sel.num_selected = 1;
-        sel.name.Clear();
-        sel.name << "n123";
-        sel.options_values.option_c_no_ground_contact = true;
-        sel.options_uniform.option_c_no_ground_contact = true;
-        sel.options_values.option_l_load_weight = true;
-        sel.options_uniform.option_l_load_weight = true;
-        sel.weight_override = 44.44f;
-        sel.weight_override_is_uniform = true;
-        sel.node_preset = np3;
-        sel.node_preset_is_uniform = true;
+        // Add some nodes
+
+        RigEditor::SoftbodyNode* n1 = new RigEditor::SoftbodyNode();
+        n1->name = "node1";
+        n1->node_preset = np1;
+        m_editor_project.softbody.nodes.push_back(n1);
+        
+        RigEditor::SoftbodyNode* n2 = new RigEditor::SoftbodyNode();
+        n2->name = "node2";
+        n2->node_preset = np2;
+        m_editor_project.softbody.nodes.push_back(n2);
+
+        // Add some beam presets
+
+using namespace RigEditor;
+        SoftbodyBeam::Preset* bp1 = new SoftbodyBeam::Preset();
+        bp1->name = "Beam preset 1";
+        m_editor_project.softbody.beam_presets.push_back(bp1);
+
+        SoftbodyBeam::Preset* bp2 = new SoftbodyBeam::Preset();
+        bp2->name = "BP2 (beam preset or something)";
+        m_editor_project.softbody.beam_presets.push_back(bp2);
+
+        //  Add beams of various types
+        // note: node connection don't matter here, the test selection window selects beams directly
+        RigEditor::SoftbodyBeam* b = nullptr;
+
+#define MKBEAM(Type__) \
+        b= new RigEditor::SoftbodyBeam(); \
+        b->type = Type__; \
+        b->base_node = n1; \
+        b->tip_node = n2; \
+        m_editor_project.softbody.beams.push_back(b);
+
+        MKBEAM(RigEditor::SoftbodyBeam::Type::PLAIN);
+        m_editor_project.softbody.beams.back()->beam_preset = bp1;
+        MKBEAM(RigEditor::SoftbodyBeam::Type::STEERING_HYDRO);  
+        MKBEAM(RigEditor::SoftbodyBeam::Type::COMMAND_HYDRO);   
+        m_editor_project.softbody.beams.back()->beam_preset = bp2;
+        MKBEAM(RigEditor::SoftbodyBeam::Type::SHOCK_ABSORBER);  
+        MKBEAM(RigEditor::SoftbodyBeam::Type::SHOCK_ABSORBER_2);
+        m_editor_project.softbody.beams.back()->beam_preset = bp2;
+        MKBEAM(RigEditor::SoftbodyBeam::Type::ROPE);            
+        MKBEAM(RigEditor::SoftbodyBeam::Type::TRIGGER);         
+        m_editor_project.softbody.beams.back()->beam_preset = bp1;
+        MKBEAM(RigEditor::SoftbodyBeam::Type::GENERATED);        
 
         m_editor_gui.SetProject(&m_editor_project);
-        m_editor_gui.UpdateNodeSelection(sel);
 
         mRoot->startRendering();
 
         this->Shutdown();
+    }
+
+    void DrawSelectionTestPanel()
+    {
+        using namespace RigEditor;
+        ImGui::Begin("Selection test", nullptr);
+
+        ImGui::Columns(2, "selection test");
+
+        // column1 = nodes
+        ImGui::PushID("nodes");
+        for (SoftbodyNode* n: m_editor_project.softbody.nodes)
+        {
+            if (ImGui::Checkbox(n->name, &n->state_is_selected))
+            {
+                m_editor_project.RefreshNodeSelectionAggregates();
+            }
+        }
+        ImGui::PopID();
+
+        // Column2 = beams
+        ImGui::NextColumn();
+        ImGui::PushID("beams");
+        int index = 0;
+        for (SoftbodyBeam* b: m_editor_project.softbody.beams)
+        {
+            ImGui::PushID(index);
+            if (ImGui::Checkbox(b->GetTypeAsStr(), &b->state_is_selected))
+            {
+                m_editor_project.RefreshBeamSelectionAggregates();
+            }
+            ImGui::PopID();
+            ++index;
+        }
+        ImGui::PopID();
+
+        ImGui::End();
     }
 
 private:

@@ -183,6 +183,7 @@
     <ClCompile Include="lib\DearIMGUI\imgui_draw.cpp" />
     <ClCompile Include="lib\DearIMGUI_OGRE\ImguiManager.cpp" />
     <ClCompile Include="RigEditor_Gui.cpp" />
+    <ClCompile Include="RigEditor_Project.cpp" />
     <ClCompile Include="rig_def_fileformat\RigDef_File.cpp" />
     <ClCompile Include="rig_def_fileformat\RigDef_Node.cpp" />
     <ClCompile Include="rig_def_fileformat\RigDef_Parser.cpp" />

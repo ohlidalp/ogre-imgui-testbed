@@ -123,5 +123,8 @@
     <ClCompile Include="rig_def_fileformat\RigDef_Validator.cpp">
       <Filter>truckfile</Filter>
     </ClCompile>
+    <ClCompile Include="RigEditor_Project.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
