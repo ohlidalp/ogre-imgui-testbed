@@ -80,6 +80,39 @@ bool RigEditor::Gui::DrawAggregateCheckbox(const char* title, bool *value, bool&
     return ret_val;
 }
 
+bool RigEditor::Gui::DrawAggregateInputFloat(const char* title, float* value_ptr, bool& is_uniform)
+{
+    const bool needs_recolor = !is_uniform;
+    if (needs_recolor)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, NON_UNIFORM_MARKER_COLOR);
+    }
+
+    ImGui::PushItemWidth(100.f);
+    bool ret_val = false;
+    if (ImGui::InputFloat(title, value_ptr, 0.f, 0.f, -1, ImGuiInputTextFlags_EnterReturnsTrue))
+    {
+        is_uniform = true;
+        if (m_is_drawing_nodes_panel)
+        {
+            m_project->PropagateNodeAggregateUpdates();
+        }
+        else if (m_is_drawing_beams_panel)
+        {
+            m_project->PropagateBeamAggregateUpdates();
+        }
+        ret_val = true;
+    }
+    ImGui::PopItemWidth();
+
+    if (needs_recolor)
+    {
+        ImGui::PopStyleColor();
+    }
+
+    return ret_val;
+}
+
 template<typename T>
 static bool StdVectorComboItemGetter(std::vector<T>& vec, int index, const char** out_text) // Utility for node/beam presets
 {
@@ -273,12 +306,7 @@ void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
     this->DrawAggregateCheckbox("[l] Override weight",    &sel.options_values.option_l_load_weight,       sel.options_uniform.option_l_load_weight);
     if (sel.options_values.option_l_load_weight)
     {
-        ImGui::PushItemWidth(100.f);
-        if (ImGui::InputFloat("Load weight (Kg)", &sel.weight_override, 0.f, 0.f, -1, ImGuiInputTextFlags_EnterReturnsTrue))
-        {
-            //TODO: commit update to project
-        }
-        ImGui::PopItemWidth();
+        this->DrawAggregateInputFloat("Load weight (Kg)", &sel.weight_override, sel.weight_override_is_uniform);
     }
     this->DrawAggregateCheckbox("[f] Gfx: No sparks",     &sel.options_values.option_f_no_sparks,         sel.options_uniform.option_f_no_sparks);
     this->DrawAggregateCheckbox("[x] Gfx: Exhaust point", &sel.options_values.option_x_exhaust_point,     sel.options_uniform.option_x_exhaust_point);

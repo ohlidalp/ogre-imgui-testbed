@@ -63,6 +63,7 @@ private:
     // GUI - utilities
     bool                   DrawCheckbox(const char* title, bool *value);
     bool                   DrawAggregateCheckbox(const char* title, bool *value, bool& is_uniform);
+    bool                   DrawAggregateInputFloat(const char* title, float* value, bool& is_uniform);
     bool                   DrawNodePresetCombo(SoftbodyNode::Preset*& out_preset, const char* title,
                                                SoftbodyNode::Preset* current, bool cur_is_uniform); ///< Returns true if new selection was made
 
