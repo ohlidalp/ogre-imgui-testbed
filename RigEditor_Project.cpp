@@ -225,7 +225,7 @@ void RigEditor::SoftbodyBeam::Selection::Merge(SoftbodyBeam* b)
 
 void RigEditor::Project::RefreshBeamSelectionAggregates()
 {
-    this->softbody.node_selection.num_selected = 0;
+    this->softbody.beam_selection.num_selected = 0;
     for (SoftbodyBeam* b: this->softbody.beams)
     {
         if (b->state_is_selected)
