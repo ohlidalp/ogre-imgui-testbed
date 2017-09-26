@@ -223,7 +223,7 @@ void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
     SoftbodyNode::Selection& sel = m_project->softbody.node_selection;
 
     RoR::GStr<64> nodes_title;
-    nodes_title << "Nodes [" << sel.num_selected << "]";
+    nodes_title << "Nodes [" << sel.num_selected << "]###titlebar"; // Use persistent widget ID of 'Nodes' + 'titlebar'
     if (!ImGui::CollapsingHeader(nodes_title))
         return; // Section is collapsed -> nothing to do
 
@@ -274,7 +274,7 @@ void RigEditor::Gui::DrawSoftbodyPanelBeamsSection()
     SoftbodyBeam::Selection& sel = m_project->softbody.beam_selection;
 
     RoR::GStr<64> title;
-    title << "Beams [" << sel.num_selected << "]";
+    title << "Beams [" << sel.num_selected << "]###titlebar"; // Use persistent widget IDs of 'Beams'+'titlebar'
     if (!ImGui::CollapsingHeader(title.GetBuffer()))
         return; // Section is collapsed -> nothing to do.
 
