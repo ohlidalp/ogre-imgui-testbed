@@ -134,6 +134,32 @@ void RigEditor::SoftbodyNode::Selection::Merge(SoftbodyNode* n)
     options_values = n->options;
 }
 
+void RigEditor::SoftbodyNode::Selection::Propagate(SoftbodyNode* n)
+{
+    if (num_selected == 1)
+    {
+        n->name = name;
+    }
+
+    // Update attributes
+    if (weight_override_is_uniform) { n->weight_override   = weight_override  ; }
+    if (detacher_group_is_uniform ) { n->detacher_group_id = detacher_group_id; }
+    if (node_preset_is_uniform    ) { n->node_preset       = node_preset      ; }
+    if (beam_preset_is_uniform    ) { n->beam_preset       = beam_preset      ; }
+
+    // Update options
+    if (options_uniform.option_m_no_mouse_grab    ) { n->options.option_m_no_mouse_grab     = options_values.option_m_no_mouse_grab    ; }
+    if (options_uniform.option_f_no_sparks        ) { n->options.option_f_no_sparks         = options_values.option_f_no_sparks        ; }
+    if (options_uniform.option_x_exhaust_point    ) { n->options.option_x_exhaust_point     = options_values.option_x_exhaust_point    ; }
+    if (options_uniform.option_y_exhaust_direction) { n->options.option_y_exhaust_direction = options_values.option_y_exhaust_direction; }
+    if (options_uniform.option_c_no_ground_contact) { n->options.option_c_no_ground_contact = options_values.option_c_no_ground_contact; }
+    if (options_uniform.option_h_hook_point       ) { n->options.option_h_hook_point        = options_values.option_h_hook_point       ; }
+    if (options_uniform.option_b_extra_buoyancy   ) { n->options.option_b_extra_buoyancy    = options_values.option_b_extra_buoyancy   ; }
+    if (options_uniform.option_p_no_particles     ) { n->options.option_p_no_particles      = options_values.option_p_no_particles     ; }
+    if (options_uniform.option_L_log              ) { n->options.option_L_log               = options_values.option_L_log              ; }
+    if (options_uniform.option_l_load_weight      ) { n->options.option_l_load_weight       = options_values.option_l_load_weight      ; }
+}
+
 void RigEditor::Project::RefreshNodeSelectionAggregates()
 {
     this->softbody.node_selection.Reset();
@@ -234,4 +260,18 @@ void RigEditor::Project::RefreshBeamSelectionAggregates()
         }
     }
 }
+
+void RigEditor::Project::PropagateNodeAggregateUpdates()
+{
+    for (SoftbodyNode* n: this->softbody.nodes)
+    {
+        if (n->state_is_selected)
+        {
+            this->softbody.node_selection.Propagate(n);
+        }
+    }
+}
+
+void RigEditor::Project::PropagateBeamAggregateUpdates()
+{}
 

@@ -236,7 +236,8 @@ struct SoftbodyNode
     struct Selection ///< Editor state: aggregate info about selected nodes in the actor project.
     {
         void Reset()                   { memset(this, 0, sizeof(Selection)); }
-        void Merge(SoftbodyNode* n);
+        void Merge(SoftbodyNode* n);     ///< Merge the node into selection.
+        void Propagate(SoftbodyNode* n); ///< Update the node from the selection.
 
         // Metadata
         int                    num_selected;

@@ -11,6 +11,8 @@ const ImVec4 NON_UNIFORM_MARKER_COLOR(0.5f, 0.f, 0.7f, 1.f);
 static const char* COMBO_ENTRY_NO_PRESET = "~ No preset ~";
 
 RigEditor::Gui::Gui():
+    m_is_drawing_nodes_panel(false),
+    m_is_drawing_beams_panel(false),
     m_is_help_window_open(false),
     m_node_preset_edit(nullptr),
     m_beam_preset_edit(nullptr)
@@ -34,14 +36,22 @@ bool RigEditor::Gui::DrawCheckbox(const char* title, bool *value)
 {
     if (ImGui::Checkbox(title, value))
     {
-        return true; // TODO: commit change to project
+        if (m_is_drawing_nodes_panel)
+        {
+            m_project->PropagateNodeAggregateUpdates();
+        }
+        else if (m_is_drawing_beams_panel)
+        {
+            m_project->PropagateBeamAggregateUpdates();
+        }
+        return true;
     }
     return false;
 }
 
 bool RigEditor::Gui::DrawAggregateCheckbox(const char* title, bool *value, bool& is_uniform)
 {
-    const bool needs_recolor = is_uniform;
+    const bool needs_recolor = !is_uniform;
     if (needs_recolor)
     {
         ImGui::PushStyleColor(ImGuiCol_Text, NON_UNIFORM_MARKER_COLOR);
@@ -51,6 +61,14 @@ bool RigEditor::Gui::DrawAggregateCheckbox(const char* title, bool *value, bool&
     if (ImGui::Checkbox(title, value))
     {
         is_uniform = true;
+        if (m_is_drawing_nodes_panel)
+        {
+            m_project->PropagateNodeAggregateUpdates();
+        }
+        else if (m_is_drawing_beams_panel)
+        {
+            m_project->PropagateBeamAggregateUpdates();
+        }
         ret_val = true;
     }
 
@@ -220,16 +238,23 @@ void RigEditor::Gui::DrawTopMenubar()
 void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
 {
     ImGui::PushID("Nodes");
+    m_is_drawing_nodes_panel = true;
     SoftbodyNode::Selection& sel = m_project->softbody.node_selection;
 
     RoR::GStr<64> nodes_title;
     nodes_title << "Nodes [" << sel.num_selected << "]###titlebar"; // Use persistent widget ID of 'Nodes' + 'titlebar'
     if (!ImGui::CollapsingHeader(nodes_title))
+    {
+        ImGui::PopID();
+        m_is_drawing_nodes_panel = false;
         return; // Section is collapsed -> nothing to do
+    }
 
     if (sel.num_selected == 0)
     {
         ImGui::TextDisabled("None selected");
+        ImGui::PopID();
+        m_is_drawing_nodes_panel = false;
         return;
     }
 
@@ -266,6 +291,7 @@ void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
     }
 
     ImGui::PopID();
+    m_is_drawing_nodes_panel = false;
 }
 
 void RigEditor::Gui::DrawSoftbodyPanelBeamsSection()

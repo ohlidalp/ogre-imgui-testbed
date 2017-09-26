@@ -67,6 +67,8 @@ private:
                                                SoftbodyNode::Preset* current, bool cur_is_uniform); ///< Returns true if new selection was made
 
     bool                      m_is_help_window_open;
+    bool                      m_is_drawing_nodes_panel; ///< Context; are we currently drawing softbody nodes panel?
+    bool                      m_is_drawing_beams_panel; ///< Context; are we currently drawing softbody beams panel?
     SoftbodyNode::Preset*     m_node_preset_edit; ///< Item edited in SoftbodyPanel/NodePresetForm
     SoftbodyBeam::Preset*     m_beam_preset_edit; ///< Item edited in SoftbodyPanel/BeamPresetForm
 
