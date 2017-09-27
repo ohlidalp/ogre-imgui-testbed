@@ -361,16 +361,36 @@ void RigEditor::Gui::DrawSoftbodyPanelBeamsSection()
 
         if (sel.type == SoftbodyBeam::Type::PLAIN)
         {
-            helper.DrawAggregateCheckbox("[i] Gfx: Invisible",      &sel.option_values.alltypes_i_invisible,     sel.option_uniformity.alltypes_i_invisible);
             helper.DrawAggregateCheckbox("[r] Rope",                &sel.option_values.plain_r_rope,             sel.option_uniformity.plain_r_rope);
             helper.DrawAggregateCheckbox("[s] Support",             &sel.option_values.plain_s_support,          sel.option_uniformity.plain_s_support);
 
             helper.DrawAggregateInputFloat("Ext. break limit",      &sel.extension_break_limit,                  sel.extension_break_limit_is_uniform);
-            helper.DrawAggregateInputInt("Detacher group",          &sel.detacher_group,                         sel.detacher_group_is_uniform);
         }
         else if (sel.type == SoftbodyBeam::Type::COMMAND_HYDRO)
         {
-            
+            helper.DrawAggregateInputFloat("Contract. rate",      &sel.command_shorten_rate,              sel.command_shorten_rate_is_uniform);
+            helper.DrawAggregateInputFloat("Extens. rate",        &sel.command_lengthen_rate,             sel.command_lengthen_rate_is_uniform);
+            helper.DrawAggregateInputFloat("Max. contraction",    &sel.max_contraction,                   sel.max_contraction_is_uniform);
+            helper.DrawAggregateInputFloat("Max. extension",      &sel.max_extension,                     sel.max_extension_is_uniform);
+
+            helper.DrawAggregateInputInt("Contract. key ID",      &sel.command_contract_key,              sel.command_contract_key_is_uniform);
+            helper.DrawAggregateInputInt("Extens. key ID",        &sel.command_extend_key,                sel.command_extend_key_is_uniform);
+
+            helper.DrawAggregateCheckbox("[r] Rope",                &sel.option_values.command_r_rope         , sel.option_uniformity.command_r_rope);
+            helper.DrawAggregateCheckbox("[c] Auto-center",         &sel.option_values.command_c_auto_center  , sel.option_uniformity.command_c_auto_center);
+            helper.DrawAggregateCheckbox("[f] Low RPM only",        &sel.option_values.command_f_not_faster   , sel.option_uniformity.command_f_not_faster);
+            helper.DrawAggregateCheckbox("[p] 1-press max.",        &sel.option_values.command_p_1press       , sel.option_uniformity.command_p_1press);
+            helper.DrawAggregateCheckbox("[o] 1-press center",      &sel.option_values.command_o_1press_center, sel.option_uniformity.command_o_1press_center);
+
+            if (sel.num_selected == 1)
+            {
+                bool is_uniform = true; // fake!
+                // TODO
+                //helper.DrawAggregateInputText("Description", 
+            }
+
+            // TODO: inertia.
+
         }
         else if (sel.type == SoftbodyBeam::Type::GENERATED)
         {
@@ -396,6 +416,9 @@ void RigEditor::Gui::DrawSoftbodyPanelBeamsSection()
         {
             
         }
+
+        helper.DrawAggregateCheckbox("[i] Gfx: Invisible",      &sel.option_values.alltypes_i_invisible,     sel.option_uniformity.alltypes_i_invisible);
+        helper.DrawAggregateInputInt("Detacher group",          &sel.detacher_group,                         sel.detacher_group_is_uniform);
     }
     else
     {
