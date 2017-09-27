@@ -35,13 +35,13 @@ namespace RigEditor {
 
 struct Theme ///< All visual styles, including both GUI and the project visualizations
 {
-
+    // TODO
 };
 
 class Gui
 {
 public:
-    static const float TOP_MENUBAR_HEIGHT;
+    static const float TOP_MENUBAR_HEIGHT; // TODO: Put this in Theme ~ 09/2017
 
     Gui();
 
@@ -49,6 +49,36 @@ public:
     void                   SetProject(Project* proj)                            { m_project = proj; }
 
 private:
+
+    enum class UpdateTarget
+    {
+        NONE,
+        SOFTBODY_NODE,
+        SOFTBODY_BEAM,
+    };
+
+    class ScopedUiHelper ///< Helper for drawing UIs which update the project.
+    {
+    public:
+        inline ScopedUiHelper(Project* proj, UpdateTarget target, const char* id)
+            : m_target(target), m_project(proj)
+        {
+            ImGui::PushID(id);
+        }
+        inline ~ScopedUiHelper()
+        {
+            ImGui::PopID();
+        }
+
+        bool         DrawAggregateCheckbox(const char* title, bool *value, bool& is_uniform);
+        bool         DrawAggregateInputFloat(const char* title, float* value, bool& is_uniform);
+        void         PushUpdates();
+
+    private:
+        UpdateTarget m_target;
+        Project*     m_project;
+    };
+
     // GUI - top level drawing
     void                   DrawTopMenubar();
     void                   DrawHelpWindow();
@@ -62,14 +92,10 @@ private:
 
     // GUI - utilities
     bool                   DrawCheckbox(const char* title, bool *value);
-    bool                   DrawAggregateCheckbox(const char* title, bool *value, bool& is_uniform);
-    bool                   DrawAggregateInputFloat(const char* title, float* value, bool& is_uniform);
     bool                   DrawNodePresetCombo(SoftbodyNode::Preset*& out_preset, const char* title,
                                                SoftbodyNode::Preset* current, bool cur_is_uniform); ///< Returns true if new selection was made
 
     bool                      m_is_help_window_open;
-    bool                      m_is_drawing_nodes_panel; ///< Context; are we currently drawing softbody nodes panel?
-    bool                      m_is_drawing_beams_panel; ///< Context; are we currently drawing softbody beams panel?
     SoftbodyNode::Preset*     m_node_preset_edit; ///< Item edited in SoftbodyPanel/NodePresetForm
     SoftbodyBeam::Preset*     m_beam_preset_edit; ///< Item edited in SoftbodyPanel/BeamPresetForm
 

@@ -11,8 +11,6 @@ const ImVec4 NON_UNIFORM_MARKER_COLOR(0.5f, 0.f, 0.7f, 1.f);
 static const char* COMBO_ENTRY_NO_PRESET = "~ No preset ~";
 
 RigEditor::Gui::Gui():
-    m_is_drawing_nodes_panel(false),
-    m_is_drawing_beams_panel(false),
     m_is_help_window_open(false),
     m_node_preset_edit(nullptr),
     m_beam_preset_edit(nullptr)
@@ -36,20 +34,22 @@ bool RigEditor::Gui::DrawCheckbox(const char* title, bool *value)
 {
     if (ImGui::Checkbox(title, value))
     {
-        if (m_is_drawing_nodes_panel)
-        {
-            m_project->PropagateNodeAggregateUpdates();
-        }
-        else if (m_is_drawing_beams_panel)
-        {
-            m_project->PropagateBeamAggregateUpdates();
-        }
         return true;
     }
     return false;
 }
 
-bool RigEditor::Gui::DrawAggregateCheckbox(const char* title, bool *value, bool& is_uniform)
+void RigEditor::Gui::ScopedUiHelper::PushUpdates()
+{
+    switch (m_target)
+    {
+    case UpdateTarget::SOFTBODY_NODE: m_project->PropagateNodeAggregateUpdates(); break;
+    case UpdateTarget::SOFTBODY_BEAM: m_project->PropagateBeamAggregateUpdates(); break;
+    default: assert(false && "Invalid value of 'm_target'");
+    }
+}
+
+bool RigEditor::Gui::ScopedUiHelper::DrawAggregateCheckbox(const char* title, bool *value, bool& is_uniform)
 {
     const bool needs_recolor = !is_uniform;
     if (needs_recolor)
@@ -60,15 +60,8 @@ bool RigEditor::Gui::DrawAggregateCheckbox(const char* title, bool *value, bool&
     bool ret_val = false;
     if (ImGui::Checkbox(title, value))
     {
-        is_uniform = true;
-        if (m_is_drawing_nodes_panel)
-        {
-            m_project->PropagateNodeAggregateUpdates();
-        }
-        else if (m_is_drawing_beams_panel)
-        {
-            m_project->PropagateBeamAggregateUpdates();
-        }
+        is_uniform = true;   // Update aggregate data via reference
+        this->PushUpdates(); // Push aggregate updates to project
         ret_val = true;
     }
 
@@ -80,7 +73,7 @@ bool RigEditor::Gui::DrawAggregateCheckbox(const char* title, bool *value, bool&
     return ret_val;
 }
 
-bool RigEditor::Gui::DrawAggregateInputFloat(const char* title, float* value_ptr, bool& is_uniform)
+bool RigEditor::Gui::ScopedUiHelper::DrawAggregateInputFloat(const char* title, float* value_ptr, bool& is_uniform)
 {
     const bool needs_recolor = !is_uniform;
     if (needs_recolor)
@@ -92,15 +85,8 @@ bool RigEditor::Gui::DrawAggregateInputFloat(const char* title, float* value_ptr
     bool ret_val = false;
     if (ImGui::InputFloat(title, value_ptr, 0.f, 0.f, -1, ImGuiInputTextFlags_EnterReturnsTrue))
     {
-        is_uniform = true;
-        if (m_is_drawing_nodes_panel)
-        {
-            m_project->PropagateNodeAggregateUpdates();
-        }
-        else if (m_is_drawing_beams_panel)
-        {
-            m_project->PropagateBeamAggregateUpdates();
-        }
+        is_uniform = true;   // Update aggregate data via reference
+        this->PushUpdates(); // Push aggregate updates to project
         ret_val = true;
     }
     ImGui::PopItemWidth();
@@ -270,24 +256,19 @@ void RigEditor::Gui::DrawTopMenubar()
 
 void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
 {
-    ImGui::PushID("Nodes");
-    m_is_drawing_nodes_panel = true;
     SoftbodyNode::Selection& sel = m_project->softbody.node_selection;
+    ScopedUiHelper helper(m_project, UpdateTarget::SOFTBODY_NODE, "Nodes");
 
     RoR::GStr<64> nodes_title;
     nodes_title << "Nodes [" << sel.num_selected << "]###titlebar"; // Use persistent widget ID of 'Nodes' + 'titlebar'
     if (!ImGui::CollapsingHeader(nodes_title))
     {
-        ImGui::PopID();
-        m_is_drawing_nodes_panel = false;
         return; // Section is collapsed -> nothing to do
     }
 
     if (sel.num_selected == 0)
     {
         ImGui::TextDisabled("None selected");
-        ImGui::PopID();
-        m_is_drawing_nodes_panel = false;
         return;
     }
 
@@ -299,32 +280,29 @@ void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
         }
     }
 
-    this->DrawAggregateCheckbox("[m] No mouse grab",      &sel.options_values.option_m_no_mouse_grab,     sel.options_uniform.option_m_no_mouse_grab);
-    this->DrawAggregateCheckbox("[c] No ground contact",  &sel.options_values.option_c_no_ground_contact, sel.options_uniform.option_c_no_ground_contact);
-    this->DrawAggregateCheckbox("[h] Is hook point",      &sel.options_values.option_h_hook_point,        sel.options_uniform.option_h_hook_point);
-    this->DrawAggregateCheckbox("[b] Extra buoyancy",     &sel.options_values.option_b_extra_buoyancy,    sel.options_uniform.option_b_extra_buoyancy);
-    this->DrawAggregateCheckbox("[l] Override weight",    &sel.options_values.option_l_load_weight,       sel.options_uniform.option_l_load_weight);
+    helper.DrawAggregateCheckbox("[m] No mouse grab",      &sel.options_values.option_m_no_mouse_grab,     sel.options_uniform.option_m_no_mouse_grab);
+    helper.DrawAggregateCheckbox("[c] No ground contact",  &sel.options_values.option_c_no_ground_contact, sel.options_uniform.option_c_no_ground_contact);
+    helper.DrawAggregateCheckbox("[h] Is hook point",      &sel.options_values.option_h_hook_point,        sel.options_uniform.option_h_hook_point);
+    helper.DrawAggregateCheckbox("[b] Extra buoyancy",     &sel.options_values.option_b_extra_buoyancy,    sel.options_uniform.option_b_extra_buoyancy);
+    helper.DrawAggregateCheckbox("[l] Override weight",    &sel.options_values.option_l_load_weight,       sel.options_uniform.option_l_load_weight);
     if (sel.options_values.option_l_load_weight)
     {
-        this->DrawAggregateInputFloat("Load weight (Kg)", &sel.weight_override, sel.weight_override_is_uniform);
+        helper.DrawAggregateInputFloat("Load weight (Kg)", &sel.weight_override, sel.weight_override_is_uniform);
     }
-    this->DrawAggregateCheckbox("[f] Gfx: No sparks",     &sel.options_values.option_f_no_sparks,         sel.options_uniform.option_f_no_sparks);
-    this->DrawAggregateCheckbox("[x] Gfx: Exhaust point", &sel.options_values.option_x_exhaust_point,     sel.options_uniform.option_x_exhaust_point);
-    this->DrawAggregateCheckbox("[y] Gfx: Exhaust dir.",  &sel.options_values.option_y_exhaust_direction, sel.options_uniform.option_y_exhaust_direction);
-    this->DrawAggregateCheckbox("[p] Gfx: No particles",  &sel.options_values.option_p_no_particles,      sel.options_uniform.option_p_no_particles);
+    helper.DrawAggregateCheckbox("[f] Gfx: No sparks",     &sel.options_values.option_f_no_sparks,         sel.options_uniform.option_f_no_sparks);
+    helper.DrawAggregateCheckbox("[x] Gfx: Exhaust point", &sel.options_values.option_x_exhaust_point,     sel.options_uniform.option_x_exhaust_point);
+    helper.DrawAggregateCheckbox("[y] Gfx: Exhaust dir.",  &sel.options_values.option_y_exhaust_direction, sel.options_uniform.option_y_exhaust_direction);
+    helper.DrawAggregateCheckbox("[p] Gfx: No particles",  &sel.options_values.option_p_no_particles,      sel.options_uniform.option_p_no_particles);
 
     if (this->DrawNodePresetCombo(sel.node_preset, "Preset", sel.node_preset, sel.node_preset_is_uniform))
     {
         sel.node_preset_is_uniform = true;        //TODO: commit update to project
     }
-
-    ImGui::PopID();
-    m_is_drawing_nodes_panel = false;
 }
 
 void RigEditor::Gui::DrawSoftbodyPanelBeamsSection()
 {
-    ImGui::PushID("Beams");
+    //ImGui::PushID("Beams"); -- TODO use the helper
     SoftbodyBeam::Selection& sel = m_project->softbody.beam_selection;
 
     RoR::GStr<64> title;
@@ -344,17 +322,15 @@ void RigEditor::Gui::DrawSoftbodyPanelBeamsSection()
 
         if (sel.type == SoftbodyBeam::Type::PLAIN)
         {
-            this->DrawAggregateCheckbox("[i] Gfx: Invisible",      &sel.option_values.alltypes_i_invisible,     sel.option_uniformity.alltypes_i_invisible);
-            this->DrawAggregateCheckbox("[r] Rope",                &sel.option_values.plain_r_rope,             sel.option_uniformity.plain_r_rope);
-            this->DrawAggregateCheckbox("[s] Support",             &sel.option_values.plain_s_support,          sel.option_uniformity.plain_s_support);
+          //  this->DrawAggregateCheckbox("[i] Gfx: Invisible",      &sel.option_values.alltypes_i_invisible,     sel.option_uniformity.alltypes_i_invisible);
+          //  this->DrawAggregateCheckbox("[r] Rope",                &sel.option_values.plain_r_rope,             sel.option_uniformity.plain_r_rope);
+          //  this->DrawAggregateCheckbox("[s] Support",             &sel.option_values.plain_s_support,          sel.option_uniformity.plain_s_support);
         }
     }
     else
     {
         ImGui::Text("Type: ~~mixed~"); // <<< Temporary; TODO: remake the converter-combobox like in old UI
     }
-
-    ImGui::PopID();
 }
 
 void RigEditor::Gui::DrawSoftbodyPanelNodePresetsSection()
