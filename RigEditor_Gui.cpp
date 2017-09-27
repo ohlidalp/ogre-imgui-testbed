@@ -52,12 +52,17 @@ void RigEditor::Gui::ScopedUiHelper::PushUpdates()
 class ScopedUiSetup
 {
 public:
-    ScopedUiSetup(const bool is_uniform)
+    ScopedUiSetup(const bool is_uniform, float width = -1.f)
     {
         m_needs_recolor = !is_uniform;
         if (m_needs_recolor)
         {
             ImGui::PushStyleColor(ImGuiCol_Text, NON_UNIFORM_MARKER_COLOR);
+        }
+        m_width = width;
+        if (width != -1.f)
+        {
+            ImGui::PushItemWidth(width);
         }
     }
 
@@ -67,10 +72,15 @@ public:
         {
             ImGui::PopStyleColor();
         }
+        if (m_width != -1.f)
+        {
+            ImGui::PopItemWidth();
+        }
     }
 private:
 
     bool m_needs_recolor;
+    float m_width;
 };
 
 bool RigEditor::Gui::ScopedUiHelper::DrawAggregateCheckbox(const char* title, bool *value, bool& is_uniform)
@@ -89,19 +99,29 @@ bool RigEditor::Gui::ScopedUiHelper::DrawAggregateCheckbox(const char* title, bo
 
 bool RigEditor::Gui::ScopedUiHelper::DrawAggregateInputFloat(const char* title, float* value_ptr, bool& is_uniform)
 {
-    ScopedUiSetup setup(is_uniform);
+    ScopedUiSetup setup(is_uniform, 100.f);
 
-    ImGui::PushItemWidth(100.f);
-    bool ret_val = false;
     if (ImGui::InputFloat(title, value_ptr, 0.f, 0.f, -1, ImGuiInputTextFlags_EnterReturnsTrue))
     {
         is_uniform = true;   // Update aggregate data via reference
         this->PushUpdates(); // Push aggregate updates to project
-        ret_val = true;
+        return true;
     }
-    ImGui::PopItemWidth();
 
-    return ret_val;
+    return false;
+}
+
+bool RigEditor::Gui::ScopedUiHelper::DrawAggregateInputText(const char* title, char* buffer, size_t buf_size, bool& is_uniform)
+{
+    ScopedUiSetup setup(is_uniform, 100.f);
+    if (ImGui::InputText(title, buffer, buf_size, ImGuiInputTextFlags_EnterReturnsTrue))
+    {
+        is_uniform = true;   // Update aggregate data via reference
+        this->PushUpdates(); // Push aggregate updates to project
+        return true;
+    }
+
+    return false;
 }
 
 template<typename T>
@@ -279,10 +299,8 @@ void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
 
     if (sel.num_selected == 1)
     {
-        if (ImGui::InputText("Name", sel.name.GetBuffer(), sel.name.GetCapacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-        {
-            //TODO: commit update to project
-        }
+        bool is_uniform = true;
+        helper.DrawAggregateInputText("Name", sel.name.GetBuffer(), sel.name.GetCapacity(), is_uniform);
     }
 
     helper.DrawAggregateCheckbox("[m] No mouse grab",      &sel.options_values.option_m_no_mouse_grab,     sel.options_uniform.option_m_no_mouse_grab);

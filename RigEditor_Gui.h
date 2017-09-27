@@ -72,6 +72,7 @@ private:
 
         bool         DrawAggregateCheckbox(const char* title, bool *value, bool& is_uniform);
         bool         DrawAggregateInputFloat(const char* title, float* value, bool& is_uniform);
+        bool         DrawAggregateInputText(const char* title, char* buffer, size_t buf_size, bool& is_uniform);
         void         PushUpdates();
 
     private:
