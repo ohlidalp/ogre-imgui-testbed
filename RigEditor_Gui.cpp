@@ -111,6 +111,20 @@ bool RigEditor::Gui::ScopedUiHelper::DrawAggregateInputFloat(const char* title, 
     return false;
 }
 
+bool RigEditor::Gui::ScopedUiHelper::DrawAggregateInputInt(const char* title, int* value_ptr, bool& is_uniform)
+{
+    ScopedUiSetup setup(is_uniform, 100.f);
+
+    if (ImGui::InputInt(title, value_ptr, 1, 10, ImGuiInputTextFlags_EnterReturnsTrue))
+    {
+        is_uniform = true;   // Update aggregate data via reference
+        this->PushUpdates(); // Push aggregate updates to project
+        return true;
+    }
+
+    return false;
+}
+
 bool RigEditor::Gui::ScopedUiHelper::DrawAggregateInputText(const char* title, char* buffer, size_t buf_size, bool& is_uniform)
 {
     ScopedUiSetup setup(is_uniform, 100.f);
@@ -325,13 +339,15 @@ void RigEditor::Gui::DrawSoftbodyPanelNodesSection()
 
 void RigEditor::Gui::DrawSoftbodyPanelBeamsSection()
 {
-    //ImGui::PushID("Beams"); -- TODO use the helper
     SoftbodyBeam::Selection& sel = m_project->softbody.beam_selection;
+    ScopedUiHelper helper(m_project, UpdateTarget::SOFTBODY_BEAM, "Beam");
 
     RoR::GStr<64> title;
     title << "Beams [" << sel.num_selected << "]###titlebar"; // Use persistent widget IDs of 'Beams'+'titlebar'
     if (!ImGui::CollapsingHeader(title.GetBuffer()))
+    {
         return; // Section is collapsed -> nothing to do.
+    }
 
     if (sel.num_selected == 0)
     {
@@ -345,9 +361,40 @@ void RigEditor::Gui::DrawSoftbodyPanelBeamsSection()
 
         if (sel.type == SoftbodyBeam::Type::PLAIN)
         {
-          //  this->DrawAggregateCheckbox("[i] Gfx: Invisible",      &sel.option_values.alltypes_i_invisible,     sel.option_uniformity.alltypes_i_invisible);
-          //  this->DrawAggregateCheckbox("[r] Rope",                &sel.option_values.plain_r_rope,             sel.option_uniformity.plain_r_rope);
-          //  this->DrawAggregateCheckbox("[s] Support",             &sel.option_values.plain_s_support,          sel.option_uniformity.plain_s_support);
+            helper.DrawAggregateCheckbox("[i] Gfx: Invisible",      &sel.option_values.alltypes_i_invisible,     sel.option_uniformity.alltypes_i_invisible);
+            helper.DrawAggregateCheckbox("[r] Rope",                &sel.option_values.plain_r_rope,             sel.option_uniformity.plain_r_rope);
+            helper.DrawAggregateCheckbox("[s] Support",             &sel.option_values.plain_s_support,          sel.option_uniformity.plain_s_support);
+
+            helper.DrawAggregateInputFloat("Ext. break limit",      &sel.extension_break_limit,                  sel.extension_break_limit_is_uniform);
+            helper.DrawAggregateInputInt("Detacher group",          &sel.detacher_group,                         sel.detacher_group_is_uniform);
+        }
+        else if (sel.type == SoftbodyBeam::Type::COMMAND_HYDRO)
+        {
+            
+        }
+        else if (sel.type == SoftbodyBeam::Type::GENERATED)
+        {
+            
+        }
+        else if (sel.type == SoftbodyBeam::Type::ROPE)
+        {
+            
+        }
+        else if (sel.type == SoftbodyBeam::Type::SHOCK_ABSORBER)
+        {
+            
+        }
+        else if (sel.type == SoftbodyBeam::Type::SHOCK_ABSORBER_2)
+        {
+            
+        }
+        else if (sel.type == SoftbodyBeam::Type::STEERING_HYDRO)
+        {
+            
+        }
+        else if (sel.type == SoftbodyBeam::Type::TRIGGER)
+        {
+            
         }
     }
     else

@@ -134,7 +134,7 @@ void RigEditor::SoftbodyNode::Selection::Merge(SoftbodyNode* n)
     options_values = n->options;
 }
 
-void RigEditor::SoftbodyNode::Selection::Propagate(SoftbodyNode* n)
+void RigEditor::SoftbodyNode::Selection::Push(SoftbodyNode* n)
 {
     if (num_selected == 1)
     {
@@ -247,6 +247,118 @@ void RigEditor::SoftbodyBeam::Selection::Merge(SoftbodyBeam* b)
     MergeValue(trigger_boundary_timer,     trigger_boundary_timer_is_uniform,      b->trigger_boundary_timer);
     MergeValue(trigger_shortlimit_action,  trigger_shortlimit_action_is_uniform,   b->trigger_shortlimit_action);
     MergeValue(trigger_longlimit_action,   trigger_longlimit_action_is_uniform,    b->trigger_longlimit_action);
+
+    SoftbodyBeam::Options::Merge(option_values, option_uniformity, b->options);
+}
+
+void RigEditor::SoftbodyBeam::Selection::Push(SoftbodyBeam* b)
+{
+    if (type_is_uniform                     ) { b->type                      = type;                      }
+    if (detacher_group_is_uniform           ) { b->detacher_group            = detacher_group;            }
+    if (extension_break_limit_is_uniform    ) { b->extension_break_limit     = extension_break_limit;     }
+    if (max_extension_is_uniform            ) { b->max_extension             = max_extension;             }
+    if (max_contraction_is_uniform          ) { b->max_contraction           = max_contraction;           }
+
+    if (command_shorten_rate_is_uniform     ) { b->command_shorten_rate      = command_shorten_rate;      }
+    if (command_lengthen_rate_is_uniform    ) { b->command_lengthen_rate     = command_lengthen_rate;     }
+    if (command_contract_key_is_uniform     ) { b->command_contract_key      = command_contract_key;      }
+    if (command_extend_key_is_uniform       ) { b->command_extend_key        = command_extend_key;        }
+    if (command_affect_engine_is_uniform    ) { b->command_affect_engine     = command_affect_engine;     }
+    if (command_needs_engine_is_uniform     ) { b->command_needs_engine      = command_needs_engine;      }
+    if (command_plays_sound_is_uniform      ) { b->command_plays_sound       = command_plays_sound;       }
+
+    if (shock_precompression_is_uniform     ) { b->shock_precompression      = shock_precompression;      }
+    if (shock_spring_in_is_uniform          ) { b->shock_spring_in           = shock_spring_in;           }
+    if (shock_damp_in_is_uniform            ) { b->shock_damp_in             = shock_damp_in;             }
+    if (shock_spring_in_progress_is_uniform ) { b->shock_spring_in_progress  = shock_spring_in_progress;  }
+    if (shock_damp_in_progress_is_uniform   ) { b->shock_damp_in_progress    = shock_damp_in_progress;    }
+    if (shock_spring_out_is_uniform         ) { b->shock_spring_out          = shock_spring_out;          }
+    if (shock_damp_out_is_uniform           ) { b->shock_damp_out            = shock_damp_out;            }
+    if (shock_spring_out_progress_is_uniform) { b->shock_spring_out_progress = shock_spring_out_progress; }
+    if (shock_damp_out_progress_is_uniform  ) { b->shock_damp_out_progress   = shock_damp_out_progress;   }
+
+    if (trigger_boundary_timer_is_uniform   ) { b->trigger_boundary_timer    = trigger_boundary_timer;    }
+    if (trigger_shortlimit_action_is_uniform) { b->trigger_shortlimit_action = trigger_shortlimit_action; }
+    if (trigger_longlimit_action_is_uniform ) { b->trigger_longlimit_action  = trigger_longlimit_action;  }
+
+    SoftbodyBeam::Options::Push(b->options, option_values, option_uniformity);
+}
+
+inline void MergeOption(bool& value, bool& uni, const bool incoming)
+{
+    uni = (value != incoming) ? false : uni;
+    value = (!uni) ? false : value;
+}
+
+void RigEditor::SoftbodyBeam::Options::Merge(Options& values, Options& uni, const Options& incoming)
+{
+    MergeOption(values.alltypes_i_invisible             , uni.alltypes_i_invisible             , incoming.alltypes_i_invisible             );
+
+    MergeOption(values.plain_r_rope                     , uni.plain_r_rope                     , incoming.plain_r_rope                     );
+    MergeOption(values.plain_s_support                  , uni.plain_s_support                  , incoming.plain_s_support                  );
+
+    MergeOption(values.hydro_s_disable_on_high_speed    , uni.hydro_s_disable_on_high_speed    , incoming.hydro_s_disable_on_high_speed    );
+    MergeOption(values.hydro_a_input_aileron            , uni.hydro_a_input_aileron            , incoming.hydro_a_input_aileron            );
+    MergeOption(values.hydro_r_input_rudder             , uni.hydro_r_input_rudder             , incoming.hydro_r_input_rudder             );
+    MergeOption(values.hydro_e_input_elevator           , uni.hydro_e_input_elevator           , incoming.hydro_e_input_elevator           );
+    MergeOption(values.hydro_u_input_aileron_elevator   , uni.hydro_u_input_aileron_elevator   , incoming.hydro_u_input_aileron_elevator   );
+    MergeOption(values.hydro_v_input_invaileron_elevator, uni.hydro_v_input_invaileron_elevator, incoming.hydro_v_input_invaileron_elevator);
+    MergeOption(values.hydro_x_input_aileron_rudder     , uni.hydro_x_input_aileron_rudder     , incoming.hydro_x_input_aileron_rudder     );
+    MergeOption(values.hydro_y_input_invaileron_rudder  , uni.hydro_y_input_invaileron_rudder  , incoming.hydro_y_input_invaileron_rudder  );
+    MergeOption(values.hydro_g_input_elevator_rudder    , uni.hydro_g_input_elevator_rudder    , incoming.hydro_g_input_elevator_rudder    );
+    MergeOption(values.hydro_h_input_invelevator_rudder , uni.hydro_h_input_invelevator_rudder , incoming.hydro_h_input_invelevator_rudder );
+
+    MergeOption(values.command_r_rope                   , uni.command_r_rope                   , incoming.command_r_rope                   );
+    MergeOption(values.command_c_auto_center            , uni.command_c_auto_center            , incoming.command_c_auto_center            );
+    MergeOption(values.command_f_not_faster             , uni.command_f_not_faster             , incoming.command_f_not_faster             );
+    MergeOption(values.command_p_1press                 , uni.command_p_1press                 , incoming.command_p_1press                 );
+    MergeOption(values.command_o_1press_center          , uni.command_o_1press_center          , incoming.command_o_1press_center          );
+
+    MergeOption(values.shock_L_active_left              , uni.shock_L_active_left              , incoming.shock_L_active_left              );
+    MergeOption(values.shock_R_active_right             , uni.shock_R_active_right             , incoming.shock_R_active_right             );
+    MergeOption(values.shock_m_metric                   , uni.shock_m_metric                   , incoming.shock_m_metric                   );
+
+    MergeOption(values.shock2_s_soft_bump_bounds        , uni.shock2_s_soft_bump_bounds        , incoming.shock2_s_soft_bump_bounds        );
+    MergeOption(values.shock2_m_metric                  , uni.shock2_m_metric                  , incoming.shock2_m_metric                  );
+    MergeOption(values.shock2_M_absolute_metric         , uni.shock2_M_absolute_metric         , incoming.shock2_M_absolute_metric         );
+}
+
+inline void PushOption(bool& dst, const bool value, const bool uni)
+{
+    dst = (uni) ? value : dst;
+}
+
+void RigEditor::SoftbodyBeam::Options::Push(Options& target, const Options& values, const Options& uni)
+{
+    PushOption(target.alltypes_i_invisible             , values.alltypes_i_invisible             , uni.alltypes_i_invisible             );
+
+    PushOption(target.plain_r_rope                     , values.plain_r_rope                     , uni.plain_r_rope                     );
+    PushOption(target.plain_s_support                  , values.plain_s_support                  , uni.plain_s_support                  );
+
+    PushOption(target.hydro_s_disable_on_high_speed    , values.hydro_s_disable_on_high_speed    , uni.hydro_s_disable_on_high_speed    );
+    PushOption(target.hydro_a_input_aileron            , values.hydro_a_input_aileron            , uni.hydro_a_input_aileron            );
+    PushOption(target.hydro_r_input_rudder             , values.hydro_r_input_rudder             , uni.hydro_r_input_rudder             );
+    PushOption(target.hydro_e_input_elevator           , values.hydro_e_input_elevator           , uni.hydro_e_input_elevator           );
+    PushOption(target.hydro_u_input_aileron_elevator   , values.hydro_u_input_aileron_elevator   , uni.hydro_u_input_aileron_elevator   );
+    PushOption(target.hydro_v_input_invaileron_elevator, values.hydro_v_input_invaileron_elevator, uni.hydro_v_input_invaileron_elevator);
+    PushOption(target.hydro_x_input_aileron_rudder     , values.hydro_x_input_aileron_rudder     , uni.hydro_x_input_aileron_rudder     );
+    PushOption(target.hydro_y_input_invaileron_rudder  , values.hydro_y_input_invaileron_rudder  , uni.hydro_y_input_invaileron_rudder  );
+    PushOption(target.hydro_g_input_elevator_rudder    , values.hydro_g_input_elevator_rudder    , uni.hydro_g_input_elevator_rudder    );
+    PushOption(target.hydro_h_input_invelevator_rudder , values.hydro_h_input_invelevator_rudder , uni.hydro_h_input_invelevator_rudder );
+
+    PushOption(target.command_r_rope                   , values.command_r_rope                   , uni.command_r_rope                   );
+    PushOption(target.command_c_auto_center            , values.command_c_auto_center            , uni.command_c_auto_center            );
+    PushOption(target.command_f_not_faster             , values.command_f_not_faster             , uni.command_f_not_faster             );
+    PushOption(target.command_p_1press                 , values.command_p_1press                 , uni.command_p_1press                 );
+    PushOption(target.command_o_1press_center          , values.command_o_1press_center          , uni.command_o_1press_center          );
+
+    PushOption(target.shock_L_active_left              , values.shock_L_active_left              , uni.shock_L_active_left              );
+    PushOption(target.shock_R_active_right             , values.shock_R_active_right             , uni.shock_R_active_right             );
+    PushOption(target.shock_m_metric                   , values.shock_m_metric                   , uni.shock_m_metric                   );
+
+    PushOption(target.shock2_s_soft_bump_bounds        , values.shock2_s_soft_bump_bounds        , uni.shock2_s_soft_bump_bounds        );
+    PushOption(target.shock2_m_metric                  , values.shock2_m_metric                  , uni.shock2_m_metric                  );
+    PushOption(target.shock2_M_absolute_metric         , values.shock2_M_absolute_metric         , uni.shock2_M_absolute_metric         );
 }
 
 void RigEditor::Project::RefreshBeamSelectionAggregates()
@@ -267,11 +379,19 @@ void RigEditor::Project::PropagateNodeAggregateUpdates()
     {
         if (n->state_is_selected)
         {
-            this->softbody.node_selection.Propagate(n);
+            this->softbody.node_selection.Push(n);
         }
     }
 }
 
 void RigEditor::Project::PropagateBeamAggregateUpdates()
-{}
+{
+    for (SoftbodyBeam* b: this->softbody.beams)
+    {
+        if (b->state_is_selected)
+        {
+            this->softbody.beam_selection.Push(b);
+        }
+    }
+}
 

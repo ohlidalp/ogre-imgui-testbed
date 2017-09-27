@@ -46,6 +46,8 @@ struct SoftbodyBeam
     {
         Options() { memset(this, 0, sizeof(Options)); }
         void SetAll(bool value);
+        static void Merge(Options& values, Options& uni, const Options& incoming);
+        static void Push(Options& target, const Options& values, const Options& uni);
 
         bool alltypes_i_invisible;
 
@@ -112,6 +114,7 @@ struct SoftbodyBeam
         Selection() { num_selected = 0; }
         void SetSingle(SoftbodyBeam* b);
         void Merge(SoftbodyBeam* b);
+        void Push(SoftbodyBeam* b);
 
         // Metadata
         int                    num_selected;
@@ -237,7 +240,7 @@ struct SoftbodyNode
     {
         void Reset()                   { memset(this, 0, sizeof(Selection)); }
         void Merge(SoftbodyNode* n);     ///< Merge the node into selection.
-        void Propagate(SoftbodyNode* n); ///< Update the node from the selection.
+        void Push(SoftbodyNode* n);      ///< Update the node from the selection.
 
         // Metadata
         int                    num_selected;
