@@ -49,37 +49,47 @@ void RigEditor::Gui::ScopedUiHelper::PushUpdates()
     }
 }
 
-bool RigEditor::Gui::ScopedUiHelper::DrawAggregateCheckbox(const char* title, bool *value, bool& is_uniform)
+class ScopedUiSetup
 {
-    const bool needs_recolor = !is_uniform;
-    if (needs_recolor)
+public:
+    ScopedUiSetup(const bool is_uniform)
     {
-        ImGui::PushStyleColor(ImGuiCol_Text, NON_UNIFORM_MARKER_COLOR);
+        m_needs_recolor = !is_uniform;
+        if (m_needs_recolor)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, NON_UNIFORM_MARKER_COLOR);
+        }
     }
 
-    bool ret_val = false;
+    ~ScopedUiSetup()
+    {
+        if (m_needs_recolor)
+        {
+            ImGui::PopStyleColor();
+        }
+    }
+private:
+
+    bool m_needs_recolor;
+};
+
+bool RigEditor::Gui::ScopedUiHelper::DrawAggregateCheckbox(const char* title, bool *value, bool& is_uniform)
+{
+    ScopedUiSetup setup(is_uniform);
+
     if (ImGui::Checkbox(title, value))
     {
         is_uniform = true;   // Update aggregate data via reference
         this->PushUpdates(); // Push aggregate updates to project
-        ret_val = true;
+        return true;
     }
 
-    if (needs_recolor)
-    {
-        ImGui::PopStyleColor();
-    }
-
-    return ret_val;
+    return false;
 }
 
 bool RigEditor::Gui::ScopedUiHelper::DrawAggregateInputFloat(const char* title, float* value_ptr, bool& is_uniform)
 {
-    const bool needs_recolor = !is_uniform;
-    if (needs_recolor)
-    {
-        ImGui::PushStyleColor(ImGuiCol_Text, NON_UNIFORM_MARKER_COLOR);
-    }
+    ScopedUiSetup setup(is_uniform);
 
     ImGui::PushItemWidth(100.f);
     bool ret_val = false;
@@ -90,11 +100,6 @@ bool RigEditor::Gui::ScopedUiHelper::DrawAggregateInputFloat(const char* title, 
         ret_val = true;
     }
     ImGui::PopItemWidth();
-
-    if (needs_recolor)
-    {
-        ImGui::PopStyleColor();
-    }
 
     return ret_val;
 }
