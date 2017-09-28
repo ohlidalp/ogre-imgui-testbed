@@ -87,8 +87,7 @@ public:
         Ogre::WindowEventUtilities::addWindowEventListener(mWindow, this);
 
         // === Create IMGUI ====
-        Ogre::ImguiManager::createSingleton();
-        Ogre::ImguiManager::getSingleton().init(mSceneMgr, mKeyboard, mMouse); // OIS mouse + keyboard
+        m_imgui.Init(mSceneMgr, mKeyboard, mMouse); // OIS mouse + keyboard
 
         mRoot->addFrameListener(this);
 
@@ -103,6 +102,8 @@ public:
 private:
     virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt) override
     {
+        m_imgui.render();
+
         return (!mWindow->isClosed() && (!mShutDown)); // False means "exit the application"
     }
 
@@ -113,9 +114,8 @@ private:
         mMouse->capture();
 
         // ===== Start IMGUI frame =====
-        int left, top, width, height;
-        mWindow->getViewport(0)->getActualDimensions(left, top, width, height); // output params
-        Ogre::ImguiManager::getSingleton().newFrame(evt.timeSinceLastFrame, Ogre::Rect(left, top, width, height));
+        Ogre::Viewport* vp = mWindow->getViewport(0);
+        m_imgui.NewFrame(evt.timeSinceLastFrame, (float)vp->getActualWidth(), (float)vp->getActualHeight());
 
         // ===== Draw IMGUI demo window ====
         ImGui::ShowTestWindow();
@@ -130,31 +130,31 @@ private:
             mShutDown = true;
         }
 
-        Ogre::ImguiManager::getSingleton().keyPressed(arg);
+        m_imgui.keyPressed(arg);
         return true;
     }
 
     bool keyReleased(const OIS::KeyEvent &arg) override
     {
-        Ogre::ImguiManager::getSingleton().keyReleased(arg);
+        m_imgui.keyReleased(arg);
         return true;
     }
 
     bool mouseMoved(const OIS::MouseEvent &arg) override
     {
-        Ogre::ImguiManager::getSingleton().mouseMoved(arg);
+        m_imgui.mouseMoved(arg);
         return true;
     }
 
     bool mousePressed(const OIS::MouseEvent &arg, OIS::MouseButtonID id) override
     {
-        Ogre::ImguiManager::getSingleton().mousePressed(arg, id);
+        m_imgui.mousePressed(arg, id);
         return true;
     }
 
     bool mouseReleased(const OIS::MouseEvent &arg, OIS::MouseButtonID id) override
     {
-        Ogre::ImguiManager::getSingleton().mouseReleased(arg, id);
+        m_imgui.mouseReleased(arg, id);
         return true;
     }
 
@@ -192,6 +192,7 @@ private:
         mRoot = nullptr;
     }
 
+    OgreImGui                   m_imgui;
     Ogre::Root*                 mRoot    ;
     Ogre::Camera*               mCamera  ;
     Ogre::SceneManager*         mSceneMgr;

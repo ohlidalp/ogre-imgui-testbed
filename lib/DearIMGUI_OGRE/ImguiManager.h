@@ -6,88 +6,69 @@
 #include <OISKeyboard.h>
 
 #include <OgreRenderQueueListener.h>
-#include <OgreSingleton.h>
 #include <OgreTexture.h>
+#include "OgrePrerequisites.h"
+#include "OgreRenderable.h"
+#include <OgreRenderOperation.h>
 
-#include "ImguiRenderable.h"
-
-namespace Ogre
+class OgreImGui : public OIS::MouseListener, public OIS::KeyListener
 {
-    class SceneManager;
+public:
+    OgreImGui();
 
-    class ImguiManager : public RenderQueueListener,public OIS::MouseListener,public OIS::KeyListener, public Singleton<ImguiManager>
+    void Init(Ogre::SceneManager* mgr, OIS::Keyboard* keyInput, OIS::Mouse* mouseInput);
+
+
+
+    //Inherited from OIS::MouseListener
+    virtual bool mouseMoved( const OIS::MouseEvent &arg ) override;
+    virtual bool mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id ) override;
+    virtual bool mouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID id ) override;
+
+    //Inherited from OIS::KeyListener
+    virtual bool keyPressed( const OIS::KeyEvent &arg ) override;
+    virtual bool keyReleased( const OIS::KeyEvent &arg ) override;
+
+    void render();
+    void NewFrame(float deltaTime, float displayWidth, float displayHeight);
+
+private:
+
+    class ImGUIRenderable : public Ogre::Renderable
     {
-        public:
-        static void createSingleton();
+    public:
+        ImGUIRenderable();
+        virtual ~ImGUIRenderable();
 
-        ImguiManager();
-        ~ImguiManager();
+        void updateVertexData(ImDrawData* data,unsigned int cmdIndex);
+        Ogre::Real getSquaredViewDepth(const Ogre::Camera* cam) const   { (void)cam; return 0; }
 
-        virtual void init(Ogre::SceneManager* mgr,OIS::Keyboard* keyInput, OIS::Mouse* mouseInput);
+        void setMaterial( const Ogre::String& matName );
+        void setMaterial(const Ogre::MaterialPtr & material);
+        virtual const Ogre::MaterialPtr& getMaterial(void) const override;
+        virtual void getWorldTransforms( Ogre::Matrix4* xform ) const override;
+        virtual void getRenderOperation( Ogre::RenderOperation& op ) override;
+        virtual const Ogre::LightList& getLights(void) const override;
 
-        virtual void newFrame(float deltaTime,const Ogre::Rect & windowRect);
+        int                      mVertexBufferSize;
+        int                      mIndexBufferSize;
 
-        //inherited from RenderQueueListener
-        virtual void renderQueueEnded(uint8 queueGroupId, const String& invocation,bool& repeatThisInvocation);
+    private:
+        void initImGUIRenderable(void);
 
-        //Inherhited from OIS::MouseListener
-        virtual bool mouseMoved( const OIS::MouseEvent &arg );
-		virtual bool mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id );
-		virtual bool mouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID id );
-        //Inherhited from OIS::KeyListener
-		virtual bool keyPressed( const OIS::KeyEvent &arg );
-		virtual bool keyReleased( const OIS::KeyEvent &arg );
-
-        void updateVertexData();
-
-        /** Override standard Singleton retrieval.
-        @remarks
-        Why do we do this? Well, it's because the Singleton
-        implementation is in a .h file, which means it gets compiled
-        into anybody who includes it. This is needed for the
-        Singleton template to work, but we actually only want it
-        compiled into the implementation of the class based on the
-        Singleton, not all of them. If we don't change this, we get
-        link errors when trying to use the Singleton-based class from
-        an outside dll.
-        @par
-        This method just delegates to the template version anyway,
-        but the implementation stays in this single compilation unit,
-        preventing link errors.
-        */
-        static ImguiManager& getSingleton(void);
-        /** Override standard Singleton retrieval.
-        @remarks
-        Why do we do this? Well, it's because the Singleton
-        implementation is in a .h file, which means it gets compiled
-        into anybody who includes it. This is needed for the
-        Singleton template to work, but we actually only want it
-        compiled into the implementation of the class based on the
-        Singleton, not all of them. If we don't change this, we get
-        link errors when trying to use the Singleton-based class from
-        an outside dll.
-        @par
-        This method just delegates to the template version anyway,
-        but the implementation stays in this single compilation unit,
-        preventing link errors.
-        */
-        static ImguiManager* getSingletonPtr(void);
-
-        protected:
-
-        void createFontTexture();
-        void createMaterial();
-
-        std::list<ImGUIRenderable*> mRenderables;
-
-        SceneManager*				mSceneMgr;
-        Pass*						mPass;
-        int                         mLastRenderedFrame;
-
-        TexturePtr                  mFontTex;
-
-        bool                        mFrameEnded;
-        OIS::Keyboard*              mKeyInput;
-        OIS::Mouse*                 mMouseInput;
+        Ogre::MaterialPtr mMaterial;
+        Ogre::RenderOperation mRenderOp;
     };
-}
+
+    void createFontTexture();
+    void createMaterial();
+    void updateVertexData();
+
+    std::list<ImGUIRenderable*> mRenderables;
+    Ogre::SceneManager*         mSceneMgr;
+    Ogre::Pass*                 mPass;
+    Ogre::TexturePtr            mFontTex;
+    OIS::Keyboard*              mKeyInput;
+    OIS::Mouse*                 mMouseInput;
+};
+
