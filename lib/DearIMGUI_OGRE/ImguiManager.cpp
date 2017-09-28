@@ -117,44 +117,14 @@ bool OgreImGui::keyReleased( const OIS::KeyEvent &arg )
     return true;
 }
 
-void OgreImGui::updateVertexData()
-{
-    ImDrawData* draw_data = ImGui::GetDrawData();
-    while(mRenderables.size()<draw_data->CmdListsCount)
-    {
-        mRenderables.push_back(new ImGUIRenderable());
-    }
-    while(mRenderables.size()>draw_data->CmdListsCount)
-    {
-        delete mRenderables.back();
-        mRenderables.pop_back();
-    }
-    unsigned int index=0;
-    for(std::list<ImGUIRenderable*>::iterator it = mRenderables.begin();it!=mRenderables.end();++it,++index)
-    {
-        (*it)->updateVertexData(draw_data,index);
-    }
-
-}
-
 void OgreImGui::render()
 {
-    Ogre::RenderSystem* renderSys = Ogre::Root::getSingletonPtr()->getRenderSystem();
-    Ogre::Viewport* vp = renderSys->_getViewport();
-
-    if ((vp == nullptr) || (!vp->getTarget()->isPrimary()))
-    {
-        return;
-    }
-
-    ImGui::Render();
-    this->updateVertexData();
-    ImGuiIO& io = ImGui::GetIO();
-
     // Construct projection matrix, taking texel offset corrections in account (important for DirectX9)
     // See also:
     //     - OGRE-API specific hint: http://www.ogre3d.org/forums/viewtopic.php?f=5&p=536881#p536881
     //     - IMGUI Dx9 demo solution: https://github.com/ocornut/imgui/blob/master/examples/directx9_example/imgui_impl_dx9.cpp#L127-L138
+    ImGuiIO& io = ImGui::GetIO();
+    Ogre::RenderSystem* renderSys = Ogre::Root::getSingletonPtr()->getRenderSystem();
     const float texelOffsetX = renderSys->getHorizontalTexelOffset();
     const float texelOffsetY = renderSys->getVerticalTexelOffset();
     const float L = texelOffsetX;
@@ -167,10 +137,19 @@ void OgreImGui::render()
                                     0.0f,          0.0f,        -1.0f,       0.0f,
                                     0.0f,          0.0f,         0.0f,       1.0f);
 
-    mPass->getVertexProgramParameters()->setNamedConstant("ProjectionMatrix",projMatrix);
-    for(std::list<ImGUIRenderable*>::iterator it = mRenderables.begin();it!=mRenderables.end();++it)
+    mPass->getVertexProgramParameters()->setNamedConstant("ProjectionMatrix", projMatrix);
+
+    // Instruct ImGui to Render() and process the resulting CmdList-s
+    ImGui::Render();
+    ImDrawData* draw_data = ImGui::GetDrawData();
+    for (int i = 0; i < draw_data->CmdListsCount; ++i)
     {
-        mSceneMgr->_injectRenderWithPass(mPass,(*it),0,false,false);
+        ImGUIRenderable renderable;
+        renderable.updateVertexData(draw_data, i);
+
+        // TODO: Scissoring!
+
+        mSceneMgr->_injectRenderWithPass(mPass, &renderable, 0, false, false);
     }
 }
 
@@ -414,13 +393,13 @@ void OgreImGui::createFontTexture()
     int width, height;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 
-    mFontTex = TextureManager::getSingleton().createManual("ImguiFontTex",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,TEX_TYPE_2D,width,height,1,1,PF_R8G8B8A8);
+    mFontTex = Ogre::TextureManager::getSingleton().createManual("ImguiFontTex",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,Ogre::TEX_TYPE_2D,width,height,1,1,Ogre::PF_R8G8B8A8);
 
     // Lock texture for writing
-    const PixelBox & lockBox = mFontTex->getBuffer()->lock(Image::Box(0, 0, width, height), HardwareBuffer::HBL_DISCARD);
+    const Ogre::PixelBox & lockBox = mFontTex->getBuffer()->lock(Ogre::Image::Box(0, 0, width, height), Ogre::HardwareBuffer::HBL_DISCARD);
 
     // Copy texture to ImGui
-    size_t texDepth = PixelUtil::getNumElemBytes(lockBox.format);
+    size_t texDepth = Ogre::PixelUtil::getNumElemBytes(lockBox.format);
     memcpy(lockBox.data,pixels, width*height*texDepth);
 
     // Unlock
