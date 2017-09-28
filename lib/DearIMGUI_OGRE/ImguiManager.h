@@ -40,7 +40,7 @@ private:
         ImGUIRenderable();
         virtual ~ImGUIRenderable();
 
-        void updateVertexData(ImDrawData* data,unsigned int cmdIndex);
+        void updateVertexData(const ImDrawVert* vtxBuf, const ImDrawIdx* idxBuf, unsigned int vtxCount, unsigned int idxCount);
         Ogre::Real getSquaredViewDepth(const Ogre::Camera* cam) const   { (void)cam; return 0; }
 
         void setMaterial( const Ogre::String& matName );
