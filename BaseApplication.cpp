@@ -10,15 +10,12 @@
 
 // -------------------------------------- loading spinner prototype -------------------------------------------
 
-const ImU32 GUI_SPINNER_COLORS[] =
-{
-    ImColor(255,255,255,255), ImColor(200,200,200,255), ImColor(150,150,150,255), ImColor(100,100,100,255)
-};
-
-void DrawImGuiSpinner(float& counter, const ImVec2 pos, const ImVec2 size = ImVec2(20.f, 20.f), const float spacing = 2.f, const float step_sec = 0.15f)
+void DrawImGuiSpinner(float& counter, const ImVec2 pos, const ImVec2 size = ImVec2(16.f, 16.f), const float spacing = 2.f, const float step_sec = 0.15f)
 {
     // Hardcoded to 4 segments, counter is reset after full round (4 steps)
     // --------------------------------------------------------------------
+
+    const ImU32 COLORS[] = { ImColor(255,255,255,255), ImColor(210,210,210,255), ImColor(120,120,120,255), ImColor(60,60,60,255) };
 
     // Update counter, determine coloring
     counter += ImGui::GetIO().DeltaTime;
@@ -42,34 +39,23 @@ void DrawImGuiSpinner(float& counter, const ImVec2 pos, const ImVec2 size = ImVe
 
     // Draw segments
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    float half_x = (size.x / 2.f);
-    float half_y = (size.y / 2.f);
-    float mid_x = pos.x + half_x;
-    float mid_y = pos.y + half_y;
+    const float left = pos.x;
+    const float top = pos.y;
+    const float right = pos.x + size.x;
+    const float bottom = pos.y + size.y;
+    const float mid_x = pos.x + (size.x / 2.f);
+    const float mid_y = pos.y + (size.y / 2.f);
 
-    draw_list->AddTriangleFilled( // Top
-        ImVec2(mid_x, mid_y-spacing), // mid
-        ImVec2(pos.x + spacing, pos.y), // left
-        ImVec2((pos.x + size.x) - spacing, pos.y), // right
-        GUI_SPINNER_COLORS[color_start]);
+    // NOTE: Enter vertices in clockwise order, otherwise anti-aliasing doesn't work and polygon is rasterized larger! -- Observed under OpenGL2 / OGRE 1.9
 
-    draw_list->AddTriangleFilled( // Right
-        ImVec2(mid_x+spacing, mid_y),// mid
-        ImVec2(pos.x+size.x, pos.y + spacing), // top
-        ImVec2(pos.x+size.x , (pos.y+size.y) - spacing), // bottom
-        GUI_SPINNER_COLORS[(color_start+3)%4]);
-
-    draw_list->AddTriangleFilled( // Bottom
-        ImVec2(mid_x, mid_y+spacing), // mid
-        ImVec2(pos.x + spacing, pos.y+size.y), // left
-        ImVec2((pos.x + size.x) - spacing, pos.y+size.y), //  right
-        GUI_SPINNER_COLORS[(color_start+2)%4]);
-
-    draw_list->AddTriangleFilled( // Left
-        ImVec2(mid_x-spacing, mid_y), // mid
-        ImVec2(pos.x, (pos.y) + spacing), // top
-        ImVec2(pos.x, (pos.y+size.y) - spacing), // bottom
-        GUI_SPINNER_COLORS[(color_start+1)%4]);
+    // Top triangle, vertices: mid, left, right
+    draw_list->AddTriangleFilled(ImVec2(mid_x, mid_y-spacing),   ImVec2(left + spacing, top),     ImVec2(right - spacing, top),     COLORS[color_start]);
+    // Right triangle, vertices: mid, top, bottom
+    draw_list->AddTriangleFilled(ImVec2(mid_x+spacing, mid_y),   ImVec2(right, top + spacing),    ImVec2(right, bottom - spacing),  COLORS[(color_start+3)%4]);
+    // Bottom triangle, vertices: mid, right, left
+    draw_list->AddTriangleFilled(ImVec2(mid_x, mid_y+spacing),   ImVec2(right - spacing, bottom), ImVec2(left + spacing, bottom),   COLORS[(color_start+2)%4]);
+    // Left triangle, vertices: mid, bottom, top
+    draw_list->AddTriangleFilled(ImVec2(mid_x-spacing, mid_y),   ImVec2(left, bottom - spacing),  ImVec2(left, top + spacing),      COLORS[(color_start+1)%4]);
 }
 
 // -------------------------------------- console prototype -------------------------------------------
@@ -324,7 +310,12 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
         {
             ImGui::Begin("Spinner test");
             static float spinner_counter = 0.f;
-            DrawImGuiSpinner(spinner_counter, ImVec2(ImGui::GetWindowPos().x + 100.f, ImGui::GetWindowPos().y + 100.f));
+            float spinner_x = (ImGui::GetWindowPos().x)+50;
+            float spinner_y = (ImGui::GetWindowPos().y)+50;
+            DrawImGuiSpinner(spinner_counter, ImVec2(spinner_x, spinner_y));
+
+            static float counter2 = 0.f;
+            DrawImGuiSpinner(counter2, ImVec2(spinner_x+31.f, spinner_y+1.f), ImVec2(25.f, 25.f), 3.f);
             ImGui::End();
         }
 
