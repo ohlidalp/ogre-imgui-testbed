@@ -8,8 +8,69 @@
 #include <algorithm> // std::min()
 
 
+// -------------------------------------- loading spinner prototype -------------------------------------------
 
+const ImU32 GUI_SPINNER_COLORS[] =
+{
+    ImColor(255,255,255,255), ImColor(200,200,200,255), ImColor(150,150,150,255), ImColor(100,100,100,255)
+};
 
+void DrawImGuiSpinner(float& counter, const ImVec2 pos, const ImVec2 size = ImVec2(20.f, 20.f), const float spacing = 2.f, const float step_sec = 0.15f)
+{
+    // Hardcoded to 4 segments, counter is reset after full round (4 steps)
+    // --------------------------------------------------------------------
+
+    // Update counter, determine coloring
+    counter += ImGui::GetIO().DeltaTime;
+    int color_start = 0; // Index to GUI_SPINNER_COLORS array for the top middle segment (segment 0)
+    if (counter > (step_sec*4.f))
+    {
+        counter -= (step_sec*4.f);
+    }
+    else if (counter > (step_sec*3.f))
+    {
+        color_start = 3;
+    }
+    else if (counter > (step_sec*2.f))
+    {
+        color_start = 2;
+    }
+    else if (counter > (step_sec))
+    {
+        color_start = 1;
+    }
+
+    // Draw segments
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    float half_x = (size.x / 2.f);
+    float half_y = (size.y / 2.f);
+    float mid_x = pos.x + half_x;
+    float mid_y = pos.y + half_y;
+
+    draw_list->AddTriangleFilled( // Top
+        ImVec2(mid_x, mid_y-spacing), // mid
+        ImVec2(pos.x + spacing, pos.y), // left
+        ImVec2((pos.x + size.x) - spacing, pos.y), // right
+        GUI_SPINNER_COLORS[color_start]);
+
+    draw_list->AddTriangleFilled( // Right
+        ImVec2(mid_x+spacing, mid_y),// mid
+        ImVec2(pos.x+size.x, pos.y + spacing), // top
+        ImVec2(pos.x+size.x , (pos.y+size.y) - spacing), // bottom
+        GUI_SPINNER_COLORS[(color_start+3)%4]);
+
+    draw_list->AddTriangleFilled( // Bottom
+        ImVec2(mid_x, mid_y+spacing), // mid
+        ImVec2(pos.x + spacing, pos.y+size.y), // left
+        ImVec2((pos.x + size.x) - spacing, pos.y+size.y), //  right
+        GUI_SPINNER_COLORS[(color_start+2)%4]);
+
+    draw_list->AddTriangleFilled( // Left
+        ImVec2(mid_x-spacing, mid_y), // mid
+        ImVec2(pos.x, (pos.y) + spacing), // top
+        ImVec2(pos.x, (pos.y+size.y) - spacing), // bottom
+        GUI_SPINNER_COLORS[(color_start+1)%4]);
+}
 
 // -------------------------------------- console prototype -------------------------------------------
 
@@ -167,6 +228,7 @@ class DemoApp: public Ogre::FrameListener, public OIS::KeyListener, public OIS::
 {
 public:
     DemoApp():
+        m_is_spinner_visible(false),
         m_is_test_window_visible(false),
         m_is_style_editor_visible(false),
         m_is_console_visible(false),
@@ -243,7 +305,6 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
 
     void DrawGui()
     {
-
         if (ImGui::BeginMainMenuBar())
         {
             ImGui::Checkbox("Test", &m_is_test_window_visible);
@@ -253,8 +314,18 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
             ImGui::Checkbox("Console", &m_is_console_visible);
             ImGui::SameLine();
             ImGui::Checkbox("Skeleton", &m_is_skeleton_visible);
+            ImGui::SameLine();
+            ImGui::Checkbox("Spinner", &m_is_spinner_visible);
 
             ImGui::EndMainMenuBar();
+        }
+
+        if (m_is_spinner_visible)
+        {
+            ImGui::Begin("Spinner test");
+            static float spinner_counter = 0.f;
+            DrawImGuiSpinner(spinner_counter, ImVec2(ImGui::GetWindowPos().x + 100.f, ImGui::GetWindowPos().y + 100.f));
+            ImGui::End();
         }
 
         if (m_is_test_window_visible)
@@ -494,6 +565,7 @@ private:
     bool                        m_is_style_editor_visible;
     bool                        m_is_console_visible;
     bool                        m_is_skeleton_visible;
+    bool                        m_is_spinner_visible;
     OgreImGui                   m_imgui;
 };
 
