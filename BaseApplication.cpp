@@ -10,7 +10,7 @@
 
 // -------------------------------------- loading spinner prototype -------------------------------------------
 
-void DrawImGuiSpinner(float& counter, const ImVec2 pos, const ImVec2 size = ImVec2(16.f, 16.f), const float spacing = 2.f, const float step_sec = 0.15f)
+void DrawImGuiSpinner(float& counter, const ImVec2 size = ImVec2(16.f, 16.f), const float spacing = 2.f, const float step_sec = 0.15f)
 {
     // Hardcoded to 4 segments, counter is reset after full round (4 steps)
     // --------------------------------------------------------------------
@@ -39,6 +39,7 @@ void DrawImGuiSpinner(float& counter, const ImVec2 pos, const ImVec2 size = ImVe
 
     // Draw segments
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    const ImVec2 pos = ImGui::GetCursorScreenPos();
     const float left = pos.x;
     const float top = pos.y;
     const float right = pos.x + size.x;
@@ -56,6 +57,32 @@ void DrawImGuiSpinner(float& counter, const ImVec2 pos, const ImVec2 size = ImVe
     draw_list->AddTriangleFilled(ImVec2(mid_x, mid_y+spacing),   ImVec2(right - spacing, bottom), ImVec2(left + spacing, bottom),   COLORS[(color_start+2)%4]);
     // Left triangle, vertices: mid, bottom, top
     draw_list->AddTriangleFilled(ImVec2(mid_x-spacing, mid_y),   ImVec2(left, bottom - spacing),  ImVec2(left, top + spacing),      COLORS[(color_start+1)%4]);
+}
+
+// -------------------------------------- multiplayer connecting status dialog prototype -------------------------------------------
+
+void DrawMpConnecting()
+{
+    static float spin_counter=0.f;
+    const char* infotext = "Joining [stupidly-long-named-sweet-game.rigsofrods.org:12345]";
+
+    const ImVec2 spin_size(20.f, 20.f);
+    const float spin_column_w(50.f);
+    const int win_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoInputs
+        | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar;
+
+    ImGui::SetNextWindowPosCenter();
+    ImGui::Begin("Connecting to MP server...", nullptr, win_flags);
+    ImGui::Columns(2);
+    ImGui::SetColumnOffset(1, spin_column_w);
+
+    ImGui::SetCursorPos(ImGui::GetCursorPos() + ImVec2(5.f, 7.f)); // NOTE: Hand aligned; I failed calculate the positioning here ~ only_a_ptr, 10/2017
+    DrawImGuiSpinner(spin_counter, spin_size);
+
+    ImGui::NextColumn();
+    ImGui::Text(infotext);
+    ImGui::TextDisabled("Running demo...");
+    ImGui::End();
 }
 
 // -------------------------------------- console prototype -------------------------------------------
@@ -214,6 +241,7 @@ class DemoApp: public Ogre::FrameListener, public OIS::KeyListener, public OIS::
 {
 public:
     DemoApp():
+        m_is_mpconnect_visible(false),
         m_is_spinner_visible(false),
         m_is_test_window_visible(false),
         m_is_style_editor_visible(false),
@@ -302,20 +330,27 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
             ImGui::Checkbox("Skeleton", &m_is_skeleton_visible);
             ImGui::SameLine();
             ImGui::Checkbox("Spinner", &m_is_spinner_visible);
+            ImGui::SameLine();
+            ImGui::Checkbox("MP connect", &m_is_mpconnect_visible);
 
             ImGui::EndMainMenuBar();
+        }
+
+        if (m_is_mpconnect_visible)
+        {
+            DrawMpConnecting();
         }
 
         if (m_is_spinner_visible)
         {
             ImGui::Begin("Spinner test");
             static float spinner_counter = 0.f;
-            float spinner_x = (ImGui::GetWindowPos().x)+50;
-            float spinner_y = (ImGui::GetWindowPos().y)+50;
-            DrawImGuiSpinner(spinner_counter, ImVec2(spinner_x, spinner_y));
+            ImGui::SetCursorPos(ImGui::GetCursorPos() + ImVec2(50.f, 50.f));
+            DrawImGuiSpinner(spinner_counter);
 
             static float counter2 = 0.f;
-            DrawImGuiSpinner(counter2, ImVec2(spinner_x+31.f, spinner_y+1.f), ImVec2(25.f, 25.f), 3.f);
+            ImGui::SetCursorPos(ImGui::GetCursorPos() + ImVec2(31.f, 1.f));
+            DrawImGuiSpinner(counter2, ImVec2(25.f, 25.f), 3.f);
             ImGui::End();
         }
 
@@ -557,6 +592,7 @@ private:
     bool                        m_is_console_visible;
     bool                        m_is_skeleton_visible;
     bool                        m_is_spinner_visible;
+    bool                        m_is_mpconnect_visible;
     OgreImGui                   m_imgui;
 };
 
