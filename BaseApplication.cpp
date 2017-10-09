@@ -20,11 +20,12 @@ void DrawImGuiSpinner(float& counter, const ImVec2 size = ImVec2(16.f, 16.f), co
     // Update counter, determine coloring
     counter += ImGui::GetIO().DeltaTime;
     int color_start = 0; // Index to GUI_SPINNER_COLORS array for the top middle segment (segment 0)
-    if (counter > (step_sec*4.f))
+    while (counter > (step_sec*4.f))
     {
         counter -= (step_sec*4.f);
     }
-    else if (counter > (step_sec*3.f))
+
+    if (counter > (step_sec*3.f))
     {
         color_start = 3;
     }
