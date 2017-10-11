@@ -35,8 +35,6 @@ namespace App {
 // ================================================================================
 
 
-
-
 // App
  GVarEnum<AppState>       app_state               ("app_state",               nullptr,                     AppState::BOOTSTRAP,     AppState::MAIN_MENU);
  GVarStr<100>             app_language            ("app_language",            "Language",                  "English",               "English");
@@ -45,7 +43,7 @@ namespace App {
  GVarStr<50>              app_screenshot_format   ("app_screenshot_format",   "Screenshot Format",         "jpg",                   "jpg");
 
 // Simulation
- GVarEnum<SimState>       sim_state               ("sim_state",               nullptr,                     SimState::NONE,          SimState::NONE);
+ GVarEnum<SimState>       sim_state               ("sim_state",               nullptr,                     SimState::OFF,           SimState::OFF);
  GVarStr<200>             sim_terrain_name        ("sim_terrain_name",        nullptr,                     "",                      "");
  GVarPod<bool>            sim_replay_enabled      ("sim_replay_enabled",      "Replay mode",               false,                   false);
  GVarPod<int>             sim_replay_length       ("sim_replay_length",       "Replay length",             200,                     200);
@@ -59,6 +57,7 @@ namespace App {
  GVarPod<int>             mp_server_port          ("mp_server_port",          "Server port",               0,                       0);
  GVarStr<100>             mp_server_password      ("mp_server_password",      "Server password",           "",                      "");
  GVarStr<100>             mp_player_name          ("mp_player_name",          "Nickname",                  "Player",                "Player");
+ GVarStr<250>             mp_player_token_hash    ("mp_player_token_hash",    "User Token Hash",           "",                      "");
  GVarStr<400>             mp_portal_url           ("mp_portal_url",           "MP portal URL",             "http://multiplayer.rigsofrods.org", "http://multiplayer.rigsofrods.org");
 
 // Diagnostic
@@ -79,6 +78,7 @@ namespace App {
  GVarPod<bool>            diag_log_beam_deform    ("diag_log_beam_deform",    "Beam Deform Debug",         false,                   false);
  GVarPod<bool>            diag_log_beam_trigger   ("diag_log_beam_trigger",   "Trigger Debug",             false,                   false);
  GVarPod<bool>            diag_dof_effect         ("diag_dof_effect",         "DOFDebug",                  false,                   false);
+ GVarStr<300>             diag_extra_resource_dir ("diag_extra_resource_dir", "resourceIncludePath",       "",                      "");
 
 // System                                         (all paths are without ending slash!)
  GVarStr<300>             sys_process_dir         ("sys_process_dir",         nullptr,                     "",                      "");
@@ -133,7 +133,6 @@ namespace App {
  GVarPod<float>           gfx_fov_external        ("gfx_fov_external",        "FOV External",              60.f,                    60.f);
  GVarPod<float>           gfx_fov_internal        ("gfx_fov_internal",        "FOV Internal",              75.f,                    75.f);
  GVarPod<int>             gfx_fps_limit           ("gfx_fps_limit",           "FPS-Limiter",               0,                       0); // 0 = unlimited
-
 } // namespace App
 
 // ================================================================================
@@ -151,77 +150,12 @@ static const size_t GVAR_NBUF   = 500;
 
 #define LOG(_MSG) std::cout << _MSG << std::endl;
 
-// SetPending
-void GVarBase::LogSetPendingS(const char* input, const char* pending, const char* active) const
-{
-    char buf[GVAR_NBUF];
-    snprintf(buf, GVAR_NBUF, GVAR_FMT_S, name, input, "==>", pending, "   ", active);
-    LOG(buf);
-}
 
-void GVarBase::LogSetPending(int input, int pending, int active) const
-{
-    char buf[GVAR_NBUF];
-    snprintf(buf, GVAR_NBUF, GVAR_FMT_D, name, input, "==>", pending, "   ", active);
-    LOG(buf);
-}
-
-void GVarBase::LogSetPending(float input, float pending, float active) const
-{
-    char buf[GVAR_NBUF];
-    snprintf(buf, GVAR_NBUF, GVAR_FMT_F, name, input, "==>", pending, "   ", active);
-    LOG(buf);
-}
-
-// SetActive
-void GVarBase::LogSetActiveS(const char* input, const char* active) const
-{
-    char buf[GVAR_NBUF];
-    snprintf(buf, GVAR_NBUF, GVAR_FMT_S, name, input, "==>", active, "==>", active);
-    LOG(buf);
-}
-
-void GVarBase::LogSetActive(int input, int active) const
-{
-    char buf[GVAR_NBUF];
-    snprintf(buf, GVAR_NBUF, GVAR_FMT_D, name, input, "==>", active, "==>", active);
-    LOG(buf);
-}
-
-void GVarBase::LogSetActive(float input, float active) const
-{
-    char buf[GVAR_NBUF];
-    snprintf(buf, GVAR_NBUF, GVAR_FMT_F, name, input, "==>", active, "==>", active);
-    LOG(buf);
-}
-
-// ApplyPending
-void GVarBase::LogApplyPendingS(const char* pending, const char* active) const
-{
-    char buf[GVAR_NBUF];
-    snprintf(buf, GVAR_NBUF, GVAR_FMT_S, name, "", "   ", pending, "==>", active);
-    LOG(buf);
-}
-
-void GVarBase::LogApplyPending(int pending, int active) const
-{
-    char buf[GVAR_NBUF];
-    snprintf(buf, GVAR_NBUF, GVAR_FMT_D, name, "", "   ", pending, "==>", active);
-    LOG(buf);
-}
-
-void GVarBase::LogApplyPending(float pending, float active) const
-{
-    char buf[GVAR_NBUF];
-    snprintf(buf, GVAR_NBUF, GVAR_FMT_F, name, "", "   ", pending, "==>", active);
-    LOG(buf);
-}
 
 const char* EnumToStr(AppState v)
 {
     switch (v)
     {
-    case AppState::NONE:                return "NONE";
     case AppState::BOOTSTRAP:           return "BOOTSTRAP";
     case AppState::CHANGE_MAP:          return "CHANGE_MAP";
     case AppState::MAIN_MENU:           return "MAIN_MENU";
@@ -237,7 +171,6 @@ const char* EnumToStr(MpState v)
 {
     switch (v)
     {
-    case MpState::NONE:      return "NONE";
     case MpState::DISABLED:  return "DISABLED";
     case MpState::CONNECTED: return "CONNECTED";
     default:                 return "~invalid~";
@@ -248,7 +181,7 @@ const char* EnumToStr(SimState v)
 {
     switch (v)
     {
-    case SimState::NONE       : return "NONE";
+    case SimState::OFF       : return "OFF";
     case SimState::RUNNING    : return "RUNNING";
     case SimState::PAUSED     : return "PAUSED";
     case SimState::SELECTING  : return "SELECTING";

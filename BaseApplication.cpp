@@ -86,6 +86,70 @@ void DrawMpConnecting()
     ImGui::End();
 }
 
+// -------------------------------------- game settings UI prototype -------------------------------------
+
+namespace RoR{
+
+class GameSettings
+{
+public:
+    enum SettingsTab { GENERAL, CONTROL, VIDEO, DIAG };
+
+    GameSettings(): m_is_visible(false), m_tab(SettingsTab::GENERAL) {}
+
+    void Draw()
+    {
+        bool is_visible = true;
+        const int flags = ImGuiWindowFlags_NoCollapse;
+        ImGui::SetNextWindowSize(ImVec2(400.f, 300.f), ImGuiSetCond_FirstUseEver);
+        ImGui::SetNextWindowPosCenter(ImGuiSetCond_Appearing);
+        ImGui::Begin("Game settings", &is_visible, flags);
+        if (! is_visible)
+        {
+            this->HandleClose();
+            return;
+        }
+
+        // 'Tabs' buttons
+        if (ImGui::Button("General"))    { m_tab = SettingsTab::GENERAL; }
+        ImGui::SameLine();
+        if (ImGui::Button("Controls"))   { m_tab = SettingsTab::CONTROL; }
+        ImGui::SameLine();
+        if (ImGui::Button("Video"))      { m_tab = SettingsTab::VIDEO;   }
+        ImGui::SameLine();
+        if (ImGui::Button("Diagnostic")) { m_tab = SettingsTab::DIAG;    }
+
+        ImGui::Separator();
+
+        if (m_tab == SettingsTab::GENERAL)
+        {
+            ImGui::InputText("Language", App::app_language.GetPending().GetBuffer(), App::app_language.GetPending().GetCapacity());
+            ImGui::InputText("Locale",   App::app_locale  .GetPending().GetBuffer(), App::app_locale  .GetPending().GetCapacity());
+        }
+
+        ImGui::End();
+    }
+
+    void HandleClose()
+    {
+        m_is_visible = false;
+        m_tab = SettingsTab::GENERAL;
+
+        App::app_language.ResetPending();
+
+        // TODO: Reset pending GVar values
+    }
+
+    inline bool IsVisible() const { return m_is_visible; }
+    inline void SetVisible(bool v) { m_is_visible = v; }
+
+private:
+    bool m_is_visible;
+    SettingsTab m_tab;
+};
+
+} // namespace RoR
+
 // -------------------------------------- console prototype -------------------------------------------
 
 ImVec4 col_white(1.f, 1.f, 1.f, 1.f);
@@ -333,6 +397,10 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
             ImGui::Checkbox("Spinner", &m_is_spinner_visible);
             ImGui::SameLine();
             ImGui::Checkbox("MP connect", &m_is_mpconnect_visible);
+            ImGui::SameLine();
+            bool settings_vis = m_settings_ui.IsVisible();
+            ImGui::Checkbox("Settings", &settings_vis);
+            m_settings_ui.SetVisible(settings_vis);
 
             ImGui::EndMainMenuBar();
         }
@@ -373,6 +441,11 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
         if (m_is_skeleton_visible)
         {
             DrawSkeletonView();
+        }
+
+        if (m_settings_ui.IsVisible())
+        {
+            m_settings_ui.Draw();
         }
 
     }
@@ -595,6 +668,7 @@ private:
     bool                        m_is_spinner_visible;
     bool                        m_is_mpconnect_visible;
     OgreImGui                   m_imgui;
+    RoR::GameSettings           m_settings_ui;
 };
 
 
