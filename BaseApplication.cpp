@@ -119,6 +119,7 @@ public:
         ImGui::SameLine();
         if (ImGui::Button("Diagnostic")) { m_tab = SettingsTab::DIAG;    }
 
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.f);
         ImGui::Separator();
 
         if (m_tab == SettingsTab::GENERAL)
@@ -185,10 +186,24 @@ public:
                 "None\0"
                 "Static\0"
                 "Pitching\0\0");
-            /*
-            this->DrawGCombo(App::gfx_sky_mode       , ""
-            this->DrawGCombo(App::gfx_texture_filter , ""
-            this->DrawGCombo(App::gfx_vegetation_mode, ""*/
+
+            this->DrawGCombo(App::gfx_sky_mode, "Sky gfx",
+                "Sandstorm (fastest)\0"
+                "Caelum (best looking, slower)\0"
+                "SkyX (best looking, slower)\0\0");
+
+            this->DrawGCombo(App::gfx_texture_filter , "Texture filtering",
+                "None\0"
+                "Bilinear\0"
+                "Trilinear\0"
+                "Anisotropic\0\0");
+
+            this->DrawGCombo(App::gfx_vegetation_mode, "Vegetation density",
+                "None\0"
+                "20%\0"
+                "50%\0"
+                "Full\0\0");
+
             this->DrawGCombo(App::gfx_water_mode, "Water gfx",
                 "None\0"
                 "Basic (fastest)\0"
@@ -205,14 +220,20 @@ public:
             this->DrawGCheckbox(App::gfx_enable_heathaze,  "HeatHaze effect");
             this->DrawGCheckbox(App::gfx_enable_videocams, "Render VideoCameras");
             this->DrawGCheckbox(App::gfx_envmap_enabled,   "Realtime reflections");
-//extern GVarPod<int>            App::gfx_particles_mode;
+            this->DrawGIntCheck(App::gfx_particles_mode,   "Enable particle gfx");
+            this->DrawGIntCheck(App::gfx_skidmarks_mode,   "Enable skidmarks");
 
-//extern GVarPod<int>            App::gfx_envmap_rate;
-//extern GVarPod<int>            App::gfx_skidmarks_mode;
-//extern GVarPod<float>          App::gfx_sight_range;
-//extern GVarPod<float>          App::gfx_fov_external;
-//extern GVarPod<float>          App::gfx_fov_internal;
-//extern GVarPod<int>            App::gfx_fps_limit;
+            ImGui::PushItemWidth(100.f); // Width includes [+/-] buttons
+            this->DrawGIntBox(App::gfx_envmap_rate,    "Realtime refl. update rate");
+            this->DrawGIntBox(App::gfx_fps_limit,      "FPS limit");
+            ImGui::PopItemWidth();
+
+            ImGui::PushItemWidth(125.f);
+            this->DrawGFloatBox(App::gfx_sight_range,  "Sight range (meters)");
+            this->DrawGFloatBox(App::gfx_fov_external, "Exterior FOV (field of view)");
+            this->DrawGFloatBox(App::gfx_fov_internal, "Interior FOV (field of view)");
+            ImGui::PopItemWidth();
+
         }
         else if (m_tab == SettingsTab::DIAG)
         {
@@ -235,6 +256,40 @@ public:
             this->DrawGCheckbox(App::diag_log_beam_trigger,    "Log beam triggers");
             this->DrawGCheckbox(App::diag_dof_effect,          "Debug DOF (depth of field)");
 //extern GVarStr<300>            App::diag_extra_resource_dir;
+        }
+        else if (m_tab == SettingsTab::CONTROL)
+        {
+            ImGui::TextDisabled("Controller options");
+
+            this->DrawGCheckbox(App::io_ffb_enabled, "Enable ForceFeedback");
+            if (App::io_ffb_enabled.GetActive())
+            {
+                ImGui::PushItemWidth(125.f);
+                this->DrawGFloatBox(App::io_ffb_camera_gain, "FFB camera gain");
+                this->DrawGFloatBox(App::io_ffb_center_gain, "FFB center gain");
+                this->DrawGFloatBox(App::io_ffb_master_gain, "FFB master gain");
+                this->DrawGFloatBox(App::io_ffb_stress_gain, "FFB stress gain");
+                ImGui::PopItemWidth();
+            }
+
+            this->DrawGCombo(App::io_input_grab_mode, "Input grab mode",
+                "None\0"
+                "All\0"
+                "Dynamic\0\0");
+
+            this->DrawGCheckbox(App::io_arcade_controls, "Use arcade controls");
+            this->DrawGIntCheck(App::io_outgauge_mode, "Enable OutGauge protocol");
+            if (App::io_outgauge_mode.GetActive())
+            {
+//<50>              App::io_outgauge_ip
+                ImGui::PushItemWidth(125.f);
+                this->DrawGIntBox(App::io_outgauge_port,    "OutGauge port");
+                this->DrawGIntBox(App::io_outgauge_id,      "OutGauge ID");
+                this->DrawGFloatBox(App::io_outgauge_delay, "OutGauge delay");
+                ImGui::PopItemWidth();
+
+            }
+
         }
 
         ImGui::End();
@@ -259,6 +314,15 @@ public:
         }
     }
 
+    inline void DrawGIntCheck(GVarPod<int>& gvar, const char* label)
+    {
+        bool val = (gvar.GetActive() != 0);
+        if (ImGui::Checkbox(label, &val))
+        {
+            gvar.SetActive(val ? 1 : 0);
+        }
+    }
+
     template <typename GEnum_T>
     inline void DrawGCombo(GVarEnum<GEnum_T>& gvar, const char* label, const char* values)
     {
@@ -266,6 +330,24 @@ public:
         if (ImGui::Combo(label, &selection, values))
         {
             gvar.SetActive(static_cast<GEnum_T>(selection));
+        }
+    }
+
+    inline void DrawGIntBox(GVarPod<int>& gvar, const char* label)
+    {
+        int val = gvar.GetActive();
+        if (ImGui::InputInt(label, &val, 1, 100, ImGuiInputTextFlags_EnterReturnsTrue))
+        {
+            gvar.SetActive(val);
+        }
+    }
+
+    inline void DrawGFloatBox(GVarPod<float>& gvar, const char* label)
+    {
+        float fval = gvar.GetActive();
+        if (ImGui::InputFloat(label, &fval, 0.f, 0.f, -1, ImGuiInputTextFlags_EnterReturnsTrue))
+        {
+            gvar.SetActive(fval);
         }
     }
 
