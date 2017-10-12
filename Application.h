@@ -227,7 +227,7 @@ enum class GfxShadowType
     TEXTURE,
     PSSM
 };
-const char* EnumToStr(SimGearboxMode v);
+const char* EnumToStr(GfxShadowType v);
 
 enum class GfxExtCamMode
 {

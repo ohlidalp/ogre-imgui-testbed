@@ -167,6 +167,17 @@ const char* EnumToStr(AppState v)
     }
 }
 
+const char* EnumToStr(GfxExtCamMode v)
+{
+    switch (v)
+    {
+    case GfxExtCamMode::NONE:     return "NONE";
+    case GfxExtCamMode::STATIC:   return "STATIC";
+    case GfxExtCamMode::PITCHING: return "PITCHING";
+    default:                      return "~invalid~";
+    }
+}
+
 const char* EnumToStr(MpState v)
 {
     switch (v)

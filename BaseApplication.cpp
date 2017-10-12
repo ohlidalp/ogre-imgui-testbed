@@ -106,7 +106,7 @@ public:
         ImGui::Begin("Game settings", &is_visible, flags);
         if (! is_visible)
         {
-            this->HandleClose();
+            this->SetVisible(false);
             return;
         }
 
@@ -123,25 +123,151 @@ public:
 
         if (m_tab == SettingsTab::GENERAL)
         {
-            ImGui::InputText("Language", App::app_language.GetPending().GetBuffer(), App::app_language.GetPending().GetCapacity());
-            ImGui::InputText("Locale",   App::app_locale  .GetPending().GetBuffer(), App::app_locale  .GetPending().GetCapacity());
+            ImGui::TextDisabled("Application settings");
+
+            int lang_selection = 0;
+            ImGui::Combo("Language", &lang_selection, "English\0\0"); // Dummy; TODO: List available languages
+
+            int sshot_select = (std::strcmp(App::app_screenshot_format.GetActive(),"jpg") == 0) ? 1 : 0; // Hardcoded; TODO: list available formats.
+            if (ImGui::Combo("Screenshot format", &sshot_select, "png\0jpg\0\0"))
+            {
+                App::app_screenshot_format.SetActive((sshot_select == 1) ? "jpg" : "png");
+            }
+
+            this->DrawGCheckbox(App::app_multithread, "Multithreading");
+
+            ImGui::Separator();
+            ImGui::TextDisabled("Simulation settings");
+
+            this->DrawGCheckbox(App::sim_position_storage, "Use position storage");
+            this->DrawGCheckbox(App::sim_replay_enabled, "Replay mode");
+
+            if (App::sim_replay_enabled.GetActive())
+            {
+                int replay_len = App::sim_replay_length.GetActive();
+                if (ImGui::InputInt("Replay length", &replay_len))
+                {
+                    App::sim_replay_length.SetActive(replay_len);
+                }
+
+                int replay_step = App::sim_replay_stepping.GetActive();
+                if (ImGui::InputInt("Replay stepping", &replay_step))
+                {
+                    App::sim_replay_stepping.SetActive(replay_len);
+                }
+            }
+
+            this->DrawGCombo(App::sim_gearbox_mode, "Gearbox mode",
+                "Automatic shift\0"
+                "Manual shift - Auto clutch\0"
+                "Fully Manual: sequential shift\0"
+                "Fully manual: stick shift\0"
+                "Fully Manual: stick shift with ranges\00");
+
+        }
+        else if (m_tab == SettingsTab::VIDEO)
+        {
+            ImGui::TextDisabled("Video settings");
+
+            this->DrawGCombo(App::gfx_flares_mode, "Lights",
+                "None (fastest)\0"
+                "No light sources\0"
+                "Only current vehicle, main lights\0"
+                "All vehicles, main lights\0"
+                "All vehicles, all lights\0\0");
+
+            this->DrawGCombo(App::gfx_shadow_type, "Shadow type",
+                "Disabled\0"
+                "Texture\0"
+                "PSSM\0\0");
+
+            this->DrawGCombo(App::gfx_extcam_mode, "Exterior camera mode",
+                "None\0"
+                "Static\0"
+                "Pitching\0\0");
+            /*
+            this->DrawGCombo(App::gfx_sky_mode       , ""
+            this->DrawGCombo(App::gfx_texture_filter , ""
+            this->DrawGCombo(App::gfx_vegetation_mode, ""*/
+            this->DrawGCombo(App::gfx_water_mode, "Water gfx",
+                "None\0"
+                "Basic (fastest)\0"
+                "Reflection\0"
+                "Reflection + refraction (speed optimized)\0"
+                "Reflection + refraction (quality optimized)\0"
+                "HydraX\0\0");
+
+            this->DrawGCheckbox(App::gfx_enable_sunburn,   "Sunburn effect");
+            this->DrawGCheckbox(App::gfx_water_waves,      "Waves on water");
+            this->DrawGCheckbox(App::gfx_minimap_disabled, "Minimap disabled");
+            this->DrawGCheckbox(App::gfx_enable_glow,      "Glow (bloom) effect");
+            this->DrawGCheckbox(App::gfx_enable_hdr,       "HDR (high dynamic range)");
+            this->DrawGCheckbox(App::gfx_enable_heathaze,  "HeatHaze effect");
+            this->DrawGCheckbox(App::gfx_enable_videocams, "Render VideoCameras");
+            this->DrawGCheckbox(App::gfx_envmap_enabled,   "Realtime reflections");
+//extern GVarPod<int>            App::gfx_particles_mode;
+
+//extern GVarPod<int>            App::gfx_envmap_rate;
+//extern GVarPod<int>            App::gfx_skidmarks_mode;
+//extern GVarPod<float>          App::gfx_sight_range;
+//extern GVarPod<float>          App::gfx_fov_external;
+//extern GVarPod<float>          App::gfx_fov_internal;
+//extern GVarPod<int>            App::gfx_fps_limit;
+        }
+        else if (m_tab == SettingsTab::DIAG)
+        {
+            ImGui::TextDisabled("Diagnostic options");
+
+            this->DrawGCheckbox(App::diag_rig_log_node_import, "Log node import (spawn)");
+            this->DrawGCheckbox(App::diag_rig_log_node_stats,  "Log node stats (spawn)");
+            this->DrawGCheckbox(App::diag_rig_log_messages,    "Log messages (spawn)");
+            this->DrawGCheckbox(App::diag_collisions,          "Debug collisions");
+            this->DrawGCheckbox(App::diag_truck_mass,          "Debug actor mass");
+            this->DrawGCheckbox(App::diag_envmap,              "Debug realtime reflections");
+            this->DrawGCheckbox(App::diag_videocameras,        "Debug videocameras");
+//extern GVarStr<100>            App::diag_preset_terrain;
+//extern GVarStr<100>            App::diag_preset_vehicle;
+//extern GVarStr<100>            App::diag_preset_veh_config;
+            this->DrawGCheckbox(App::diag_preset_veh_enter,    "Enter preselected vehicle");
+            this->DrawGCheckbox(App::diag_log_console_echo,    "Echo log to console");
+            this->DrawGCheckbox(App::diag_log_beam_break,      "Log beam breaking");
+            this->DrawGCheckbox(App::diag_log_beam_deform,     "Log beam deforming");
+            this->DrawGCheckbox(App::diag_log_beam_trigger,    "Log beam triggers");
+            this->DrawGCheckbox(App::diag_dof_effect,          "Debug DOF (depth of field)");
+//extern GVarStr<300>            App::diag_extra_resource_dir;
         }
 
         ImGui::End();
     }
 
-    void HandleClose()
+    inline bool IsVisible() const { return m_is_visible; }
+    inline void SetVisible(bool v)
     {
-        m_is_visible = false;
-        m_tab = SettingsTab::GENERAL;
-
-        App::app_language.ResetPending();
-
-        // TODO: Reset pending GVar values
+        if (!v)
+        {
+            m_tab = SettingsTab::GENERAL;
+        }
+        m_is_visible = v;
     }
 
-    inline bool IsVisible() const { return m_is_visible; }
-    inline void SetVisible(bool v) { m_is_visible = v; }
+    inline void DrawGCheckbox(GVarPod<bool>& gvar, const char* label)
+    {
+        bool val = gvar.GetActive();
+        if (ImGui::Checkbox(label, &val))
+        {
+            gvar.SetActive(val);
+        }
+    }
+
+    template <typename GEnum_T>
+    inline void DrawGCombo(GVarEnum<GEnum_T>& gvar, const char* label, const char* values)
+    {
+        int selection = static_cast<int>(gvar.GetActive());
+        if (ImGui::Combo(label, &selection, values))
+        {
+            gvar.SetActive(static_cast<GEnum_T>(selection));
+        }
+    }
 
 private:
     bool m_is_visible;
