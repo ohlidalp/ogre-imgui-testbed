@@ -13,15 +13,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="stdafx.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="targetver.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="lib\DearIMGUI\imconfig.h">
       <Filter>lib/DearIMGUI</Filter>
     </ClInclude>
@@ -46,6 +37,12 @@
     <ClInclude Include="lib\DearIMGUI_OGRE\ImguiRenderable.h">
       <Filter>lib/DearIMGUI-OGRE</Filter>
     </ClInclude>
+    <ClInclude Include="src\stdafx.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\targetver.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="lib\DearIMGUI\imgui.cpp">
@@ -63,10 +60,10 @@
     <ClCompile Include="lib\DearIMGUI_OGRE\ImguiRenderable.cpp">
       <Filter>lib/DearIMGUI-OGRE</Filter>
     </ClCompile>
-    <ClCompile Include="BaseApplication.cpp">
+    <ClCompile Include="src\main.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="stdafx.cpp">
+    <ClCompile Include="src\stdafx.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
