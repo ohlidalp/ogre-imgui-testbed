@@ -20,3 +20,8 @@ Ogre.log
 
 # Font texture debug output
 FontTexture_*.png
+
+# debugpack - setup for dependency-free bundle
+/lib/OGRE
+/lib/OIS
+/lib_builds
