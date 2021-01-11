@@ -298,11 +298,11 @@ void OgreImGui::createMaterial()
     Ogre::HighLevelGpuProgramPtr vertexShaderGL = mgr.getByName("imgui/VP/GL150");
     Ogre::HighLevelGpuProgramPtr pixelShaderGL = mgr.getByName("imgui/FP/GL150");
     
-    if(vertexShaderUnified.isNull())
+    if(!vertexShaderUnified)
     {
         vertexShaderUnified = mgr.createProgram("imgui/VP",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,"unified",Ogre::GPT_VERTEX_PROGRAM);
     }
-    if(pixelShaderUnified.isNull())
+    if(!pixelShaderUnified)
     {
         pixelShaderUnified = mgr.createProgram("imgui/FP",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,"unified",Ogre::GPT_FRAGMENT_PROGRAM);
     }
@@ -310,7 +310,7 @@ void OgreImGui::createMaterial()
     Ogre::UnifiedHighLevelGpuProgram* vertexShaderPtr = static_cast<Ogre::UnifiedHighLevelGpuProgram*>(vertexShaderUnified.get());
     Ogre::UnifiedHighLevelGpuProgram* pixelShaderPtr = static_cast<Ogre::UnifiedHighLevelGpuProgram*>(pixelShaderUnified.get());
 
-    if (vertexShaderD3D11.isNull())
+    if (!vertexShaderD3D11)
     {
         vertexShaderD3D11 = mgr.createProgram("imgui/VP/D3D11", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
                 "hlsl", Ogre::GPT_VERTEX_PROGRAM);
@@ -322,7 +322,7 @@ void OgreImGui::createMaterial()
         vertexShaderPtr->addDelegateProgram(vertexShaderD3D11->getName());
     }
 
-    if (pixelShaderD3D11.isNull())
+    if (!pixelShaderD3D11)
     {
         pixelShaderD3D11 = mgr.createProgram("imgui/FP/D3D11", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
                 "hlsl", Ogre::GPT_FRAGMENT_PROGRAM);
@@ -334,7 +334,7 @@ void OgreImGui::createMaterial()
         pixelShaderPtr->addDelegateProgram(pixelShaderD3D11->getName());
     }
 
-    if (vertexShaderD3D9.isNull())
+    if (!vertexShaderD3D9)
     {
         vertexShaderD3D9 = mgr.createProgram("imgui/VP/D3D9", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
             "hlsl", Ogre::GPT_VERTEX_PROGRAM);
@@ -346,7 +346,7 @@ void OgreImGui::createMaterial()
         vertexShaderPtr->addDelegateProgram(vertexShaderD3D9->getName());
     }
 
-    if (pixelShaderD3D9.isNull())
+    if (!pixelShaderD3D9)
     {
         pixelShaderD3D9 = mgr.createProgram("imgui/FP/D3D9", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
             "hlsl", Ogre::GPT_FRAGMENT_PROGRAM);
@@ -358,7 +358,7 @@ void OgreImGui::createMaterial()
         pixelShaderPtr->addDelegateProgram(pixelShaderD3D9->getName());
     }
 
-    if (vertexShaderGL.isNull())
+    if (!vertexShaderGL)
     {
         vertexShaderGL = mgr.createProgram("imgui/VP/GL150", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
                 "glsl", Ogre::GPT_VERTEX_PROGRAM);
@@ -367,7 +367,7 @@ void OgreImGui::createMaterial()
         vertexShaderPtr->addDelegateProgram(vertexShaderGL->getName());
     }
 
-    if (pixelShaderGL.isNull())
+    if (!pixelShaderGL)
     {
         pixelShaderGL = mgr.createProgram("imgui/FP/GL150", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
                 "glsl", Ogre::GPT_FRAGMENT_PROGRAM);
@@ -403,7 +403,7 @@ void OgreImGui::createFontTexture()
     mFontTex = Ogre::TextureManager::getSingleton().createManual("ImguiFontTex",Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,Ogre::TEX_TYPE_2D,width,height,1,1,Ogre::PF_R8G8B8A8);
 
     // Lock texture for writing
-    const Ogre::PixelBox & lockBox = mFontTex->getBuffer()->lock(Ogre::Image::Box(0, 0, width, height), Ogre::HardwareBuffer::HBL_DISCARD);
+    const Ogre::PixelBox & lockBox = mFontTex->getBuffer()->lock(Ogre::Box(0, 0, width, height), Ogre::HardwareBuffer::HBL_DISCARD);
 
     // Copy texture to ImGui
     size_t texDepth = Ogre::PixelUtil::getNumElemBytes(lockBox.format);
@@ -480,13 +480,13 @@ OgreImGui::ImGUIRenderable::~ImGUIRenderable()
 {
     OGRE_DELETE mRenderOp.vertexData;
     OGRE_DELETE mRenderOp.indexData;
-    mMaterial.setNull();
+    mMaterial.reset();
 }
 
 void OgreImGui::ImGUIRenderable::setMaterial( const Ogre::String& matName )
 {
     mMaterial = Ogre::MaterialManager::getSingleton().getByName( matName );
-    if( !mMaterial.isNull() )
+    if( mMaterial )
     {
         return;
     }
@@ -517,7 +517,7 @@ void OgreImGui::ImGUIRenderable::updateVertexData(const ImDrawVert* vtxBuf, cons
 
         bind->setBinding(0, Ogre::HardwareBufferManager::getSingleton().createVertexBuffer(sizeof(ImDrawVert), mVertexBufferSize, Ogre::HardwareBuffer::HBU_WRITE_ONLY));
     }
-    if (mRenderOp.indexData->indexBuffer.isNull() || mIndexBufferSize != idxCount)
+    if (!mRenderOp.indexData->indexBuffer || mIndexBufferSize != idxCount)
     {
         mIndexBufferSize = idxCount;
 

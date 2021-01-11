@@ -98,7 +98,7 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
 
         // Show the configuration dialog and initialise the system.
         // NOTE: If you have valid file 'ogre.cfg', you can use `root.restoreConfig()` instead.
-        if(!mRoot->showConfigDialog())
+        if(!mRoot->showConfigDialog(nullptr))
         {
             // User abort
             delete mRoot;
@@ -109,7 +109,7 @@ style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 1.00f
         const char* window_name = "OGRE/ImGui demo app";
         mWindow = mRoot->initialise(create_window, window_name);
 
-        mSceneMgr = mRoot->createSceneManager(Ogre::ST_GENERIC);
+        mSceneMgr = mRoot->createSceneManager();
         mCamera = mSceneMgr->createCamera("PlayerCam");
 
         // Create one viewport, entire window

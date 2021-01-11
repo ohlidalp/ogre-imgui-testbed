@@ -16,6 +16,8 @@
 #include <OgreRenderWindow.h>
 #include <OgreConfigFile.h>
 
+#include <Bites/OgreWindowEventUtilities.h>
+
 #include <OISEvents.h>
 #include <OISInputManager.h>
 #include <OISKeyboard.h>
@@ -23,5 +25,7 @@
 
 // TODO: reference additional headers your program requires here
 
+#include <iostream>
+#include <iomanip>
 #include <memory>    // std::unique_ptr
 #include <algorithm> // std::min()
